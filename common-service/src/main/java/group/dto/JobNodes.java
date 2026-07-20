@@ -32,8 +32,8 @@ public class JobNodes {
     @JsonProperty("level")
     private String level;
 
-//    @JsonProperty("industryTags")
-//    private List<String> industryTags;
+    @JsonProperty("industryTags")
+    private List<String> industryTags;
 
     // 核心能力要求 (用于过滤或展示，不作为主要向量内容，除非你想按能力搜)
     @JsonProperty("abilityRequirements")

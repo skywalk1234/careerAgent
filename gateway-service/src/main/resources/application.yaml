@@ -38,12 +38,18 @@ spring:
           predicates:
             - Path=/jobs/**,/career-reports/**
           order: 4
+        # career-service 路由：管理员相关
+        - id: career-admin
+          uri: lb://career-service
+          predicates:
+            - Path=/admin/**
+          order: 5
         # resume-parser-service 路由：其他路径
         - id: resume-parser-other
           uri: lb://resume-parser-service
           predicates:
             - Path=/eval/**,/jobs/recommend,/jobs/recommend/specific,/jobs/route/auto-plan,/vector_store/**
-          order: 5
+          order: 6
 
 group:
   jwt:

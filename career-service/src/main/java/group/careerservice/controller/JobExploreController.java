@@ -59,9 +59,14 @@ public class JobExploreController {
         log.info("开始查询所有岗位信息");
         Page<JobDocument> jobs = saveJobService.queryJobsByFilter(filters);
         log.info("查询成功，返回岗位列表，数量：{}", jobs.getTotalElements());
-        List<JobDocument> content = jobs.getContent();
 
-        return Result.success(content);
+        Map<String, Object> response = new HashMap<>();
+        response.put("total", jobs.getTotalElements());
+        response.put("page", filters.getPage() != null ? filters.getPage() : 1);
+        response.put("pageSize", filters.getPageSize() != null ? filters.getPageSize() : 20);
+        response.put("list", jobs.getContent());
+
+        return Result.success(response);
     }
 
     @GetMapping("/users/me/favorite-jobs")
