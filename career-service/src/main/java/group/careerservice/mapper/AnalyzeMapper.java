@@ -1,0 +1,9 @@
+package group.careerservice.mapper;/* I love coding */
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import group.careerservice.domain.po.AnalyzeJobPo;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface AnalyzeMapper extends BaseMapper<AnalyzeJobPo> {
+}

@@ -1,0 +1,208 @@
+package group.profileservice.controller;/* I love coding */
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import group.common.Result;
+import group.dto.ResumeEvaluationResult;
+import group.dto.StudentProfile;
+import group.profileservice.domain.po.Evaluation;
+import group.dto.OpenSourceBonus;
+import group.profileservice.domain.po.ResumeFull;
+import group.dto.GetProfileResponse;
+import group.profileservice.domain.response.QueryResumeRes;
+
+import group.profileservice.domain.response.ResumeNullRes;
+import group.profileservice.service.*;
+import group.profileservice.tools.StudentProfileChecker;
+import group.utils.UserContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequiredArgsConstructor
+@Slf4j
+public class ProfileController {
+    private final SaveProfileService saveProfileService;
+    private final QueryResumeService queryResumeService;
+    private final SaveEvalService saveEvalService;
+    private final QueryProfileService queryProfileService;
+    //保存简历
+    @RabbitListener(queues = "profile_storage")
+    public void listen_profile_exchange(Map<String, Object> profileMsg) {  // 直接接收对象
+        String res_json = (String) profileMsg.get("profileData");
+
+        //由于序列化过程可能导致long处理成integer，所以这里要判断
+        Object userIdObj = profileMsg.get("userId");
+        Long userId = null;
+
+        if (userIdObj != null) {
+            if (userIdObj instanceof Integer) {
+                userId = ((Integer) userIdObj).longValue();  // Integer转Long
+            } else if (userIdObj instanceof Long) {
+                userId = (Long) userIdObj;  // 直接转换
+            } else {
+                // 如果是其他类型（如String）
+                userId = Long.valueOf(userIdObj.toString());
+            }
+        }
+
+
+        System.out.println("消费者接收到json");
+        System.out.println("userid:  "+userId);
+        System.out.println("fileName: "+ profileMsg.get("fileName"));
+        System.out.println("fileType: "+ profileMsg.get("fileType"));
+        // 将json转为对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        StudentProfile studentProfile = new StudentProfile();
+
+        try {
+            studentProfile = objectMapper.readValue(res_json, StudentProfile.class);
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+
+        // 验证映射结果
+        System.out.println("学生姓名: " + studentProfile.getBasicInfo().getName());
+        System.out.println("技能列表: " + studentProfile.getSkills());
+        studentProfile.setId(userId);
+        // ... 处理业务逻辑
+        saveProfileService.saveProfile(studentProfile, userId, (String)profileMsg.get("fileName"), (String)profileMsg.get("fileType"));
+        System.out.println("整个解析简历提取关键词工作完成");
+
+
+    }
+    //查询简历解析任务是否完成
+    @RequestMapping("/users/me/profile/parse-jobs/{parseJobId}")
+    public Result queryResume(@PathVariable String parseJobId){
+        ResumeFull resumeFull = queryResumeService.queryResume(Long.parseLong(parseJobId));
+        //这里得改一改，改成符合相应格式
+        if (resumeFull == null){
+            return Result.success(new ResumeNullRes(parseJobId));
+        }
+        StudentProfile studentProfile = resumeFull.getResumeData();
+        QueryResumeRes queryResumeRes = new QueryResumeRes();
+        queryResumeRes.setParseJobId(parseJobId);
+        queryResumeRes.setStatus("success");
+        List<String> missing = StudentProfileChecker.checkNullFields(studentProfile);
+        Map<String, String> sourceMeta = new HashMap<>();
+        sourceMeta.put("fileName", resumeFull.getFileName());
+        sourceMeta.put("fileType", resumeFull.getFileType());
+        queryResumeRes.setResult(new QueryResumeRes.Result_(studentProfile, missing, sourceMeta));
+        return Result.success(queryResumeRes);
+    }
+// 获取学生画像
+    @GetMapping("/users/me/profile")
+    public Result get_profile(@RequestParam(required = false) String userId) {
+        if (userId == null) {
+            Long userIdLong = UserContext.getUser();
+            userId = userIdLong != null ? userIdLong.toString() : "111";
+        }
+        GetProfileResponse res = new GetProfileResponse();
+
+        StudentProfile profile = queryProfileService.getProfile(Long.parseLong(userId));
+        ResumeEvaluationResult eval_result = queryProfileService.getEvaluationResult(Long.parseLong(userId));
+
+        res.setHasProfile(profile != null);
+        res.setProfileId(userId);
+
+        if (profile != null) {
+            res.setProfile(profile);
+        } else {
+            res.setProfile(null);
+        }
+
+        if (eval_result != null) {
+            res.setScores(eval_result.getScores());
+            res.setEvidence(eval_result.getEvidence());
+            res.setImprovementSuggestions(eval_result.getImprovementSuggestions());
+        } else {
+            // 如果eval_result为null，这些字段设置为null
+            res.setScores(null);
+            res.setEvidence(null);
+            res.setImprovementSuggestions(null);
+        }
+
+        // 开源项目加分，该功能亟待开发
+        OpenSourceBonus openSourceBonus = new OpenSourceBonus();  // 设置为null
+        res.setOpenSourceBonus(openSourceBonus);
+        res.setUpdatedAt(LocalDateTime.now().toString());
+
+        return Result.success(res);
+    }
+
+
+//    保存评分
+    @RabbitListener(queues = "eval_storage")
+    public void resume_score(Map<String, Object> profileMsg){
+        String eval_json = (String) profileMsg.get("profileData");
+
+        Object userIdObj = profileMsg.get("userId");
+        Long userId = null;
+
+        if (userIdObj != null) {
+            if (userIdObj instanceof Integer) {
+                userId = ((Integer) userIdObj).longValue();  // Integer转Long
+            } else if (userIdObj instanceof Long) {
+                userId = (Long) userIdObj;  // 直接转换
+            } else {
+                // 如果是其他类型（如String）
+                userId = Long.valueOf(userIdObj.toString());
+            }
+        }
+
+        System.out.println("评分存储接收到json："+eval_json);
+        System.out.println("userid:  "+userId);
+        // 将json转为对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        ResumeEvaluationResult eval_result = new ResumeEvaluationResult();
+        try {
+            eval_result = objectMapper.readValue(eval_json, ResumeEvaluationResult.class);
+        }catch (Exception e){
+            log.error("评分结果转对象失败", e);
+            throw new RuntimeException(e);
+        }
+        System.out.println("评分结果："+eval_result.getEvidence());
+        System.out.println("评分结果："+eval_result.getScores());
+        System.out.println("评分结果："+eval_result.getImprovementSuggestions());
+        saveEvalService.saveEval(eval_result, userId);
+
+
+
+    }
+
+//    查询评分任务是否完成(查询画像分析状态）
+    @RequestMapping("/users/me/profile/analyze-jobs/{analyzeJobId}")
+    public Result query_eval(@PathVariable String analyzeJobId){
+        Evaluation evaluation = saveEvalService.getEval(Integer.parseInt(analyzeJobId));
+        Map<String, Object> res = new HashMap<>();
+        if (evaluation == null){
+            res.put("analyzeJobId", analyzeJobId);
+            res.put("status", "processing");
+            res.put("progress", 65);
+            res.put("pollAfterMs", 1200);
+            return Result.success(res);
+        }
+        res.put("analyzeJobId", analyzeJobId);
+        res.put("status", "succeeded");
+        return Result.success(res);
+    }
+
+    //在解析简历以及评分之前都先调用这个接口删除原来的简历和评分
+    @GetMapping("/users/me/profile/delete")
+    public Result delete_profile(@RequestParam String userId) {
+
+        Integer delete_eval = saveEvalService.deleteEval(Long.parseLong(userId));
+        Integer delete_profile = saveProfileService.deleteProfile(Long.parseLong(userId));
+        if (delete_eval == 1) log.info("删除用户 {} 的评分成功", userId);
+        if (delete_profile == 1) log.info("删除用户 {} 的简历成功", userId);
+
+        return Result.success();
+    }
+
+}

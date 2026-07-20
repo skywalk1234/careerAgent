@@ -1,0 +1,7 @@
+{
+  "stepId": "s3",
+  "title": "按照用户需求推荐岗位",
+  "status": "processing",
+  "toolName": "recommend_with_filter",
+  "toolParams": "{\"cityIntents\":[\"成都\"],\"benefits\":[\"双休\",\"年假\"],\"includeSimilarJobs\":true}"
+}

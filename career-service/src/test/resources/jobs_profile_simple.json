@@ -1,0 +1,161 @@
+{
+  "code":200,
+  "msg":"OK",
+  "data":[
+    {
+      "jobId":"job_frontend_mid_ae2476",
+      "jobName":"前端开发_初级前端开发工程师",
+      "jobCode":"CC668565120J40736166805",
+      "companyName":"东莞市恒亚罗斯计算机科技有限公司",
+      "city":"东莞",
+      "district":"虎门镇",
+      "industryTags":[
+        "计算机软件",
+        "互联网",
+        "IT服务"
+      ],
+      "educationRequirement":"不限",
+      "salaryMin":3.0,
+      "salaryMax":4.0,
+      "salaryUnit":"k/月",
+      "salaryMonths":12,
+      "salaryNegotiable":false,
+      "salaryNormalized":"3-4k/月·12薪",
+      "updatedAtRaw":"5月19日",
+      "updatedAtNormalized":"2026-05-19T00:00:00+08:00",
+      "sourceUrl":"https://www.zhaopin.com/jobdetail/CC668565120J40736166805.htm?refcode=4019&srccode=401901&preactionid=a7c1140f-c46c-45e5-b867-ab342d8bdc77",
+      "sourceSite":"zhaopin.com",
+      "companySize":"20-99人",
+      "companyType":"天使轮",
+      "level":"mid",
+      "jobDescription":"1.负责公司项目web前端页面的设计和开发、测试、优化工作；2.参与前端架构在项目中的落地、实施。并针对开发框架实现编码工作；3.配合后端开发工程师实现界面功能、确保交互界面具有良好的用户体验和卓越的性能；4.持续的优化前端体验和页面响应速度，并保证兼容性和执行效率;",
+      "companyBrief":"工业软件与智能制造企业，早期团队，提供研发与交付服务，面向企业与行业客户",
+      "companyDescription":"东莞市恒亚罗斯计算机科技有限：南极芯科技是一家专业设计，研发，生产，销售数字化工厂富有创新能力的软件企业，在软件应用系统规划和智能MES智能工厂信息化服装ERP供应链系统WMS IOT PLM工业互联网平台智能工厂规划具有丰富经验的专家顾问所创办；企业研发团队全部是计算机软件相关专业本科以上学历，平均年龄不到30岁，是一个优秀、经验丰富和极具创造力的年轻团队。公司依托于与各大院校大学的密切合作，有效利用人才与资源优势，实现产学研一体化运作，一方面提升企业形象和扩大业务渠道，一方面借助于科研联合和政府扶植推动产品技术和业务发展、等的密切联系和以往业务关系，逐渐建立起实质性的业务合作，并形成新的业务模式。目前软件著作权及专利几十项、主要业务、服装ERP MES智能制造 IOT物联网，供应链系统WMS IOT PLM WMS立库工业互联网平台产品、研发投入产生的经济和社会效益。提高生产效率，南极芯工业互联网云平台可以对生产过程进行实时监测和数据分析，帮助企业了解生产情况，提高生产效率。通过实时监测和数据分析，企业可以及时发现问题，进行调整和优化，避免生产中出现的问题和故障，减少停机时间和损失，提高生产效率。降低生产成本，南极芯工业互联网云平台可以通过对生产过程进行优化，降低生产成本。通过对生产过程的监测和分析，企业可以发现生产中的浪费和瓶颈，进行优化和调整，降低生南极芯工业互联网云平台可以促进产业升级，推动企业从传统制造向智能制造转型。通过工业互联网云平台，企业可以实现数字化、网络化和智能化的生产模式，提高生产效率和产品质量，降低生产成本，提高企业的竞争力和盈利能力，促进产业升级。南极芯服装供应链ERP，南极芯MES智能智造管理系统，南极芯WMS智慧立库系统，南极芯IoT物联网，人工智能机器人。全力协同产业智能制造数字化智能化标杆工厂，数字化智能化全面转型升级，全力推动科技与产业融合发展。",
+      "abilityRequirements":{
+        "professionalSkill":99,
+        "certificate":0,
+        "innovation":16,
+        "internalMotivation":16,
+        "learning":16,
+        "stressTolerance":0,
+        "communication":84,
+        "internship":80,
+        "language":0,
+        "leadership":84,
+        "adaptability":0,
+        "execution":65
+      },
+      "dimensionDetails":{
+        "professionalSkill":"精通前端/后端开发与性能优化",
+        "communication":"可与产品测试顺畅沟通问题",
+        "leadership":"能在模块内承担牵头与推动"
+      }
+    },
+    {
+      "jobId": "job_frontend_mid_bd705c",
+      "jobName": "前端开发_全栈与后端融合工程师",
+      "jobCode": "CZ830846060J00257044205",
+      "companyName": "株式会社トップクラウド",
+      "city": "成都",
+      "district": "武侯区",
+      "industryTags": [
+        "计算机软件",
+        "IT服务",
+        "互联网"
+      ],
+      "educationRequirement": "不限",
+      "salaryMin": 20.0,
+      "salaryMax": 30.0,
+      "salaryUnit": "k/月",
+      "salaryMonths": 12,
+      "salaryNegotiable": false,
+      "salaryNormalized": "20-30k/月·12薪",
+      "updatedAtRaw": "11月29日",
+      "updatedAtNormalized": "2026-11-29T00:00:00+08:00",
+      "sourceUrl": "https://www.zhaopin.com/jobdetail/CZ830846060J00257044205.htm?refcode=4019&srccode=401901&preactionid=a7c1140f-c46c-45e5-b867-ab342d8bdc77",
+      "sourceSite": "zhaopin.com",
+      "companySize": "20-99人",
+      "companyType": "未融资",
+      "level": "mid",
+      "jobDescription": "技能要求: 日本语能力2级，半年以上软件开发经验，赴日工作",
+      "companyBrief": "人力资源与企业服务企业，未融资团队，提供研发与交付服务，面向企业与行业客户",
+      "companyDescription": "株式会社トップクラウド是一家以软件开发业务为主的日本企业，总部位于日本的神奈川县横滨市（横滨市有被称为日本乃至东亚最大的中华街）。以软件开发、软件委托开发和互连网服务为主要业务的高科技企业，在金融领域保险、证券、银行、物流等领域，拥有经验丰富团队，与日本各地区的多家企业达成了友好合作关系。本公司提倡以人为本的经营理念，尊重人，培养人、努力创造相互信赖相互团结的职场氛围。现诚招有识之士加盟我们，我们愿为您提供优厚的待遇和施展才华的空间。※重要事项：本公司是日本驻地企业，直接招聘，可为您免费办理赴日签证手续。株式会社トップクラウド期待您的加盟,共同发展！人事邮箱：soumu@topcloud-japan.com公司电话：（81）045- 298-3590欢迎垂询。公司网站：http://www.topcloud-japan.com",
+      "abilityRequirements": {
+        "professionalSkill": 84,
+        "certificate": 0,
+        "innovation": 16,
+        "internalMotivation": 16,
+        "learning": 16,
+        "stressTolerance": 0,
+        "communication": 80,
+        "internship": 84,
+        "language": 0,
+        "leadership": 80,
+        "adaptability": 0,
+        "execution": 57
+      },
+      "dimensionDetails": {
+        "professionalSkill": "掌握主流开发框架并能独立开发",
+        "internship": "有实践经历能理解工程流程",
+        "communication": "可与产品测试顺畅沟通问题"
+      }
+    },
+    {
+      "jobId": "job_frontend_mid_b2cf0c",
+      "jobName": "前端开发_前端架构与工程化专家",
+      "jobCode": "CC385902710J40448421414",
+      "companyName": "郑州中业科技股份有限公司",
+      "city": "郑州",
+      "district": "中原区",
+      "industryTags": [
+        "互联网",
+        "人工智能"
+      ],
+      "educationRequirement": "硕士及以上",
+      "salaryMin": 12.0,
+      "salaryMax": 16.0,
+      "salaryUnit": "k/月",
+      "salaryMonths": 12,
+      "salaryNegotiable": false,
+      "salaryNormalized": "12-16k/月·12薪",
+      "updatedAtRaw": "7月25日",
+      "updatedAtNormalized": "2026-07-25T00:00:00+08:00",
+      "sourceUrl": "https://www.zhaopin.com/jobdetail/CC385902710J40448421414.htm?refcode=4019&srccode=401901&preactionid=a7c1140f-c46c-45e5-b867-ab342d8bdc77",
+      "sourceSite": "zhaopin.com",
+      "companySize": "20-99人",
+      "companyType": "已上市",
+      "level": "mid",
+      "jobDescription": "职责描述： 1、优化前端开发方式及协作流程、技术标准及规范； 2、为前后端技术改进、网站性能优化、技术选型提供解决方案； 3、为组内的技术成长制定目标、计划并帮助实施，提升整体技术水平； 4、同时兼备服务端接口开发能力； 5、领导前端团队，负责任务拆分、技术指导、团队管理等。 任职要求： 1、硕士及以上学历，计算机或相关专业优先； 3、精通HTML/CSS/Javascript基础扎实；具备服务端开发能力如Python、Node、Java等 4、持续关注业界的新话题和新技术，研究过react/vue/angular等框架，至少精通其中一种； 5、对前端工程化与模块化有所掌握，并有实践经验（RequireJS/SeaJS/webpack等），重视团队协作，愿意探寻和改进目前还不成熟的前端开发流程，了解各种常用工具; 6、有大型网站前端架构、前端性能、可访问性、可维护性等方面的实践经验； 7、较强的自我管理能力，抱有积极的学习心态，乐于分享知识，喜欢沟通，逻辑清晰； 8、热爱前端技术，个性乐观开朗，逻辑性强，有一定的项目管理、团队协同经验者优先。",
+      "companyBrief": "医疗信息化企业，上市公司，提供产品与技术服务，面向企业与行业客户工作节",
+      "companyDescription": "郑州中业科技股份有限公司(股票代码:834134)是一家专注于认知智能」领域的人工智能企业。公司通过大数据与人工智能算法相结合,围绕深度学习、知识图谱、自然语言处理、大数据治理等核心技术,为全球企业级用户提供人工智能场景化解决方案。在A+医疗领域中业科技通过对海量医学数据进行采集、处理、分析,利用人工智能技术构建算法模型,能够极大提高医院的科研实力、诊疗质量和管理水平,产品涵盖医学影像、辅助决策、精准医疗、健康管理、医疗信息化、医学研究等领域,可为各级别医院的不同科室提供定制化服。公司通过产品和服务聚焦，形成标准化产品和服务，强化与京东方、第四范式、昆明儿童医院等行业代表性客户关系，形成合作生态产业链。以代表性行业客户为依托，对智慧医疗、社交网络等行业及类行业客户进行深耕挖掘和产品线扩张，以打造细分行业龙头。公司先后荣获“通过CMMI5级认证”“河南省优秀软件产品”、“河南省优秀软件企业”“河南省优秀民营成长创新型企业”、“河南省人工智能创新型企业”、“河南省新三板30强”、“河南省优秀非公有制企业”、“河南省最具潜力互联网企业十强”和“中国人工智能大赛第六名”等荣誉。中业科技实施精细化人才培养，优化人才布局，提升人均效益。公司作为国家级高新技术企业，通过了“郑州市企业技术中心”、“郑州市自然语言处理工程技术研究中心”两项市级研发平台认定，并在2020年取得“河南省NLP人工智能自然语言处理工程技术研究中心”省级平台的认定；同时相继取得“河南省专精特新中小企业”和“国家级专精特新小巨人企业”的认定。并获得了第七届中国创新创业大赛二等奖、河南省中小企业创新创业大赛十强的好成绩。目前，公司获得各类专利9项，PCT专利1项（含已受理），已授权软件著作权130件；参与制修订国家标准1项，发表论文2篇。参与编撰《中国人工智能标准化白皮书（2021版）》、《人工智能行业标准（2020版）》，并且正在参与编撰《人工智能教育行业标准》、《人工智能信息技术行业标准》。",
+      "abilityRequirements": {
+        "professionalSkill": 100,
+        "certificate": 0,
+        "innovation": 30,
+        "internalMotivation": 24,
+        "learning": 32,
+        "stressTolerance": 0,
+        "communication": 100,
+        "internship": 94,
+        "language": 0,
+        "leadership": 97,
+        "adaptability": 0,
+        "execution": 65
+      },
+      "dimensionDetails": {
+        "professionalSkill": "精通前端/后端开发与性能优化",
+        "communication": "能清晰对齐需求并推进联调协作",
+        "leadership": "可带小组拆解任务并把控质量"
+      }
+    }
+  ],
+  "meta":{
+    "step":"1.5-web-build",
+    "source":"/Users/juff/juff的神秘小屋/服创/data/output/jobs_api_base.json",
+    "webResults":"/Users/juff/juff的神秘小屋/服创/data/output/ai_web_results.json",
+    "total":8005,
+    "applied":8005,
+    "timestamp":"2026-03-05T20:26:48",
+    "abilityStandard":"baseline(0.8, from job_profiles) + keyword(0.2)"
+  }
+}
