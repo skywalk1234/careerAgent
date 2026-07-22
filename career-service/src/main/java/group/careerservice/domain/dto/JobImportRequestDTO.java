@@ -2,10 +2,13 @@ package group.careerservice.domain.dto;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Data
-public class JobImportRequestDTO {
+public class JobImportRequestDTO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String batchName;
 
@@ -16,7 +19,8 @@ public class JobImportRequestDTO {
     private ImportOptions importOptions;
 
     @Data
-    public static class ImportOptions {
+    public static class ImportOptions implements Serializable {
+        private static final long serialVersionUID = 1L;
         private List<String> deduplicateBy;
         private Boolean normalizeSalary;
         private Boolean trimFields;

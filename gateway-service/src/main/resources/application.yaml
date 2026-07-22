@@ -61,3 +61,4 @@ group:
     excludePaths: # 无需登录校验的路径
       - /users/login
       - /users/register
+      - /admin/**

@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
-import org.springframework.data.elasticsearch.core.document.Document;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.io.InputStream;
@@ -38,7 +37,7 @@ public class JobDocumentIndexingTest {
         // 2. 读取JSON文件
         ObjectMapper objectMapper = new ObjectMapper();
         InputStream inputStream = getClass().getClassLoader()
-                .getResourceAsStream("jobs_profile_simple.json");
+                .getResourceAsStream("jobs_detail_simple.json");
 
         if (inputStream == null) {
             throw new RuntimeException("JSON文件未找到");
