@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import init_db
@@ -44,7 +47,25 @@ async def health():
     return {"status": "ok"}
 
 
+# 统一错误响应格式 {code, msg, data}，与前端 services/http.ts 的约定一致
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": exc.status_code, "msg": str(exc.detail), "data": None},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"code": 422, "msg": "请求参数校验失败", "data": None},
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.server_port, reload=True)
+    # 注意：Windows 下 uvicorn 的 reload(watchfiles) 不稳定，此处关闭；改代码后手动重启即可
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.server_port)

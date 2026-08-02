@@ -6,19 +6,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_session
+from app.models import utcnow
 from app.schemas import (
+    ApiResponse,
     CreateSessionRequest,
+    CreateSessionResponse,
+    HomeMessage,
+    MessageListResponse,
     SendMessageRequest,
     SendMessageResponse,
     SessionItem,
     SessionListResponse,
     StreamConfigOut,
-    UserMessageOut,
 )
 from app.services import chat_service
 from app.services.llm import get_llm
 
 router = APIRouter(prefix="/users/me/home/assistant")
+
+# 前端鉴权由网关/外层完成，直连阶段统一使用默认用户
+DEFAULT_USER_ID = "111"
 
 
 def _sse(name: str, data: dict) -> str:
@@ -28,55 +35,47 @@ def _sse(name: str, data: dict) -> str:
 
 # ===================== 会话 =====================
 
-@router.post("/sessions", response_model=SessionItem)
+@router.post("/sessions", response_model=ApiResponse[CreateSessionResponse])
 async def create_session(
     body: CreateSessionRequest,
     db: AsyncSession = Depends(get_session),
 ):
-    """创建对话会话"""
-    session = await chat_service.create_session(db, body.user_id, body.title)
-    return SessionItem.model_validate(session)
+    """创建对话会话（前端只传 scene/temperature，标题使用默认值）"""
+    session = await chat_service.create_session(db, DEFAULT_USER_ID)
+    return ApiResponse(
+        data=CreateSessionResponse(
+            sessionId=session.session_id,
+            createdAt=session.created_at,
+        )
+    )
 
 
-@router.get("/sessions", response_model=SessionListResponse)
+@router.get("/sessions", response_model=ApiResponse[SessionListResponse])
 async def get_sessions(
-    user_id: str = "111",
     db: AsyncSession = Depends(get_session),
 ):
     """获取用户会话列表（按置顶 + 最近更新排序）"""
-    sessions = await chat_service.list_sessions(db, user_id)
+    sessions = await chat_service.list_sessions(db, DEFAULT_USER_ID)
     items = [SessionItem.model_validate(s) for s in sessions]
-    return SessionListResponse(total=len(items), list=items)
+    return ApiResponse(data=SessionListResponse(total=len(items), list=items))
 
 
-@router.get("/sessions/{session_id}/messages")
+@router.get("/sessions/{session_id}/messages", response_model=ApiResponse[MessageListResponse])
 async def get_messages(
     session_id: str,
     db: AsyncSession = Depends(get_session),
 ):
     """获取某个会话的全部消息"""
     messages = await chat_service.list_messages(db, session_id)
-    return {
-        "session_id": session_id,
-        "total": len(messages),
-        "list": [
-            {
-                "message_id": m.message_id,
-                "role": m.role,
-                "content": m.content,
-                "status": m.status,
-                "created_at": m.created_at,
-                "actions": m.actions,
-                "agent_trace": m.agent_trace,
-            }
-            for m in messages
-        ],
-    }
+    items = [HomeMessage.model_validate(m) for m in messages]
+    return ApiResponse(
+        data=MessageListResponse(sessionId=session_id, total=len(items), list=items)
+    )
 
 
 # ===================== 消息发送 + 流式回复 =====================
 
-@router.post("/sessions/{session_id}/messages", response_model=SendMessageResponse)
+@router.post("/sessions/{session_id}/messages", response_model=ApiResponse[SendMessageResponse])
 async def send_message(
     session_id: str,
     body: SendMessageRequest,
@@ -90,19 +89,25 @@ async def send_message(
     message_id = chat_service.gen_id()
     user_msg = await chat_service.save_user_message(db, session_id, message_id, body.content)
 
-    return SendMessageResponse(
-        session_id=session_id,
-        user_message=UserMessageOut(
-            message_id=user_msg.message_id,
-            role=user_msg.role,
-            content=user_msg.content,
-            status=user_msg.status,
-            created_at=user_msg.created_at,
-        ),
-        stream=StreamConfigOut(
-            protocol="sse",
-            url=f"/users/me/home/assistant/sessions/{session_id}/messages/{message_id}/stream",
-        ),
+    # 前端第 1286 行依赖 assistantMessage.messageId 发起 SSE 连接，这里先给占位对象
+    assistant_placeholder = HomeMessage(
+        message_id=chat_service.gen_id(),
+        role="assistant",
+        content="",
+        status="processing",
+        created_at=utcnow(),
+    )
+
+    return ApiResponse(
+        data=SendMessageResponse(
+            sessionId=session_id,
+            userMessage=HomeMessage.model_validate(user_msg),
+            assistantMessage=assistant_placeholder,
+            stream=StreamConfigOut(
+                protocol="sse",
+                url=f"/users/me/home/assistant/sessions/{session_id}/messages/{message_id}/stream",
+            ),
+        )
     )
 
 
