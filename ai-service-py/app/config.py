@@ -12,6 +12,9 @@ class Settings(BaseSettings):
 
     app_name: str = "ai-service"
 
+    # 服务监听端口（不经过 Java 网关，前端直接访问）
+    server_port: int = 8086
+
     # ---------- DeepSeek API 配置 ----------
     # API Key 在 .env 文件的 DEEPSEEK_API_KEY 中填写
     # 申请地址: https://platform.deepseek.com/
