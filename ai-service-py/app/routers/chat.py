@@ -24,8 +24,8 @@ from app.services.llm import get_llm
 
 router = APIRouter(prefix="/users/me/home/assistant")
 
-# 前端鉴权由网关/外层完成，直连阶段统一使用默认用户
-DEFAULT_USER_ID = "111"
+# 前端鉴权由网关/外层完成，直连阶段统一使用默认用户（对应 MySQL sessions.user_id bigint）
+DEFAULT_USER_ID = 111
 
 
 def _sse(name: str, data: dict) -> str:

@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-v4-flash"
 
     # ---------- 数据库配置 ----------
-    # 默认 SQLite 零配置可跑；切 PostgreSQL 时改 DATABASE_URL 即可
-    database_url: str = "sqlite+aiosqlite:///./chat.db"
+    # 会话/消息存 MySQL chat_history 库（表：sessions / messages）
+    database_url: str = "mysql+aiomysql://root:123@192.168.118.130:3306/chat_history?charset=utf8mb4"
 
     # 会话/消息缓存过期时间(秒)，后续接入 Redis 时使用
     cache_ttl: int = 300
