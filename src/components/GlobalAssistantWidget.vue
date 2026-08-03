@@ -1043,7 +1043,8 @@ async function startSseStream(messageId: string, streamUrl: string) {
   closeStream()
 
   const token = getToken() || ''
-  const apiBase = import.meta.env.VITE_API_BASE_URL || '/api'
+  // AI 服务直连 8086（Python），可用 VITE_AI_API_BASE_URL 覆盖
+  const apiBase = import.meta.env.VITE_AI_API_BASE_URL || 'http://127.0.0.1:8086'
   const connector = streamUrl.includes('?') ? '&' : '?'
   const fullUrl = `${apiBase}${streamUrl}${connector}token=${encodeURIComponent(token)}`
 

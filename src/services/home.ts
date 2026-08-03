@@ -1,4 +1,4 @@
-import { http } from './http'
+import { aiHttp, http } from './http'
 
 export interface ApiResponse<T> {
   code: number
@@ -299,7 +299,7 @@ export async function getHomePublicOverview() {
 }
 
 export async function createHomeSession() {
-  return http.post<ApiResponse<{
+  return aiHttp.post<ApiResponse<{
     sessionId: string
     createdAt: string
     welcomeMessage: HomeMessage | null
@@ -310,14 +310,14 @@ export async function createHomeSession() {
 }
 
 export async function listHomeSessions() {
-  return http.get<ApiResponse<{
+  return aiHttp.get<ApiResponse<{
     total: number
     list: HomeSession[]
   }>>('/users/me/home/assistant/sessions')
 }
 
 export async function deleteHomeSession(sessionId: string) {
-  return http.delete<ApiResponse<{
+  return aiHttp.delete<ApiResponse<{
     sessionId: string
     deleted: boolean
   }>>(`/users/me/home/assistant/sessions/${sessionId}`)
@@ -328,7 +328,7 @@ export async function updateHomeSession(sessionId: string, payload: {
   favorited?: boolean
   title?: string
 }) {
-  return http.patch<ApiResponse<{
+  return aiHttp.patch<ApiResponse<{
     sessionId: string
     title: string
     pinned: boolean
@@ -338,7 +338,7 @@ export async function updateHomeSession(sessionId: string, payload: {
 }
 
 export async function getHomeSessionMessages(sessionId: string) {
-  return http.get<ApiResponse<{
+  return aiHttp.get<ApiResponse<{
     sessionId: string
     total: number
     list: HomeMessage[]
@@ -365,7 +365,7 @@ export async function createHomeSessionMessage(
     } | null
   },
 ) {
-  return http.post<ApiResponse<{
+  return aiHttp.post<ApiResponse<{
     sessionId: string
     userMessage: HomeMessage
     assistantMessage: HomeMessage
@@ -398,7 +398,7 @@ export async function regenerateHomeSessionMessage(
     content?: string
   },
 ) {
-  return http.post<ApiResponse<{
+  return aiHttp.post<ApiResponse<{
     sessionId: string
     assistantMessage: HomeMessage
     prunedAfterCount?: number
@@ -413,14 +413,14 @@ export async function submitHomeMessageApproval(
   messageId: string,
   payload: HomeAssistantMessageApprovalPayload,
 ) {
-  return http.post<ApiResponse<HomeAssistantMessageApprovalResult>>(
+  return aiHttp.post<ApiResponse<HomeAssistantMessageApprovalResult>>(
     `/users/me/home/assistant/message/${encodeURIComponent(messageId)}/approvals`,
     payload,
   )
 }
 
 export async function getHomeAgentRuntimeOverview() {
-  return http.get<ApiResponse<HomeAgentRuntimeOverviewResult>>('/users/me/home/assistant/agent/overview')
+  return aiHttp.get<ApiResponse<HomeAgentRuntimeOverviewResult>>('/users/me/home/assistant/agent/overview')
 }
 
 export async function createHomeAgentTask(payload: {
@@ -428,7 +428,7 @@ export async function createHomeAgentTask(payload: {
   presetId?: string
   pageContext?: HomePageContext | null
 }) {
-  return http.post<ApiResponse<{
+  return aiHttp.post<ApiResponse<{
     task: HomeAgentRuntimeTaskDetail
     pollAfterMs?: number
   }>>('/users/me/home/assistant/agent/tasks', {
@@ -439,7 +439,7 @@ export async function createHomeAgentTask(payload: {
 }
 
 export async function controlHomeAgentTask(taskId: string, action: HomeAgentRuntimeTaskControlAction) {
-  return http.post<ApiResponse<{
+  return aiHttp.post<ApiResponse<{
     task: HomeAgentRuntimeTaskDetail
   }>>(`/users/me/home/assistant/agent/tasks/${taskId}/control`, {
     action,
@@ -447,7 +447,7 @@ export async function controlHomeAgentTask(taskId: string, action: HomeAgentRunt
 }
 
 export async function getHomeAgentTaskArtifacts(taskId: string) {
-  return http.get<ApiResponse<{
+  return aiHttp.get<ApiResponse<{
     taskId: string
     status: string
     artifacts: HomeAgentRuntimeTaskArtifact[]

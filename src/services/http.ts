@@ -54,82 +54,92 @@ export function isConflictCode(code: number) {
   return code === 409
 }
 
-export const http = axios.create({
-  baseURL: '/api',
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-    token: '',
-  },
-})
+function createHttpClient(baseURL: string) {
+  const client = axios.create({
+    baseURL,
+    timeout: 15000,
+    headers: {
+      'Content-Type': 'application/json',
+      token: '',
+    },
+  })
 
-http.interceptors.request.use((config) => {
-  const token = getToken()
-  if (token) {
-    config.headers.token = token
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+  client.interceptors.request.use((config) => {
+    const token = getToken()
+    if (token) {
+      config.headers.token = token
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  })
 
-http.interceptors.response.use(
-  (response) => {
-    const status = Number(response?.status || 200)
-    try {
-      if (response?.data) {
-        const { msg, data } = response.data
-        if ((data === undefined || data === null) && msg && typeof msg === 'object') {
-          response.data.data = msg
+  client.interceptors.response.use(
+    (response) => {
+      const status = Number(response?.status || 200)
+      try {
+        if (response?.data) {
+          const { msg, data } = response.data
+          if ((data === undefined || data === null) && msg && typeof msg === 'object') {
+            response.data.data = msg
+          }
+
+          const codeFromPayload = getResponseCode(response.data.code, status)
+          response.data.httpCode = codeFromPayload
+          response.data.code = codeFromPayload
+
+          response.data.payload =
+            response.data.data !== undefined
+              ? response.data.data
+              : response.data.msg && typeof response.data.msg === 'object'
+                ? response.data.msg
+                : undefined
         }
-
-        const codeFromPayload = getResponseCode(response.data.code, status)
-        response.data.httpCode = codeFromPayload
-        response.data.code = codeFromPayload
-
-        response.data.payload =
-          response.data.data !== undefined
-            ? response.data.data
-            : response.data.msg && typeof response.data.msg === 'object'
-              ? response.data.msg
-              : undefined
+      } catch (error) {
+        console.warn('http response normalize failed', error)
       }
-    } catch (error) {
-      console.warn('http response normalize failed', error)
-    }
 
-    if (status === 401 || status === 403 || response.data?.httpCode === 401 || response.data?.httpCode === 403) {
-      clearAuthStorage()
-      ElMessage.error({
-        message: '登录已过期，请重新登录',
-        showClose: true,
-      })
-      router.replace('/auth')
-      return Promise.reject({ message: '登录已过期', response })
-    }
-
-    return response
-  },
-  (error) => {
-    const status = Number(error.response?.status || 0)
-    if (error.response?.data) {
-      const { msg } = error.response.data
-      const code = getResponseCode(error.response.data.code, status)
-      if (status === 401 || status === 403 || code === 401 || code === 403 || msg === 'NOT_LOGIN') {
+      if (status === 401 || status === 403 || response.data?.httpCode === 401 || response.data?.httpCode === 403) {
         clearAuthStorage()
-        ElMessage.error({ message: '未登录或登录失效，请重新登录', showClose: true })
+        ElMessage.error({
+          message: '登录已过期，请重新登录',
+          showClose: true,
+        })
         router.replace('/auth')
-      } else if (shouldShowPreIntentEncourageTip(status, msg, error)) {
-        showPreIntentEncourageTipOnce()
-      } else if (typeof msg === 'string' && msg) {
-        ElMessage.error({ message: msg, showClose: true })
+        return Promise.reject({ message: '登录已过期', response })
       }
-    } else {
-      ElMessage.error({
-        message: '网络异常，请检查网络连接',
-        showClose: true,
-      })
-    }
 
-    return Promise.reject(error)
-  },
-)
+      return response
+    },
+    (error) => {
+      const status = Number(error.response?.status || 0)
+      if (error.response?.data) {
+        const { msg } = error.response.data
+        const code = getResponseCode(error.response.data.code, status)
+        if (status === 401 || status === 403 || code === 401 || code === 403 || msg === 'NOT_LOGIN') {
+          clearAuthStorage()
+          ElMessage.error({ message: '未登录或登录失效，请重新登录', showClose: true })
+          router.replace('/auth')
+        } else if (shouldShowPreIntentEncourageTip(status, msg, error)) {
+          showPreIntentEncourageTipOnce()
+        } else if (typeof msg === 'string' && msg) {
+          ElMessage.error({ message: msg, showClose: true })
+        }
+      } else {
+        ElMessage.error({
+          message: '网络异常，请检查网络连接',
+          showClose: true,
+        })
+      }
+
+      return Promise.reject(error)
+    },
+  )
+
+  return client
+}
+
+// 常规业务接口走网关（Java 服务）
+export const http = createHttpClient('/api')
+
+// AI 求职助手接口直连 Python 服务（可用 VITE_AI_API_BASE_URL 覆盖）
+export const aiHttp = createHttpClient(import.meta.env.VITE_AI_API_BASE_URL || 'http://127.0.0.1:8086')
