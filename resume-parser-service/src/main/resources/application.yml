@@ -60,3 +60,16 @@ spring:
 #    excludePaths: # 无需登录校验的路径
 #      - /auth/login
 #      - /auth/register
+
+# ================= DeepSeek API 配置 =================
+# 简历解析(AI_parser) 与简历评分(AI_score) 使用 DeepSeek V4 Flash 模型
+# 申请 API Key：https://platform.deepseek.com/ → 创建 API Key
+# ★ 在这里填写你的 DeepSeek API Key ★
+deepseek:
+  api-key: sk-05300edb9ef34b29aab87fac8524de76
+  base-url: https://api.deepseek.com
+
+# ================= DashScope API 配置 =================
+# 图片简历解析(AI_image_parser) 使用千问 qwen-vl-plus 视觉模型
+dashscope:
+  api-key: sk-2c1e9d35337d4deb8c7ff28b4f6c4193

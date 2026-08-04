@@ -21,11 +21,13 @@ spring:
             - Path=/users/me/profile/**,/users/me/profile/delete
           order: 1
         # resume-parser-service 路由：/users/me/profile/parse-jobs 和 /users/me/home/**
+        # 注意：order 必须小于 profile 路由(1)，否则 /users/me/profile/parse-jobs 会被
+        # profile-service 的 /users/me/profile/** 先匹配吞掉，导致 404
         - id: resume-parser-user
           uri: lb://resume-parser-service
           predicates:
-            - Path=/users/me/profile/parse-jobs,/users/me/home/**
-          order: 2
+            - Path=/users/me/profile/parse-jobs,/users/me/profile/parse-image,/users/me/home/**
+          order: 0
         # career-service 路由：/users/me/** 其他路径（匹配 career-path, career-report, favorite-jobs, match 等）
         - id: career-user
           uri: lb://career-service

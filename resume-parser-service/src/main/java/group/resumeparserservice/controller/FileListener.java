@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,7 +38,14 @@ public class FileListener {
         System.out.println("parseMode: " + message.getParseMode());
         // ... 处理业务逻辑
         byte[] fileContent = message.getFileContent();
-        String textContent = parsePdfFromBytes(fileContent);
+        // 图片模式：fileContent 中是 AI 视觉模型解析出的 JSON 文本，直接使用
+        // PDF 模式：需要用 PDFBox 抽取文本
+        String textContent;
+        if ("image".equalsIgnoreCase(message.getParseMode())) {
+            textContent = new String(fileContent, StandardCharsets.UTF_8);
+        } else {
+            textContent = parsePdfFromBytes(fileContent);
+        }
         //提取文字成功了
 //        System.out.println("解析内容："+ textContent);
         String res_json = null;
