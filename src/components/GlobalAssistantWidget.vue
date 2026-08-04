@@ -43,7 +43,6 @@ import {
   type TaskOrchestratorStreamPayload,
 } from '../utils/globalAssistant'
 import { getTaskTranscriptMessages, mergeTaskTranscriptMessages } from '../utils/taskSession'
-import { isTaskSession } from '../utils/taskSession'
 import AssistantAbilityRadarCard from './AssistantAbilityRadarCard.vue'
 import AssistantJobGapCard from './AssistantJobGapCard.vue'
 import aiAvatarImage from '../assets/aiAvatar.png'

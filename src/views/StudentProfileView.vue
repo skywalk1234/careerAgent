@@ -1,22 +1,25 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, EditPen, Plus } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import WordCloudChart from '../components/WordCloudChart.vue'
 import OpenSourceBonusCard from '../components/OpenSourceBonusCard.vue'
 import studentEmptyImage from '../assets/student.png'
 import {
+  createParseProfileJob,
   getProfileAnalyzeJobStatus,
   getStudentProfileAggregate,
   getStudentProfile,
+  parseImageResume,
   saveStudentProfile,
   type AbilityScores,
   type CertificateItem,
   type EducationItem,
   type GetProfileResult,
   type ImprovementSuggestion,
+  type ParseJobCreated,
   type ProfileAnalyzeJobStatusResult,
   type ProfileAggregateResult,
   type ProfileFormData,
@@ -36,11 +39,6 @@ interface ApiResponse<T> {
   msg: string
   data?: T
   payload?: T
-}
-
-interface DemoParsedPayload {
-  parsedProfile: Partial<ProfileFormData>
-  missingFields: string[]
 }
 
 const formRef = ref()
@@ -70,71 +68,7 @@ const tourUploadRef = ref<HTMLElement>()
 const tourScoreRef = ref<HTMLElement>()
 let isPageActive = true
 const studentEmptyImageUrl = studentEmptyImage
-const demoUploadDialogVisible = ref(false)
-
-const DEMO_PARSED_PAYLOAD: DemoParsedPayload = {
-  parsedProfile: {
-    basicInfo: {
-      name: '王晨曦',
-      gender: 'female',
-      birthday: '2003-10-12',
-      phone: '13912345678',
-      email: 'chenxi.wang@example.com',
-      city: '杭州',
-      jobIntention: ['Java_初级软件开发工程师'],
-    },
-    education: [
-      {
-        school: '虚拟大学',
-        major: '软件工程',
-        degree: '本科',
-        startDate: '2021-09',
-        endDate: '2025-06',
-        gpa: '3.84/4.00',
-      },
-    ],
-    workExperience: [
-      {
-        company: '杭州云桥科技有限公司',
-        role: 'Java后端开发实习生',
-        startDate: '2024-07',
-        endDate: '2024-12',
-        description: '参与校园招聘系统微服务开发，负责用户中心、权限模块与日志链路，推动接口平均响应时间下降约23%。',
-      },
-      {
-        company: '校企联合项目组',
-        role: '后端开发负责人',
-        startDate: '2024-03',
-        endDate: '2024-06',
-        description: '主导教学资源平台后端设计，完成鉴权、题库、学习记录与报表模块，交付后稳定支撑千人级并发演示。',
-      },
-    ],
-    skills: ['Java', 'Spring Boot', 'Spring Cloud', 'MySQL', 'Redis', 'RabbitMQ', 'Docker', 'Git', 'JUnit', 'MyBatis-Plus'],
-    certificates: [
-      {
-        name: '大学英语六级（CET-6）',
-        date: '2023-12',
-        issuer: '教育部考试中心',
-      },
-      {
-        name: '软考-软件设计师',
-        date: '2024-11',
-        issuer: '工业和信息化部教育与考试中心',
-      },
-    ],
-    organizeExp: [
-      '担任学院技术协会副会长，组织8场后端技术分享与2次校内黑客松。',
-      '担任班级学习委员，搭建学习进度看板并推动结对评审机制。',
-    ],
-    projects: [
-      '校园就业服务平台：基于Spring Boot + Vue3，实现岗位检索、简历投递、进度跟踪与消息中心，负责后端核心模块设计与联调。',
-      '智能问答知识库服务：使用向量检索与缓存分层，完成问答召回与重排接口，平均响应时间控制在400ms内。',
-      '课程实验管理系统：引入Docker化部署与CI脚本，缩短测试环境搭建时间约60%。',
-    ],
-    selfEvaluation: '我具备扎实的Java后端开发基础和稳定交付能力，能够围绕业务目标完成需求拆解、接口设计、编码测试与性能优化闭环。擅长在团队协作中主动推进事项、沉淀规范，并通过数据指标驱动持续改进，当前目标是成长为能够独立负责模块的Java初级软件开发工程师。',
-  },
-  missingFields: [],
-}
+const fileInputRef = ref<HTMLInputElement>()
 
 const scoreData = ref<ScoreData | null>(null)
 const aggregateData = ref<ProfileAggregateResult | null>(null)
@@ -595,116 +529,6 @@ function replaceProfileData(next: ProfileFormData) {
   profile.selfEvaluation = next.selfEvaluation
 }
 
-function mergePreferUserInput(target: ProfileFormData, parsed: Partial<ProfileFormData>) {
-  const mergeResult = {
-    overwritten: 0,
-    unchanged: 0,
-    filledPaths: [] as string[],
-  }
-
-  const mergeAndCount = (current: string, next: string | undefined, fieldPath: string) => {
-    if (!next?.trim()) return current
-    if (current.trim() === next.trim()) {
-      mergeResult.unchanged += 1
-      return current
-    }
-    mergeResult.overwritten += 1
-    mergeResult.filledPaths.push(fieldPath)
-    return next
-  }
-
-  if (parsed.basicInfo) {
-    target.basicInfo.name = mergeAndCount(target.basicInfo.name, parsed.basicInfo.name, 'basicInfo.name')
-    target.basicInfo.gender = mergeAndCount(target.basicInfo.gender, parsed.basicInfo.gender, 'basicInfo.gender')
-    target.basicInfo.birthday = mergeAndCount(
-      target.basicInfo.birthday,
-      normalizeDayString(parsed.basicInfo.birthday),
-      'basicInfo.birthday',
-    )
-    target.basicInfo.phone = mergeAndCount(target.basicInfo.phone, parsed.basicInfo.phone, 'basicInfo.phone')
-    target.basicInfo.email = mergeAndCount(target.basicInfo.email, parsed.basicInfo.email, 'basicInfo.email')
-    target.basicInfo.city = mergeAndCount(target.basicInfo.city, parsed.basicInfo.city, 'basicInfo.city')
-    const parsedJobIntention = normalizeStringList((parsed.basicInfo as { jobIntention?: unknown }).jobIntention)
-    if (parsedJobIntention.length) {
-      const currentJobIntention = normalizeStringList(target.basicInfo.jobIntention)
-      if (JSON.stringify(currentJobIntention) === JSON.stringify(parsedJobIntention)) {
-        mergeResult.unchanged += 1
-      } else {
-        target.basicInfo.jobIntention = parsedJobIntention
-        mergeResult.overwritten += 1
-        mergeResult.filledPaths.push('basicInfo.jobIntention')
-      }
-    }
-  }
-
-  if (parsed.education && parsed.education.length) {
-    target.education = normalizeProfile({ education: parsed.education }).education
-    mergeResult.overwritten += parsed.education.length
-    mergeResult.filledPaths.push('education')
-  }
-
-  if (parsed.workExperience && parsed.workExperience.length) {
-    target.workExperience = normalizeProfile({ workExperience: parsed.workExperience }).workExperience
-    mergeResult.overwritten += parsed.workExperience.length
-    mergeResult.filledPaths.push('workExperience')
-  }
-
-  if (parsed.certificates && parsed.certificates.length) {
-    target.certificates = normalizeProfile({ certificates: parsed.certificates as unknown as CertificateItem[] }).certificates
-    mergeResult.overwritten += parsed.certificates.length
-    mergeResult.filledPaths.push('certificates')
-  }
-
-  const parsedOrganizeExp = normalizeStringList((parsed as { organizeExp?: unknown }).organizeExp)
-  if (parsedOrganizeExp.length) {
-    target.organizeExp = parsedOrganizeExp
-    mergeResult.overwritten += parsedOrganizeExp.length
-    mergeResult.filledPaths.push('organizeExp')
-  }
-
-  const parsedProjects = normalizeStringList((parsed as { projects?: unknown }).projects)
-  if (parsedProjects.length) {
-    target.projects = parsedProjects
-    mergeResult.overwritten += parsedProjects.length
-    mergeResult.filledPaths.push('projects')
-  }
-
-  if (parsed.skills && parsed.skills.length) {
-    target.skills = [...new Set(parsed.skills)]
-    mergeResult.overwritten += parsed.skills.length
-    mergeResult.filledPaths.push('skills')
-  }
-
-  target.selfEvaluation = mergeAndCount(target.selfEvaluation, parsed.selfEvaluation, 'selfEvaluation')
-
-  return mergeResult
-}
-
-function markAutoFilled(paths: string[]) {
-  autoFilledFields.value = [...new Set(paths)]
-  if (highlightTimer) clearTimeout(highlightTimer)
-  if (autoFilledFields.value.length) {
-    highlightTimer = setTimeout(() => {
-      autoFilledFields.value = []
-    }, 10000)
-  }
-}
-
-function applyParsedPayloadToForm(parsedPayload: DemoParsedPayload, options?: { silentSuccess?: boolean }) {
-  if (!parsedPayload.parsedProfile) return
-  if (!isEditing.value) {
-    isEditing.value = true
-  }
-  viewMode.value = 'resume'
-
-  const mergeResult = mergePreferUserInput(profile, parsedPayload.parsedProfile)
-  markAutoFilled(mergeResult.filledPaths)
-  missingFields.value = parsedPayload.missingFields ?? []
-  if (!options?.silentSuccess) {
-    ElMessage.success(`演示数据已填入：覆盖/填充${mergeResult.overwritten}项，未变化${mergeResult.unchanged}项`)
-  }
-}
-
 function isHighlighted(path: string) {
   return autoFilledFields.value.includes(path)
 }
@@ -1089,26 +913,51 @@ async function fetchAggregateData(force = false) {
 }
 
 function handleUploadChange() {
-  demoUploadDialogVisible.value = true
+  fileInputRef.value?.click()
 }
 
-function applyDemoProfileData() {
-  if (!isEditing.value) {
-    isEditing.value = true
-  }
+async function handleFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  await uploadAndParseFile(file)
+}
 
+async function uploadAndParseFile(file: File) {
+  const isImage = file.type.startsWith('image/')
   parseLoading.value = true
   try {
-    applyParsedPayloadToForm(DEMO_PARSED_PAYLOAD)
-    demoUploadDialogVisible.value = false
+    // PDF 走解析接口，图片走视觉解析接口
+    const response = isImage ? await parseImageResume(file) : await createParseProfileJob(file)
+    const result = response.data as ApiResponse<ParseJobCreated>
+    if (!isSuccessCode(Number(result.code))) {
+      ElMessage.error(result.msg || '上传失败')
+      return
+    }
+
+    ElMessage.success('上传成功，正在解析简历，请稍候...')
+    const payload = extractPayload<ParseJobCreated>(response as { data: ApiResponse<ParseJobCreated> })
+    await waitForProfileParsed(payload?.pollAfterMs ?? 2000)
+    await loadProfile()
   } catch {
-    ElNotification({
-      title: '填充失败',
-      message: '请稍后重试',
-      type: 'error',
-    })
+    ElMessage.error('上传解析失败，请检查网络后重试')
   } finally {
     parseLoading.value = false
+  }
+}
+
+async function waitForProfileParsed(pollAfterMs: number, maxRounds = 30) {
+  for (let index = 0; index < maxRounds; index += 1) {
+    if (!isPageActive) return
+    await new Promise((resolve) => setTimeout(resolve, Math.max(1000, Math.min(3000, pollAfterMs))))
+    try {
+      const response = await getStudentProfile()
+      const payload = extractPayload<GetProfileResult>(response as { data: ApiResponse<GetProfileResult> })
+      if (payload?.hasProfile && payload.profile) return
+    } catch {
+      return
+    }
   }
 }
 
@@ -1534,7 +1383,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
         <div class="left-slider-track" :style="sliderTrackStyle">
           <div class="left-slider-panel" :style="sliderPanelStyle">
             <el-card class="resume-card !overflow-visible" shadow="never">
-              <div class="space-y-6 parse-loading-wrap" v-loading="parseLoading" element-loading-text="正在填入演示数据..." element-loading-background="rgba(255,255,255,0)">
+              <div class="space-y-6 parse-loading-wrap" v-loading="parseLoading" element-loading-text="正在上传并解析简历..." element-loading-background="rgba(255,255,255,0)">
                 <header class="resume-header border-b border-[#9db2c0] pb-5">
                   <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -1558,8 +1407,9 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
                     <div class="flex flex-col items-start gap-2 md:items-end">
                       <div ref="tourUploadRef">
                         <el-button type="primary" plain :loading="parseLoading" @click="handleUploadChange">上传简历并解析</el-button>
+                        <input ref="fileInputRef" type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,application/pdf,image/*" @change="handleFileSelected" />
                       </div>
-                      <p class="text-xs text-slate-500 hover:text-slate-700">演示模式：可一键填入完整示例简历</p>
+                      <p class="text-xs text-slate-500">支持 PDF / 图片简历（jpg、png、webp），解析后自动回填表单</p>
                     </div>
                   </div>
                 </header>
@@ -1807,23 +1657,6 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-base font-semibold text-slate-800">综合评价</p>
-
-                <el-dialog
-                  v-model="demoUploadDialogVisible"
-                  title="上传简历并解析"
-                  width="520px"
-                  append-to-body
-                  :close-on-click-modal="false"
-                  :lock-scroll="false"
-                >
-                  <p class="text-sm leading-7 text-slate-600">当前为云端展示流程，暂不提供大模型解析与评估服务。</p>
-                  <template #footer>
-                    <div class="flex justify-end gap-2">
-                      <el-button @click="demoUploadDialogVisible = false">返回</el-button>
-                      <el-button type="primary" :loading="parseLoading" @click="applyDemoProfileData">一键填入演示数据</el-button>
-                    </div>
-                  </template>
-                </el-dialog>
                   </div>
                   <el-button type="primary" plain @click="handleToggleDetail">返回查看简历</el-button>
                 </div>

@@ -76,7 +76,6 @@ import {
 } from '../utils/globalAssistant'
 import {
   getTaskTranscriptMessages,
-  isTaskSession,
   mergeTaskTranscriptMessages,
 } from '../utils/taskSession'
 import HomeInterestSurveyBubble from '../components/HomeInterestSurveyBubble.vue'

@@ -107,6 +107,13 @@ export interface ParseProfileJobCreateResult {
   pollAfterMs?: number
 }
 
+// 后端返回的简历解析任务结果（对应 Java FileParseRes）
+export interface ParseJobCreated {
+  parseJobId: string
+  status: string
+  pollAfterMs?: number
+}
+
 export interface ParseProfileJobStatusResult {
   parseJobId: string
   status: 'processing' | 'succeeded' | 'failed'
@@ -141,6 +148,17 @@ export function createParseProfileJob(file: File, parseMode: ParseMode = 'standa
   formData.append('parseMode', parseMode)
 
   return http.post('/users/me/profile/parse-jobs', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
+export function parseImageResume(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return http.post('/users/me/profile/parse-image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
