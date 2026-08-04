@@ -72,9 +72,38 @@ public class DeepSeekClient {
         }
 
         JSONObject json = new JSONObject(responseBody);
-        return json.getJSONArray("choices")
+        String content = json.getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
                 .getString("content");
+        return cleanJsonResponse(content);
+    }
+
+    /**
+     * 清理大模型返回内容：
+     * 1. 去掉 ```json ... ``` Markdown 代码块包裹
+     * 2. 提取第一个 { 到最后一个 } 之间的 JSON 主体，容忍前后附加的说明文字
+     */
+    private String cleanJsonResponse(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String text = raw.trim();
+        // 1. 去掉 Markdown 代码块标记
+        if (text.startsWith("```")) {
+            int firstNewline = text.indexOf('\n');
+            text = firstNewline != -1 ? text.substring(firstNewline + 1) : text.replace("```", "");
+            if (text.endsWith("```")) {
+                text = text.substring(0, text.length() - 3);
+            }
+            text = text.trim();
+        }
+        // 2. 提取 JSON 主体
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start != -1 && end > start) {
+            text = text.substring(start, end + 1);
+        }
+        return text;
     }
 }

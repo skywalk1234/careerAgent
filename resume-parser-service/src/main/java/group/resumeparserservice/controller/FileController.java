@@ -80,7 +80,7 @@ public class FileController {
 
     /**
      * 上传图片简历并解析
-     * 支持格式：jpg, jpeg, png, gif, bmp, webp
+     * 支持格式：jpg, jpeg, png, webp
      */
     @PostMapping("/users/me/profile/parse-image")
     public Result<FileParseRes> uploadImageResume(@RequestParam("file") MultipartFile file) {
