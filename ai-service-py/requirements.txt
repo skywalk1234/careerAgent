@@ -5,3 +5,4 @@ sqlalchemy[asyncio]>=2.0
 aiosqlite>=0.20
 aiomysql>=0.2
 pydantic-settings>=2.4
+pyjwt[crypto]>=2.8

@@ -19,13 +19,11 @@ from app.schemas import (
     SessionListResponse,
     StreamConfigOut,
 )
+from app.security import get_current_user_id
 from app.services import chat_service
 from app.services.llm import get_llm
 
 router = APIRouter(prefix="/users/me/home/assistant")
-
-# 前端鉴权由网关/外层完成，直连阶段统一使用默认用户（对应 MySQL sessions.user_id bigint）
-DEFAULT_USER_ID = 111
 
 
 def _sse(name: str, data: dict) -> str:
@@ -38,10 +36,11 @@ def _sse(name: str, data: dict) -> str:
 @router.post("/sessions", response_model=ApiResponse[CreateSessionResponse])
 async def create_session(
     body: CreateSessionRequest,
+    user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
     """创建对话会话（前端只传 scene/temperature，标题使用默认值）"""
-    session = await chat_service.create_session(db, DEFAULT_USER_ID)
+    session = await chat_service.create_session(db, user_id)
     return ApiResponse(
         data=CreateSessionResponse(
             sessionId=session.session_id,
@@ -52,10 +51,11 @@ async def create_session(
 
 @router.get("/sessions", response_model=ApiResponse[SessionListResponse])
 async def get_sessions(
+    user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
     """获取用户会话列表（按置顶 + 最近更新排序）"""
-    sessions = await chat_service.list_sessions(db, DEFAULT_USER_ID)
+    sessions = await chat_service.list_sessions(db, user_id)
     items = [SessionItem.model_validate(s) for s in sessions]
     return ApiResponse(data=SessionListResponse(total=len(items), list=items))
 
@@ -63,9 +63,15 @@ async def get_sessions(
 @router.get("/sessions/{session_id}/messages", response_model=ApiResponse[MessageListResponse])
 async def get_messages(
     session_id: str,
+    user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
     """获取某个会话的全部消息"""
+    session = await chat_service.get_session(db, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    if session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该会话")
     messages = await chat_service.list_messages(db, session_id)
     items = [HomeMessage.model_validate(m) for m in messages]
     return ApiResponse(
@@ -79,12 +85,15 @@ async def get_messages(
 async def send_message(
     session_id: str,
     body: SendMessageRequest,
+    user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
     """发送消息：保存用户消息并返回 SSE 流地址，前端随后连该地址收增量回复"""
     session = await chat_service.get_session(db, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="会话不存在")
+    if session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该会话")
 
     message_id = chat_service.gen_id()
     user_msg = await chat_service.save_user_message(db, session_id, message_id, body.content)
@@ -115,9 +124,14 @@ async def send_message(
 async def stream_message(
     session_id: str,
     message_id: str,
+    user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
-    """SSE 流式回复：逐字推送 delta 事件，结束后自动保存助手消息"""
+    """SSE 流式回复：逐字推送 delta 事件，结束后自动保存助手消息。
+
+    注意：SSE 连接前端用 EventSource（无法自定义请求头），token 通过 URL 查询参数传递，
+    即 stream.url 需拼上 `?token=<JWT>`（与 Java 版一致）。
+    """
     if not settings.deepseek_api_key:
         raise HTTPException(
             status_code=500,
