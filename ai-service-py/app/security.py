@@ -31,19 +31,22 @@ def verify_token(token: str) -> int | None:
         return None
 
 
-async def get_current_user_id(request: Request) -> int:
-    """FastAPI 依赖：解析 JWT 得到真实 userId。
+def extract_token(request: Request) -> str | None:
+    """从请求中提取原始 JWT（用于向下游 Java 网关转发时复用）。
 
     支持两种携带方式：
     - 请求头 `Authorization: Bearer <token>`（普通接口）
     - URL 查询参数 `?token=<token>`（SSE 流，EventSource 无法自定义请求头）
     """
-    token = None
     auth = request.headers.get("authorization")
     if auth and auth.startswith("Bearer "):
-        token = auth[7:]
-    if not token:
-        token = request.query_params.get("token")
+        return auth[7:]
+    return request.query_params.get("token")
+
+
+async def get_current_user_id(request: Request) -> int:
+    """FastAPI 依赖：解析 JWT 得到真实 userId。"""
+    token = extract_token(request)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录或登录失效")
 

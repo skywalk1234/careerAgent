@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # ---------- DeepSeek API 配置 ----------
     # API Key 在 .env 文件的 DEEPSEEK_API_KEY 中填写
     # 申请地址: https://platform.deepseek.com/
-    deepseek_api_key: str = "sk-6032f18e28024ec5824c22cd2c31d31b"
+    deepseek_api_key: str = "${DEEPSEEK_API_KEY}"
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-v4-flash"
 
@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 
     # 会话/消息缓存过期时间(秒)，后续接入 Redis 时使用
     cache_ttl: int = 300
+
+    # ---------- Java profile-service 地址 ----------
+    # 工具获取学生简历时调用（网关默认 8080；若本地绕过网关可改直连 profile-service 端口）
+    profile_service_base_url: str = "http://127.0.0.1:8080"
 
 
 settings = Settings()

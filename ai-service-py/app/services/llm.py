@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
 from app.config import settings
@@ -21,3 +22,8 @@ def get_llm() -> ChatOpenAI:
         max_tokens=2048,
         timeout=60,
     )
+
+
+def get_llm_with_tools(tools: list) -> BaseChatModel:
+    """将工具绑定到 LLM，返回支持工具调用的模型实例"""
+    return get_llm().bind_tools(tools)

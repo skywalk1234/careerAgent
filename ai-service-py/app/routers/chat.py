@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,9 +19,10 @@ from app.schemas import (
     SessionListResponse,
     StreamConfigOut,
 )
-from app.security import get_current_user_id
+from app.security import extract_token, get_current_user_id
 from app.services import chat_service
-from app.services.llm import get_llm
+from app.services.llm import get_llm, get_llm_with_tools
+from app.tools import ALL_TOOLS
 
 router = APIRouter(prefix="/users/me/home/assistant")
 
@@ -124,6 +125,7 @@ async def send_message(
 async def stream_message(
     session_id: str,
     message_id: str,
+    request: Request,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
@@ -132,6 +134,9 @@ async def stream_message(
     注意：SSE 连接前端用 EventSource（无法自定义请求头），token 通过 URL 查询参数传递，
     即 stream.url 需拼上 `?token=<JWT>`（与 Java 版一致）。
     """
+    # 透传原始 JWT，供工具调用 Java 网关时附带 Authorization 头
+    token = extract_token(request)
+
     if not settings.deepseek_api_key:
         raise HTTPException(
             status_code=500,
@@ -145,10 +150,63 @@ async def stream_message(
     history = [m for m in await chat_service.list_messages(db, session_id) if m.message_id != message_id]
     messages = chat_service.build_llm_messages(history, user_msg.content)
 
+    # 绑定工具后的模型实例 + 工具查找表
+    llm_with_tools = get_llm_with_tools(ALL_TOOLS)
+    tools_by_name = {t.name: t for t in ALL_TOOLS}
+
     async def event_stream():
         yield _sse("start", {"type": "start", "messageId": message_id})
         full = ""
         try:
+            # ---------- 工具调用循环 ----------
+            # 最多迭代 5 轮，防止模型反复调用工具陷入死循环
+            for _ in range(5):
+                response = await llm_with_tools.ainvoke(messages)
+                tool_calls = response.tool_calls
+
+                # 模型没有调用工具 → 退出循环，进入流式生成
+                if not tool_calls:
+                    messages.append(
+                        {"role": "assistant", "content": response.content or ""}
+                    )
+                    break
+
+                # 模型要求调用工具 → 追加 assistant 消息（含 tool_calls），逐个执行
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": response.content or "",
+                        "tool_calls": tool_calls,
+                    }
+                )
+                for call in tool_calls:
+                    tool_name = call["name"]
+                    tool_inst = tools_by_name.get(tool_name)
+
+                    yield _sse("tool_call", {"tool": tool_name, "args": call["args"] or {}})
+
+                    if tool_inst is None:
+                        result = f"未知工具: {tool_name}"
+                    else:
+                        # 强制注入真实用户 id 与 token，覆盖模型可能传入的任何值（身份参数不可由模型决定）
+                        tool_args = dict(call["args"] or {})
+                        tool_args["user_id"] = user_id
+                        tool_args["token"] = token or ""
+                        try:
+                            result = await tool_inst.ainvoke(tool_args)
+                        except Exception as e:
+                            result = f"工具执行失败: {e}"
+
+                    yield _sse("tool_result", {"tool": tool_name, "result": result})
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call["id"],
+                            "content": result,
+                        }
+                    )
+
+            # ---------- 流式输出最终回答 ----------
             async for chunk in get_llm().astream(messages):
                 text = chunk.content or ""
                 if text:
