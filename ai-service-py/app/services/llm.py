@@ -9,8 +9,9 @@ from app.config import settings
 # DeepSeek 思考模式（OpenAI 兼容格式）：
 #   开关  {"thinking": {"type": "enabled"}}
 #   强度  {"reasoning_effort": "low"}   # low / high / max
-# 通过 model_kwargs 透传，langchain-openai 会原样放入请求体发给 DeepSeek。
-_THINKING_KWARGS = {
+# 注意：不能用 model_kwargs 传 "thinking"——它会被当作 create() 的具名参数而报错
+# （unexpected keyword argument）。要用 extra_body 原样塞进 HTTP 请求体。
+_THINKING_BODY = {
     "thinking": {"type": "enabled"},
     "reasoning_effort": "low",
 }
@@ -31,7 +32,7 @@ def get_llm() -> ChatOpenAI:
         temperature=0.7,
         max_tokens=2048,
         timeout=60,
-        model_kwargs=_THINKING_KWARGS,
+        extra_body=_THINKING_BODY,
     )
 
 
