@@ -58,6 +58,35 @@ def _summarize_tool_result(result: str) -> str:
     return "已获取简历数据"
 
 
+def _extract_thinking(response) -> str:
+    """提取模型在调用工具前可能附带的「预回答/思考」文本。
+
+    - 普通模型：内容通常放在 response.content
+    - 推理模型（如 deepseek-reasoner）：推理内容通常在 additional_kwargs["reasoning_content"]
+    返回 str；没有则返回空字符串。
+    """
+    content = getattr(response, "content", None)
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(str(block.get("text", "")))
+            elif isinstance(block, str):
+                parts.append(block)
+        text = "".join(parts).strip()
+    elif isinstance(content, str):
+        text = content.strip()
+    else:
+        text = ""
+
+    if text:
+        return text
+
+    ak = getattr(response, "additional_kwargs", None) or {}
+    rc = ak.get("reasoning_content")
+    return rc.strip() if isinstance(rc, str) else ""
+
+
 # ===================== 会话 =====================
 
 @router.post("/sessions", response_model=ApiResponse[CreateSessionResponse])
@@ -227,11 +256,15 @@ async def stream_message(
                     break
 
                 # 模型要求调用工具 → 追加 assistant 消息（含 tool_calls），逐个执行
-                pre_answer = response.content or ""
+                pre_answer = _extract_thinking(response)
+                print(
+                    f"[ai-service] 工具调用前内容 content={response.content!r} "
+                    f"reasoning={getattr(response, 'additional_kwargs', {}).get('reasoning_content', '')!r}"
+                )
                 messages.append(
                     {
                         "role": "assistant",
-                        "content": pre_answer,
+                        "content": response.content or "",
                         "tool_calls": tool_calls,
                     }
                 )

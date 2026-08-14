@@ -6,6 +6,16 @@ from langchain_openai import ChatOpenAI
 from app.config import settings
 
 
+# DeepSeek 思考模式（OpenAI 兼容格式）：
+#   开关  {"thinking": {"type": "enabled"}}
+#   强度  {"reasoning_effort": "low"}   # low / high / max
+# 通过 model_kwargs 透传，langchain-openai 会原样放入请求体发给 DeepSeek。
+_THINKING_KWARGS = {
+    "thinking": {"type": "enabled"},
+    "reasoning_effort": "low",
+}
+
+
 @lru_cache(maxsize=1)
 def get_llm() -> ChatOpenAI:
     """懒加载 LLM 客户端：第一次流式调用时才创建。
@@ -21,6 +31,7 @@ def get_llm() -> ChatOpenAI:
         temperature=0.7,
         max_tokens=2048,
         timeout=60,
+        model_kwargs=_THINKING_KWARGS,
     )
 
 
