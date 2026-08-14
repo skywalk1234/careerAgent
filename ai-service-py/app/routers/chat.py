@@ -160,15 +160,14 @@ async def stream_message(
         try:
             # ---------- 工具调用循环 ----------
             # 最多迭代 5 轮，防止模型反复调用工具陷入死循环
+            final_answer = None
             for _ in range(5):
                 response = await llm_with_tools.ainvoke(messages)
                 tool_calls = response.tool_calls
 
-                # 模型没有调用工具 → 退出循环，进入流式生成
+                # 模型没有调用工具 → 这就是最终回答，直接采用，避免二次生成导致内容跑偏
                 if not tool_calls:
-                    messages.append(
-                        {"role": "assistant", "content": response.content or ""}
-                    )
+                    final_answer = response.content or ""
                     break
 
                 # 模型要求调用工具 → 追加 assistant 消息（含 tool_calls），逐个执行
@@ -206,12 +205,18 @@ async def stream_message(
                         }
                     )
 
-            # ---------- 流式输出最终回答 ----------
-            async for chunk in get_llm().astream(messages):
-                text = chunk.content or ""
-                if text:
-                    full += text
-                    yield _sse("delta", {"type": "delta", "delta": text, "content": full})
+            # ---------- 输出最终回答 ----------
+            if final_answer is not None:
+                # 工具循环内模型已给出最终回答，直接下发，不要再次生成
+                full = final_answer
+                yield _sse("delta", {"type": "delta", "delta": final_answer, "content": final_answer})
+            else:
+                # 兜底：5 轮内模型始终在调用工具（异常情况），再走一次纯流式生成
+                async for chunk in get_llm().astream(messages):
+                    text = chunk.content or ""
+                    if text:
+                        full += text
+                        yield _sse("delta", {"type": "delta", "delta": text, "content": full})
 
             await chat_service.save_assistant_message(db, session_id, full)
             yield _sse(

@@ -92,7 +92,14 @@ async def save_assistant_message(db: AsyncSession, session_id: str, content: str
 def build_llm_messages(history: list[ChatMessage], current_content: str) -> list[dict]:
     """构造发给 LLM 的上下文：system + 历史对话 + 当前用户消息"""
     messages: list[dict] = [
-        {"role": "system", "content": "你是微光职引智能求职系统中的求职助手，需要根据用户的问题和历史对话，给予用户解答。"}
+        {
+            "role": "system",
+            "content": (
+                "你是微光职引智能求职系统中的求职助手。\n"
+                "1. 回答必须基于工具返回的真实数据，逐条给出具体、可执行的分析与建议；\n"
+                "2. 如果工具返回错误或没有获取到数据（例如认证失败、暂无简历画像），要如实告知用户原因，严禁编造分析结论或谎称已完成分析。"
+            ),
+        }
     ]
     for m in history:
         if m.role in ("user", "assistant"):
