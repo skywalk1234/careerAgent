@@ -531,6 +531,15 @@ function renderMarkdownContent(content: string) {
   return DOMPurify.sanitize(rendered)
 }
 
+// 流式输出期间用纯文本渲染（避免每个 token 都做 markdown+DOMPurify 全量渲染），
+// 等消息成功后（done）再渲染完整 markdown。
+function renderAssistantContent(message: HomeMessage) {
+  if (message.status === 'processing') {
+    return String(message.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+  return renderMarkdownContent(message.content || '')
+}
+
 function parseSsePayload(raw: string) {
   try {
     return JSON.parse(raw) as Record<string, unknown>
@@ -1085,14 +1094,27 @@ async function startSseStream(messageId: string, streamUrl: string) {
     await scrollToBottom()
   })
 
-  source.addEventListener('delta', async (event) => {
-    const payload = parseSsePayload((event as MessageEvent).data)
-    if (!payload) return
+  // 流式渲染节流：delta 事件高频到达时，用 rAF 合帧统一提交
+  let pendingDeltaContent: string | null = null
+  let deltaRafId = 0
+  const flushDelta = () => {
+    deltaRafId = 0
+    if (pendingDeltaContent === null) return
     updateAssistantMessage(messageId, {
       status: 'processing',
-      content: String(payload.content || ''),
+      content: pendingDeltaContent,
     })
-    await scrollToBottom()
+    pendingDeltaContent = null
+    scrollToBottom()
+  }
+
+  source.addEventListener('delta', (event) => {
+    const payload = parseSsePayload((event as MessageEvent).data)
+    if (!payload) return
+    pendingDeltaContent = String(payload.content || '')
+    if (!deltaRafId) {
+      deltaRafId = requestAnimationFrame(flushDelta)
+    }
   })
 
   source.addEventListener('tool_call', async (event) => {
@@ -1218,6 +1240,12 @@ async function startSseStream(messageId: string, streamUrl: string) {
 
   source.addEventListener('done', async (event) => {
     streamFinished = true
+    if (deltaRafId) {
+      cancelAnimationFrame(deltaRafId)
+      deltaRafId = 0
+    }
+    flushDelta()
+
     const payload = parseSsePayload((event as MessageEvent).data)
     const message = payload?.message as HomeMessage | undefined
     if (message) {
@@ -1919,7 +1947,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div class="assistant-ai-content markdown-body" v-html="renderMarkdownContent(item.content || '思考中...')"></div>
+              <div class="assistant-ai-content markdown-body" v-html="renderAssistantContent(item)"></div>
 
               <div v-if="pendingApprovalsByMessageId[item.messageId]?.status === 'pending'" class="assistant-approval-card">
                 <p class="assistant-approval-title">{{ pendingApprovalsByMessageId[item.messageId].title }}</p>
