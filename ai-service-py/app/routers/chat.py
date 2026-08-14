@@ -282,12 +282,22 @@ async def stream_message(
                     trace_steps.append(thought_step)
                     yield emit_trace(active_step_id=thought_step_id)
 
+                    # 按时间片合帧输出，避免每字符一条 SSE 事件导致前端高频渲染卡顿
                     accumulated = ""
-                    for i in range(0, len(pre_answer), 2):
-                        accumulated += pre_answer[i:i + 2]
+                    frame_start = asyncio.get_event_loop().time()
+                    FRAME_MS = 0.03
+                    for ch in pre_answer:
+                        accumulated += ch
+                        now = asyncio.get_event_loop().time()
+                        if now - frame_start >= FRAME_MS:
+                            thought_step["detail"] = accumulated
+                            yield emit_trace(active_step_id=thought_step_id)
+                            frame_start = now
+                            await asyncio.sleep(0.0)  # 让出事件循环，避免阻塞其他任务
+
+                    if accumulated != thought_step["detail"]:
                         thought_step["detail"] = accumulated
                         yield emit_trace(active_step_id=thought_step_id)
-                        await asyncio.sleep(0.01)
 
                     thought_step["status"] = "succeeded"
                     yield emit_trace()
@@ -337,13 +347,26 @@ async def stream_message(
                         }
                     )
 
-            # ---------- 真实流式输出最终回答 ----------
+            # ---------- 真实流式输出最终回答（合帧缓冲）----------
             # 注意：此时 messages 末尾是工具结果（而非预生成的回答），astream 会据此逐 token 生成
+            # 用 ~30ms 时间片把多个小 chunk 合并成一条事件，减少前端高频 DOM 渲染带来的卡顿
+            loop = asyncio.get_event_loop()
+            FRAME_MS = 0.03
+            frame_start = loop.time()
+            pending = ""
             async for chunk in get_llm().astream(messages):
                 text = chunk.content or ""
-                if text:
-                    full += text
-                    yield _sse("delta", {"type": "delta", "delta": text, "content": full})
+                if not text:
+                    continue
+                pending += text
+                full += text
+                now = loop.time()
+                if now - frame_start >= FRAME_MS:
+                    yield _sse("delta", {"type": "delta", "delta": pending, "content": full})
+                    pending = ""
+                    frame_start = now
+            if pending:
+                yield _sse("delta", {"type": "delta", "delta": pending, "content": full})
 
             # 收尾：完整 trace 标记成功
             finished_at = _now_iso()
