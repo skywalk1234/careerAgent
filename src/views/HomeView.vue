@@ -1935,20 +1935,25 @@ async function handleApprovalDecision(messageId: string, decision: 'approve' | '
 async function initPage() {
   loading.value = true
   try {
+    // overview 类接口可能尚未实现（404）或网关异常，绝不能阻塞「历史会话」的加载
     const [overviewRes, publicRes, runtimeRes] = await Promise.all([
-      getHomeOverview(),
-      getHomePublicOverview(),
+      getHomeOverview().catch(() => null),
+      getHomePublicOverview().catch(() => null),
       getHomeAgentRuntimeOverview().catch(() => null),
     ])
 
-    const overviewPayload = overviewRes.data as ApiResponse<HomeOverviewResult>
-    if (isSuccessCode(overviewPayload.code) && overviewPayload.data) {
-      overview.value = overviewPayload.data
+    if (overviewRes) {
+      const overviewPayload = overviewRes.data as ApiResponse<HomeOverviewResult>
+      if (isSuccessCode(overviewPayload.code) && overviewPayload.data) {
+        overview.value = overviewPayload.data
+      }
     }
 
-    const publicPayload = publicRes.data as ApiResponse<HomePublicOverviewResult>
-    if (isSuccessCode(publicPayload.code) && publicPayload.data) {
-      publicOverview.value = publicPayload.data
+    if (publicRes) {
+      const publicPayload = publicRes.data as ApiResponse<HomePublicOverviewResult>
+      if (isSuccessCode(publicPayload.code) && publicPayload.data) {
+        publicOverview.value = publicPayload.data
+      }
     }
 
     if (runtimeRes) {
@@ -1993,6 +1998,9 @@ onMounted(async () => {
     if (exists) {
       await loadSessionMessages(sessionId)
     }
+  } else if (!activeSessionId.value && sessions.value.length) {
+    // 进入首页时立即加载最近一次历史对话（后端按置顶+最近更新排序，取第一条）
+    await loadSessionMessages(sessions.value[0].sessionId)
   }
   adjustInputHeight()
 })
