@@ -1,4 +1,6 @@
+import asyncio
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -30,6 +32,30 @@ router = APIRouter(prefix="/users/me/home/assistant")
 def _sse(name: str, data: dict) -> str:
     """把事件格式化成 SSE 协议文本（与前端约定的事件名一致）"""
     return f"event: {name}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+
+def _now_iso() -> str:
+    """返回带时区的 ISO 时间，前端 Date.parse 可直接解析（用于 trace 的 startedAt/finishedAt）"""
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _summarize_tool_result(result: str) -> str:
+    """把工具返回的 JSON 摘要成一句话，用于前端 trace 步骤的结果展示"""
+    try:
+        data = json.loads(result)
+    except Exception:
+        return (result[:80] + "...") if len(result) > 80 else (result or "已返回结果")
+
+    if isinstance(data, dict):
+        if data.get("error"):
+            return f"工具返回错误：{str(data['error'])[:60]}"
+        skills = data.get("skills") or []
+        basic = data.get("basicInfo") or {}
+        name = basic.get("name") if isinstance(basic, dict) else None
+        if name:
+            return f"已获取 {name} 的简历画像（技能 {len(skills)} 项）"
+        return "已获取简历画像数据"
+    return "已获取简历数据"
 
 
 # ===================== 会话 =====================
@@ -157,7 +183,39 @@ async def stream_message(
     async def event_stream():
         yield _sse("start", {"type": "start", "messageId": message_id})
         full = ""
+
+        # ---------- agent trace 状态：供前端展示「思考过程 + 工具调用」 ----------
+        started_at = _now_iso()
+        trace_steps: list[dict] = []
+        step_seq = 0
+
+        def next_step_id() -> str:
+            nonlocal step_seq
+            step_seq += 1
+            return f"step_{step_seq}"
+
+        def build_trace(status: str = "processing", active_step_id: str | None = None, finished_at: str | None = None) -> dict:
+            return {
+                "traceVersion": "1.0",
+                "mode": "chat",
+                "status": status,
+                "startedAt": started_at,
+                "finishedAt": finished_at,
+                "activeStepId": active_step_id,
+                "steps": list(trace_steps),
+            }
+
+        def emit_trace(status: str = "processing", active_step_id: str | None = None, finished_at: str | None = None) -> str:
+            return _sse("trace", {"type": "trace", "trace": build_trace(status, active_step_id, finished_at)})
+
         try:
+            # 思考步骤：让前端立刻显示「思考中」面板
+            think_id = next_step_id()
+            trace_steps.append(
+                {"stepId": think_id, "type": "thought", "title": "正在理解你的请求", "status": "succeeded"}
+            )
+            yield emit_trace()
+
             # ---------- 工具调用循环 ----------
             # 最多迭代 5 轮，防止模型反复调用工具陷入死循环
             final_answer = None
@@ -182,6 +240,19 @@ async def stream_message(
                     tool_name = call["name"]
                     tool_inst = tools_by_name.get(tool_name)
 
+                    # 新增「工具调用」步骤并通知前端（进行中）
+                    tool_step_id = next_step_id()
+                    tool_step = {
+                        "stepId": tool_step_id,
+                        "type": "tool",
+                        "title": f"调用工具：{tool_name}",
+                        "status": "processing",
+                        "toolName": tool_name,
+                        "toolParams": call["args"] or {},
+                    }
+                    trace_steps.append(tool_step)
+                    yield emit_trace(active_step_id=tool_step_id)
+
                     yield _sse("tool_call", {"tool": tool_name, "args": call["args"] or {}})
 
                     if tool_inst is None:
@@ -196,6 +267,11 @@ async def stream_message(
                         except Exception as e:
                             result = f"工具执行失败: {e}"
 
+                    # 更新工具步骤为完成，附结果摘要
+                    tool_step["status"] = "succeeded"
+                    tool_step["outputSummary"] = _summarize_tool_result(result)
+                    yield emit_trace()
+
                     yield _sse("tool_result", {"tool": tool_name, "result": result})
                     messages.append(
                         {
@@ -207,9 +283,14 @@ async def stream_message(
 
             # ---------- 输出最终回答 ----------
             if final_answer is not None:
-                # 工具循环内模型已给出最终回答，直接下发，不要再次生成
-                full = final_answer
-                yield _sse("delta", {"type": "delta", "delta": final_answer, "content": final_answer})
+                # 分片下发，还原「打字机」式流式输出效果
+                full = ""
+                chunk_size = 2
+                for i in range(0, len(final_answer), chunk_size):
+                    piece = final_answer[i:i + chunk_size]
+                    full += piece
+                    yield _sse("delta", {"type": "delta", "delta": piece, "content": full})
+                    await asyncio.sleep(0.015)
             else:
                 # 兜底：5 轮内模型始终在调用工具（异常情况），再走一次纯流式生成
                 async for chunk in get_llm().astream(messages):
@@ -217,6 +298,10 @@ async def stream_message(
                     if text:
                         full += text
                         yield _sse("delta", {"type": "delta", "delta": text, "content": full})
+
+            # 收尾：完整 trace 标记成功
+            finished_at = _now_iso()
+            yield emit_trace(status="succeeded", finished_at=finished_at)
 
             await chat_service.save_assistant_message(db, session_id, full)
             yield _sse(
@@ -229,11 +314,13 @@ async def stream_message(
                         "content": full,
                         "status": "succeeded",
                         "actions": [],
-                        "agentTrace": {"status": "succeeded", "activeStepId": None},
+                        "agentTrace": build_trace(status="succeeded", finished_at=finished_at),
                     },
                 },
             )
         except Exception as e:
+            # 出错时也把 trace 标成失败，前端能看到状态
+            yield emit_trace(status="failed", finished_at=_now_iso())
             yield _sse(
                 "error",
                 {"type": "error", "messageId": message_id, "error": f"AI处理出错: {e}"},
