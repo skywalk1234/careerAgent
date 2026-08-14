@@ -1310,6 +1310,22 @@ async function startSseStream(assistantMessageId: string, streamUrl: string) {
     const payload = parseSsePayload((event as MessageEvent).data)
     const trace = payload?.trace as HomeAgentTrace | undefined
     if (!trace) return
+
+    // 若正在流式输出「预回答/思考内容」，自动展开思考面板，让用户直接看到
+    const activeStep = Array.isArray(trace.steps)
+      ? trace.steps.find(step => step.stepId === trace.activeStepId)
+      : undefined
+    if (
+      activeStep
+      && String(activeStep.type || '').toLowerCase() === 'thought'
+      && String(activeStep.detail || '').trim()
+    ) {
+      traceExpandedByMessageId.value = {
+        ...traceExpandedByMessageId.value,
+        [assistantMessageId]: true,
+      }
+    }
+
     updateAssistantMessage(assistantMessageId, {
       agentTrace: trace,
       status: 'processing',
