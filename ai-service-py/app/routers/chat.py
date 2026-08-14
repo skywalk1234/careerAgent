@@ -1,4 +1,3 @@
-import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -218,14 +217,12 @@ async def stream_message(
 
             # ---------- 工具调用循环 ----------
             # 最多迭代 5 轮，防止模型反复调用工具陷入死循环
-            final_answer = None
             for _ in range(5):
                 response = await llm_with_tools.ainvoke(messages)
                 tool_calls = response.tool_calls
 
-                # 模型没有调用工具 → 这就是最终回答，直接采用，避免二次生成导致内容跑偏
+                # 模型没有调用工具 → 退出循环，最终回答交给下面 astream 真实流式生成
                 if not tool_calls:
-                    final_answer = response.content or ""
                     break
 
                 # 模型要求调用工具 → 追加 assistant 消息（含 tool_calls），逐个执行
@@ -281,23 +278,13 @@ async def stream_message(
                         }
                     )
 
-            # ---------- 输出最终回答 ----------
-            if final_answer is not None:
-                # 分片下发，还原「打字机」式流式输出效果
-                full = ""
-                chunk_size = 2
-                for i in range(0, len(final_answer), chunk_size):
-                    piece = final_answer[i:i + chunk_size]
-                    full += piece
-                    yield _sse("delta", {"type": "delta", "delta": piece, "content": full})
-                    await asyncio.sleep(0.015)
-            else:
-                # 兜底：5 轮内模型始终在调用工具（异常情况），再走一次纯流式生成
-                async for chunk in get_llm().astream(messages):
-                    text = chunk.content or ""
-                    if text:
-                        full += text
-                        yield _sse("delta", {"type": "delta", "delta": text, "content": full})
+            # ---------- 真实流式输出最终回答 ----------
+            # 注意：此时 messages 末尾是工具结果（而非预生成的回答），astream 会据此逐 token 生成
+            async for chunk in get_llm().astream(messages):
+                text = chunk.content or ""
+                if text:
+                    full += text
+                    yield _sse("delta", {"type": "delta", "delta": text, "content": full})
 
             # 收尾：完整 trace 标记成功
             finished_at = _now_iso()
