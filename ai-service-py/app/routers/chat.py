@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -226,13 +227,38 @@ async def stream_message(
                     break
 
                 # 模型要求调用工具 → 追加 assistant 消息（含 tool_calls），逐个执行
+                pre_answer = response.content or ""
                 messages.append(
                     {
                         "role": "assistant",
-                        "content": response.content or "",
+                        "content": pre_answer,
                         "tool_calls": tool_calls,
                     }
                 )
+
+                # 若模型在调用工具前有「预回答」，先流式输出到思考面板，再显示工具调用
+                if pre_answer.strip():
+                    thought_step_id = next_step_id()
+                    thought_step = {
+                        "stepId": thought_step_id,
+                        "type": "thought",
+                        "title": "正在思考",
+                        "status": "processing",
+                        "detail": "",
+                    }
+                    trace_steps.append(thought_step)
+                    yield emit_trace(active_step_id=thought_step_id)
+
+                    accumulated = ""
+                    for i in range(0, len(pre_answer), 2):
+                        accumulated += pre_answer[i:i + 2]
+                        thought_step["detail"] = accumulated
+                        yield emit_trace(active_step_id=thought_step_id)
+                        await asyncio.sleep(0.01)
+
+                    thought_step["status"] = "succeeded"
+                    yield emit_trace()
+
                 for call in tool_calls:
                     tool_name = call["name"]
                     tool_inst = tools_by_name.get(tool_name)
