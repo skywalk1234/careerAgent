@@ -8,14 +8,24 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import init_db
-from app.routers import chat
+from app.routers import chat, job_recommend
+from app.services import vector_store
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时自动建表
     await init_db()
+    # pgvector 连接池（岗位推荐向量检索用），存到 app.state 供路由访问。
+    # 向量库不可用时不让整个服务启动失败：置 None，推荐端点返回清晰错误，chat 等其余功能不受影响。
+    try:
+        app.state.pg_pool = await vector_store.create_pg_pool()
+    except Exception as e:
+        print(f"[main] pgvector 连接池创建失败，岗位推荐将不可用: {e}")
+        app.state.pg_pool = None
     yield
+    if app.state.pg_pool is not None:
+        await app.state.pg_pool.close()
 
 
 app = FastAPI(
@@ -40,6 +50,7 @@ app.add_middleware(
 )
 
 app.include_router(chat.router, tags=["chat"])
+app.include_router(job_recommend.router, tags=["job-recommend"])
 
 
 @app.get("/health")

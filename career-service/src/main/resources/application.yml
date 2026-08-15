@@ -32,6 +32,11 @@ dashscope:
 #      certificate-authorities: ""
 #      verification-mode: none
 #
+
+# Python AI 服务（ai-service-py）地址，JobRecommendClient 直连用，可覆盖
+ai-service:
+  url: http://127.0.0.1:8086
+
 feign:
   client:
     config:
@@ -39,3 +44,7 @@ feign:
       resume-parser-service:
         connectTimeout: 10000  # 连接超时：10秒
         readTimeout: 60000     # 读取超时：60秒 (根据 LLM 耗时调整，建议设大一点)
+      # Python ai-service-py 直连客户端，readTimeout 需覆盖 DeepSeek 重排耗时
+      ai-service-py:
+        connectTimeout: 10000
+        readTimeout: 60000

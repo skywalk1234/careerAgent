@@ -39,3 +39,25 @@ def get_llm() -> ChatOpenAI:
 def get_llm_with_tools(tools: list) -> BaseChatModel:
     """将工具绑定到 LLM，返回支持工具调用的模型实例"""
     return get_llm().bind_tools(tools)
+
+
+@lru_cache(maxsize=1)
+def get_json_llm() -> ChatOpenAI:
+    """岗位重排专用 LLM：关闭思考模式（故意不传 extra_body），低温度保证严格 JSON 输出。
+
+    与 get_llm 的区别：
+    - 不启用 thinking：纯结构化 JSON 提取/排序任务，思考模式徒增延迟与 token，且可能泄漏 reasoning_content
+    - 更低温度 + 更高 max_tokens：bestMatch + 最多 4 个 otherRecommendations，输出较长
+    """
+    if not settings.deepseek_api_key:
+        raise RuntimeError("未配置 DEEPSEEK_API_KEY，请在 .env 文件中填写")
+
+    return ChatOpenAI(
+        model=settings.deepseek_model,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        temperature=0.2,
+        max_tokens=4096,
+        timeout=60,
+        # 有意不传 extra_body → thinking 关闭
+    )

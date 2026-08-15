@@ -3,6 +3,7 @@ package group.careerservice.service.JobAnalyze;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import group.careerservice.client.AiClient;
+import group.careerservice.client.JobRecommendClient;
 import group.careerservice.client.ProfileClient;
 import group.careerservice.domain.dto.JobDocument;
 import group.careerservice.domain.dto.MatchJob;
@@ -41,6 +42,7 @@ public class ProcessMatchFilterService {
     private ElasticsearchRestTemplate elasticsearchRestTemplate;
     @Autowired
     private final AiClient aiClient;
+    private final JobRecommendClient jobRecommendClient;
     private final ProfileClient profileClient;
     private final RabbitTemplate rabbitTemplate;
     private final MatchMapper matchJobPoMapper;
@@ -113,12 +115,12 @@ public class ProcessMatchFilterService {
         profile_msg.put("求职意愿", filter);
         profile_msg.put("profile", profile_json);
         String request_json = objectMapper.writeValueAsString(profile_msg);
-//       向ai服务发送请求
-        String s = aiClient.recommendJobs(request_json);
+//       向Python ai-service (ai-service-py) 发送请求（取代原 resume-parser-service 的 AI_recommend 步骤）
+        String s = jobRecommendClient.recommendJobs(request_json);
         System.out.println("接收到大类的推荐结果："+ s);
         profile_msg.put("大模型推荐的岗位", s);
 
-        String recommendations = aiClient.recommendSpecificJobs(request_json);
+        String recommendations = jobRecommendClient.recommendSpecificJobs(request_json);
         log.info("接收到具体岗位的推荐结果："+ recommendations);
 
         MatchJob matchJob = objectMapper.readValue(recommendations, MatchJob.class);
