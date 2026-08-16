@@ -340,7 +340,9 @@ export async function getMatchRecommendationsFromPython(payload: {
     profile: payload.profile ?? null,
   }
   try {
-    const response = await aiHttp.post('/jobs/recommend/specific', body)
+    // 后端 RAG 检索 + DeepSeek 精排可能超过 15s（http.ts 全局 timeout），单独放行到 60s
+    // 与 career-service Feign 的 ai-service-py readTimeout=60000 对齐
+    const response = await aiHttp.post('/jobs/recommend/specific', body, { timeout: 60000 })
     const raw = response.data as MatchRecommendationsResult & { error?: string }
     if (raw && typeof raw.error === 'string') {
       return { ok: false, message: raw.error }

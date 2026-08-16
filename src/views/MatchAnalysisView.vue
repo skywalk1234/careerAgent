@@ -3007,7 +3007,6 @@ async function initialize() {
     }
 
     await Promise.all([
-      fetchRecommendations(true),
       fetchFavorites(),
       fetchMatchHistory(),
       fetchLatestPath(),
