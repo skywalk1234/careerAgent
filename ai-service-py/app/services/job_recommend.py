@@ -8,6 +8,7 @@
 
 import json
 import re
+import time
 
 from app.config import settings
 from app.services.embedding import embed_text, truncate_for_embedding
@@ -116,8 +117,13 @@ def _extract_json(content: str) -> dict:
 
 async def recommend_category(pool, query_text: str) -> str:
     """镜像 recommendCategory：pgvector 检索 → 返回 nodeName 数组的 JSON 文本。"""
+    _t0 = time.perf_counter()
     try:
         embedding = await embed_text(truncate_for_embedding(query_text))
+        print(
+            f"[job_recommend] 大类推荐 | 嵌入完成({settings.embedding_model}, "
+            f"{len(embedding)}维) 耗时 {time.perf_counter() - _t0:.2f}s"
+        )
         rows = await similarity_search(
             pool,
             TABLE_JOB_CATEGORY,
@@ -125,17 +131,30 @@ async def recommend_category(pool, query_text: str) -> str:
             top_k=settings.recommend_top_k,
             threshold=settings.recommend_category_threshold,
         )
+        print(
+            f"[job_recommend] 大类推荐 | 向量检索完成，命中 {len(rows)} 条大类"
+            f"（{TABLE_JOB_CATEGORY}，topK={settings.recommend_top_k}，阈值={settings.recommend_category_threshold}）"
+        )
         names = [r.metadata.get("nodeName") for r in rows if r.metadata.get("nodeName")]
+        print(f"[job_recommend] 大类推荐 | 返回 {len(names)} 个岗位大类，总耗时 {time.perf_counter() - _t0:.2f}s")
         return json.dumps(names, ensure_ascii=False)
     except Exception as e:
-        print(f"[job_recommend] recommend_category 出错: {e}")
+        print(f"[job_recommend] 大类推荐 | 出错: {e}")
         return "[]"
 
 
 async def recommend_specific_job(pool, query_text: str) -> str:
     """镜像 recommendSpecificJob：pgvector 检索 → DeepSeek 精排 → MatchJob JSON 文本。"""
+    _t0 = time.perf_counter()
     try:
+        # ---- 步骤 1/4：嵌入 ----
         embedding = await embed_text(truncate_for_embedding(query_text))
+        print(
+            f"[job_recommend] 具体推荐 | 1/4 嵌入完成({settings.embedding_model}, "
+            f"{len(embedding)}维) 耗时 {time.perf_counter() - _t0:.2f}s"
+        )
+
+        # ---- 步骤 2/4：向量检索 ----
         rows = await similarity_search(
             pool,
             TABLE_JOB_DETAIL,
@@ -143,14 +162,23 @@ async def recommend_specific_job(pool, query_text: str) -> str:
             top_k=settings.recommend_top_k,
             threshold=settings.recommend_specific_threshold,
         )
+        top_sim = f"，最高相似度 {rows[0].similarity:.3f}" if rows else ""
+        print(
+            f"[job_recommend] 具体推荐 | 2/4 向量检索完成，命中 {len(rows)} 条候选岗位"
+            f"（{TABLE_JOB_DETAIL}，topK={settings.recommend_top_k}，阈值={settings.recommend_specific_threshold}{top_sim}）"
+        )
         if not rows:
+            print("[job_recommend] 具体推荐 | 无匹配结果，返回 error: 未找到匹配的岗位信息")
             return json.dumps({"error": "未找到匹配的岗位信息"}, ensure_ascii=False)
 
+        # ---- 步骤 3/4：DeepSeek 精排 ----
         candidates = [build_candidate(r.metadata) for r in rows]
         user_prompt = USER_PROMPT_TEMPLATE.format(
             user_json=query_text,
             candidates_json=json.dumps(candidates, ensure_ascii=False),
         )
+        _t1 = time.perf_counter()
+        print(f"[job_recommend] 具体推荐 | 3/4 调用 DeepSeek 精排（{len(candidates)} 条候选）...")
 
         llm = get_json_llm()
         resp = await llm.ainvoke(
@@ -162,13 +190,28 @@ async def recommend_specific_job(pool, query_text: str) -> str:
         content = resp.content
         if isinstance(content, list):  # 防御：个别 provider 返回 block 列表
             content = "".join(b.get("text", "") for b in content if isinstance(b, dict))
+        print(
+            f"[job_recommend] 具体推荐 | 3/4 DeepSeek 精排完成，耗时 {time.perf_counter() - _t1:.2f}s，"
+            f"输出 {len(content)} 字符"
+        )
 
+        # ---- 步骤 4/4：解析并返回结果 ----
         data = _extract_json(content)
+        best = data.get("bestMatch") or {}
+        others = data.get("otherRecommendations") or []
+        print(
+            f"[job_recommend] 具体推荐 | 4/4 解析成功 → bestMatch={best.get('jobName')!r} "
+            f"(overallScore={best.get('overallScore')})，otherRecommendations={len(others)} 条，"
+            f"总耗时 {time.perf_counter() - _t0:.2f}s"
+        )
         return json.dumps(data, ensure_ascii=False)
 
     except json.JSONDecodeError:
+        print("[job_recommend] 具体推荐 | 模型返回解析失败（非合法 JSON）")
         return json.dumps({"error": "模型返回解析失败"}, ensure_ascii=False)
     except ValueError:
+        print("[job_recommend] 具体推荐 | 模型返回格式不正确（缺 bestMatch 字段）")
         return json.dumps({"error": "模型返回格式不正确"}, ensure_ascii=False)
     except Exception as e:
+        print(f"[job_recommend] 具体推荐 | 系统内部错误: {e}")
         return json.dumps({"error": f"系统内部错误: {e}"}, ensure_ascii=False)

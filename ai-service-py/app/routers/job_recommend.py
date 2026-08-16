@@ -39,6 +39,10 @@ async def recommend(request: Request) -> PlainTextResponse:
         return PlainTextResponse("[]", media_type="text/plain")
     raw = (await request.body()).decode("utf-8", errors="replace")
     query_text = decode_query_text(raw)
+    print(
+        f"[job_recommend] POST /jobs/recommend 收到请求 | "
+        f"body={len(raw)}字符 | query_text={len(query_text)}字符"
+    )
     result = await job_recommend.recommend_category(request.app.state.pg_pool, query_text)
     # text/plain + 裸 JSON 文本，完全匹配 Feign 对 Java String 返回的 StringDecoder 解码
     return PlainTextResponse(result, media_type="text/plain")
@@ -47,10 +51,15 @@ async def recommend(request: Request) -> PlainTextResponse:
 @router.post("/jobs/recommend/specific")
 async def recommend_specific(request: Request) -> PlainTextResponse:
     if _pool(request) is None:
+        print("[job_recommend] POST /jobs/recommend/specific 向量库不可用")
         return PlainTextResponse(
             json.dumps({"error": "向量库不可用"}, ensure_ascii=False), media_type="text/plain"
         )
     raw = (await request.body()).decode("utf-8", errors="replace")
     query_text = decode_query_text(raw)
+    print(
+        f"[job_recommend] POST /jobs/recommend/specific 收到请求 | "
+        f"body={len(raw)}字符 | query_text={len(query_text)}字符"
+    )
     result = await job_recommend.recommend_specific_job(request.app.state.pg_pool, query_text)
     return PlainTextResponse(result, media_type="text/plain")
