@@ -1,4 +1,4 @@
-import { http } from './http'
+import { http, aiHttp } from './http'
 import type { CompetencyKey } from '../types/domain'
 
 export type MatchSource = 'auto' | 'favorite' | 'manual' | 'history'
@@ -311,6 +311,55 @@ export interface SavePathJobStatusResult {
 
 export function getMatchRecommendations(topN = 5) {
   return http.get('/users/me/match/recommendations', { params: { topN } })
+}
+
+/**
+ * 岗位推荐（直连 Python ai-service-py 的 POST /jobs/recommend/specific，向量检索 + DeepSeek 精排）。
+ *
+ * 兼容性说明（以后端返回为准）：
+ * - 后端返回裸 JSON {bestMatch, otherRecommendations}（text/plain），无 {code,msg,data} 信封，
+ *   无 recommendationStatus/pollAfterMs/reason/action/recommendedAt 字段 —— 字段级与
+ *   MatchRecommendationsResult 对齐，但调用方不能再走 extractPayload 取 data，也无需轮询。
+ * - 失败时后端返回 {error: '...'}（HTTP 200），此处归一化为 {ok:false}。
+ * - 请求体是普通 JSON 对象（含画像与求职意愿），Python 端对整个对象文本做嵌入，对齐 Java 行为。
+ */
+export interface MatchRecommendFromPythonResult {
+  ok: boolean
+  message?: string
+  data?: MatchRecommendationsResult
+}
+
+export async function getMatchRecommendationsFromPython(payload: {
+  userId?: string
+  profile: Record<string, unknown> | null
+  intent?: Record<string, unknown> | null
+}): Promise<MatchRecommendFromPythonResult> {
+  const body = {
+    userId: payload.userId ?? '',
+    求职意愿: payload.intent ?? {},
+    profile: payload.profile ?? null,
+  }
+  try {
+    const response = await aiHttp.post('/jobs/recommend/specific', body)
+    const raw = response.data as MatchRecommendationsResult & { error?: string }
+    if (raw && typeof raw.error === 'string') {
+      return { ok: false, message: raw.error }
+    }
+    if (!raw || (!raw.bestMatch && !Array.isArray(raw.otherRecommendations))) {
+      return { ok: false, message: '未找到匹配的岗位信息' }
+    }
+    return {
+      ok: true,
+      data: {
+        bestMatch: raw.bestMatch ?? null,
+        otherRecommendations: Array.isArray(raw.otherRecommendations) ? raw.otherRecommendations : [],
+      },
+    }
+  } catch (error) {
+    const anyError = error as { response?: { data?: { error?: string } }; message?: string }
+    const message = String(anyError?.response?.data?.error || anyError?.message || '获取推荐失败')
+    return { ok: false, message }
+  }
 }
 
 export function refineMatchRecommendations(payload: {

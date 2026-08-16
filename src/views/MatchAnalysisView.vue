@@ -18,7 +18,7 @@ import {
   getCareerPathDetail,
   getMatchHistory,
   getMatchHistoryDetail,
-  getMatchRecommendations,
+  getMatchRecommendationsFromPython,
   pinMatchRecord,
   resetCareerPathDraft,
   saveCareerPath,
@@ -122,7 +122,6 @@ let metricTrendChart: echarts.ECharts | null = null
 let metricRenderTimer: ReturnType<typeof setTimeout> | null = null
 let matchAbilityRadarChart: echarts.ECharts | null = null
 let matchAbilityRadarRenderTimer: ReturnType<typeof setTimeout> | null = null
-let recommendationPollTimer: ReturnType<typeof setTimeout> | null = null
 
 const START_ANCHOR_JOB_ID = '__start__'
 const START_ANCHOR_NODE: PathNode = {
@@ -228,6 +227,23 @@ function normalizeTagList(values: string[]) {
     .map(item => String(item || '').trim())
     .filter(Boolean)
     .filter((item, index, arr) => arr.indexOf(item) === index)
+}
+
+/** 把细化意愿表单映射为 Python 端点嵌入用的「求职意愿」对象（字段名对齐 Java filter） */
+function buildRecommendIntent(): Record<string, unknown> {
+  const form = refineIntentForm.value
+  const intent: Record<string, unknown> = {}
+  const preferredJobs = normalizeTagList(form.preferredJobs)
+  const cities = normalizeTagList(form.cities)
+  const benefits = normalizeTagList(form.benefits)
+  if (preferredJobs.length) intent.preferredJobKeywords = preferredJobs
+  if (cities.length) intent.cityIntents = cities
+  const salaryRange = String(form.salaryRange || '').trim()
+  if (salaryRange) intent.salaryRange = salaryRange
+  if (benefits.length) intent.benefits = benefits
+  const description = String(form.description || '').trim()
+  if (description) intent.note = description
+  return intent
 }
 
 async function handleRecommendationRefreshEvent(detail: MatchRecommendationRefreshPayload) {
@@ -1699,23 +1715,19 @@ async function fetchRecommendations(silentWhenNoProfile = false) {
 
   recommendLoading.value = true
   try {
-    const response = await getMatchRecommendations(6)
-    const result = response.data as ApiResponse<MatchRecommendationsResult>
-    if (!isSuccessCode(Number(result.code))) {
-      ElMessage.error(result.msg || '获取推荐失败')
+    const result = await getMatchRecommendationsFromPython({
+      userId: appStore.currentStudentId,
+      profile: appStore.profileSnapshot,
+      intent: buildRecommendIntent(),
+    })
+    if (!result.ok) {
+      recommendations.value = null
+      if (!silentWhenNoProfile) {
+        ElMessage.error(result.message || '获取推荐失败')
+      }
       return
     }
-    recommendations.value = extractPayload<MatchRecommendationsResult>(response as { data: ApiResponse<MatchRecommendationsResult> }) ?? null
-    if (recommendationPollTimer) {
-      clearTimeout(recommendationPollTimer)
-      recommendationPollTimer = null
-    }
-    if (recommendations.value?.recommendationStatus === 'processing') {
-      const waitMs = clampPollMs(recommendations.value?.pollAfterMs, 1500)
-      recommendationPollTimer = setTimeout(() => {
-        fetchRecommendations().catch(() => {})
-      }, waitMs)
-    }
+    recommendations.value = result.data ?? null
     if (recommendations.value?.bestMatch && !selectedTargetJobId.value) {
       selectedTargetJobId.value = recommendations.value.bestMatch.jobId
     }
@@ -3136,10 +3148,6 @@ onBeforeUnmount(() => {
   if (metricRenderTimer) {
     clearTimeout(metricRenderTimer)
     metricRenderTimer = null
-  }
-  if (recommendationPollTimer) {
-    clearTimeout(recommendationPollTimer)
-    recommendationPollTimer = null
   }
   window.removeEventListener(MATCH_RECOMMENDATION_REFRESH_EVENT, onRecommendationRefreshEvent as EventListener)
   window.removeEventListener(TASK_ORCHESTRATOR_ROUTE_REFRESH_EVENT, onTaskOrchestratorRouteRefreshEvent as EventListener)
