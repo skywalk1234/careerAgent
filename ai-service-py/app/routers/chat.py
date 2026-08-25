@@ -324,10 +324,11 @@ async def stream_message(
                     if tool_inst is None:
                         result = f"未知工具: {tool_name}"
                     else:
-                        # 强制注入真实用户 id 与 token，覆盖模型可能传入的任何值（身份参数不可由模型决定）
+                        # 强制注入真实用户 id / token / request，覆盖模型可能传入的任何值（身份/上下文参数不可由模型决定）
                         tool_args = dict(call["args"] or {})
                         tool_args["user_id"] = user_id
                         tool_args["token"] = token or ""
+                        tool_args["request"] = request
                         try:
                             result = await tool_inst.ainvoke(tool_args)
                         except Exception as e:

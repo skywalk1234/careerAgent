@@ -1,10 +1,12 @@
 import json
-from typing import Annotated
+from typing import Annotated, Optional
 
 import httpx
+from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
+from app.services import job_recommend
 
 
 @tool
@@ -32,5 +34,46 @@ async def get_student_profile(
     return json.dumps(data["profile"], ensure_ascii=False, default=str)
 
 
+@tool
+async def recommend_specific_jobs(
+    job_intention: str,
+    city: Optional[str] = None,
+    salary_expectation: Optional[str] = None,
+    skills: Optional[str] = None,
+    experience: Optional[str] = None,
+    request: Annotated[Request, InjectedToolArg] = None,
+) -> str:
+    """根据学生的求职意愿推荐具体岗位（人岗匹配）。
+
+    当学生表达了求职意向（想做什么岗位、目标城市、薪资期望、技能栈、经验水平等）时，
+    调用本工具进行岗位推荐。模型需要从对话中抽取并填写以下参数：
+    - job_intention：求职意向/目标岗位（必填），如「Java 后端开发工程师」
+    - city：期望城市（选填），如「上海」
+    - salary_expectation：薪资期望（选填），如「15k-25k」
+    - skills：技能栈（选填），如「Java, Spring, MySQL, Redis」
+    - experience：经验水平（选填），如「应届生 / 3 年经验」
+
+    内部会把这些信息拼成用户画像文本，走「向量检索 + DeepSeek 精排」返回最佳匹配岗位及备选岗位。
+    """
+    # 拼装成与 /jobs/recommend/specific 接口一致的「用户画像」查询文本
+    profile = {
+        "jobIntention": job_intention,
+        "city": city,
+        "salaryExpectation": salary_expectation,
+        "skills": skills,
+        "experience": experience,
+    }
+    # 去掉空字段，避免无意义信息干扰向量检索
+    profile = {k: v for k, v in profile.items() if v}
+    query_text = json.dumps(profile, ensure_ascii=False)
+
+    # 复用 job_recommend 的核心业务函数，从 app.state 拿 pgvector 连接池
+    pool = getattr(request.app.state, "pg_pool", None)
+    if pool is None:
+        return json.dumps({"error": "岗位推荐服务暂不可用（向量库未连接）"}, ensure_ascii=False)
+
+    return await job_recommend.recommend_specific_job(pool, query_text)
+
+
 # 所有可注册给模型的工具（新增工具只需追加到这里）
-ALL_TOOLS = [get_student_profile]
+ALL_TOOLS = [get_student_profile, recommend_specific_jobs]
