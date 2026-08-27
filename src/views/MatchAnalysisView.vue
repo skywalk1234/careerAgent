@@ -113,6 +113,8 @@ const nodeDetailDrawerVisible = ref(false)
 const nodeDetailLoading = ref(false)
 const nodeDetail = ref<JobDetailResult | null>(null)
 const nodeDetailTitle = ref('岗位详情')
+// 收藏岗位详情：点击收藏岗位时直接按 jobId 查询岗位信息，不再走 match/analyze
+const jobDetail = ref<JobDetailResult | null>(null)
 
 const metricRadarRef = ref<HTMLDivElement>()
 const metricTrendRef = ref<HTMLDivElement>()
@@ -1799,6 +1801,7 @@ async function fetchMatchHistory(autoSelectPreferred = true) {
 }
 
 async function loadMatchDetail(recordId: string) {
+  jobDetail.value = null
   matchLoading.value = true
   try {
     const response = await getMatchHistoryDetail(recordId)
@@ -1811,6 +1814,24 @@ async function loadMatchDetail(recordId: string) {
     currentMatchRecord.value = normalizeMatchRecordDetail(payload)
   } finally {
     matchLoading.value = false
+  }
+}
+
+// 点击收藏岗位：直接按 jobId 查询岗位详细信息并展示，不再调用 match/analyze
+async function loadJobDetail(jobId: string) {
+  if (!jobId) return
+  favoriteLoading.value = true
+  try {
+    const response = await getJobDetail(jobId)
+    const payload = extractPayload<JobDetailResult>(response as { data: ApiResponse<JobDetailResult> })
+    if (!payload) {
+      ElMessage.error('获取岗位详情失败')
+      return
+    }
+    jobDetail.value = payload
+    currentMatchRecord.value = null
+  } finally {
+    favoriteLoading.value = false
   }
 }
 
@@ -1839,6 +1860,7 @@ function resolveRecommendationMetaForAnalyze(jobId: string) {
 }
 
 async function runMatchAnalyze(jobId: string, source: 'auto' | 'favorite' | 'manual') {
+  jobDetail.value = null
   const existing = historyList.value.find(item => item.jobId === jobId)
   let overwriteSameJob = false
   const recommendationMeta = source === 'auto' ? resolveRecommendationMetaForAnalyze(jobId) : null
@@ -3214,8 +3236,57 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <div v-loading="matchLoading" class="space-y-4">
-            <template v-if="currentMatchRecord">
+          <div v-loading="matchLoading || favoriteLoading" class="space-y-4">
+            <!-- 收藏岗位详情（点击收藏岗位时直接展示，不再调用 match/analyze） -->
+            <template v-if="jobDetail">
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <div class="text-base font-semibold text-slate-900">{{ jobDetail.jobName }}</div>
+                      <el-tag v-if="jobDetail.educationRequirement" size="small" type="info" effect="plain">{{ jobDetail.educationRequirement }}</el-tag>
+                    </div>
+                    <div class="mt-1 text-xs text-slate-500">
+                      {{ jobDetail.companyName }} · {{ jobDetail.city }}{{ jobDetail.district ? `-${jobDetail.district}` : '' }} · {{ displaySalaryText(jobDetail) }}
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <el-tag v-for="tag in jobDetail.industryTags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
+                      <el-tag v-if="jobDetail.companySize" size="small" effect="plain">{{ jobDetail.companySize }}</el-tag>
+                      <el-tag v-if="jobDetail.companyType" size="small" effect="plain">{{ jobDetail.companyType }}</el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div class="rounded-lg border border-slate-200 p-3">
+                  <div class="mb-2 text-sm font-medium text-slate-700">岗位描述</div>
+                  <p class="whitespace-pre-wrap text-sm leading-6 text-slate-600">{{ jobDetail.jobDescription }}</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 p-3">
+                  <div class="mb-2 text-sm font-medium text-slate-700">能力要求</div>
+                  <div v-if="jobDetail.abilityRequirements" class="space-y-1.5">
+                    <div
+                      v-for="(score, key) in jobDetail.abilityRequirements"
+                      :key="key"
+                      class="flex items-center gap-2 text-xs"
+                    >
+                      <span class="w-16 shrink-0 text-slate-600">{{ abilityLabelMap[key] || key }}</span>
+                      <el-progress class="flex-1" :percentage="Number(score) || 0" :show-text="false" :stroke-width="6" />
+                      <span class="w-8 shrink-0 text-right font-medium text-slate-700">{{ score }}</span>
+                    </div>
+                  </div>
+                  <div v-if="jobDetail.keySkills?.hardSkills?.length" class="mt-3">
+                    <div class="mb-1 text-xs font-medium text-slate-500">核心技能</div>
+                    <div class="flex flex-wrap gap-1.5">
+                      <el-tag v-for="skill in jobDetail.keySkills.hardSkills" :key="skill" size="small" effect="plain">{{ skill }}</el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="currentMatchRecord">
               <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -3350,7 +3421,7 @@ onBeforeUnmount(() => {
               :image-size="58"
             />
             <template v-if="bestMatch">
-              <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <div class="cursor-pointer rounded-lg border border-emerald-200 bg-emerald-50 p-3 transition hover:brightness-[0.99]" @click="loadJobDetail(bestMatch.jobId)">
                 <div class="text-sm font-semibold text-emerald-700">{{ bestMatch.jobName }}</div>
                 <div class="mt-1 text-xs text-slate-600">{{ bestMatch.companyName }} · {{ bestMatch.city }}</div>
                 <div class="mt-1 text-xs text-slate-500">{{ displaySalaryText(bestMatch) }} · {{ publishDateText(bestMatch) }}</div>
@@ -3358,7 +3429,7 @@ onBeforeUnmount(() => {
                   <span class="text-xs text-slate-500">匹配度</span>
                   <span class="text-base font-bold text-emerald-700">{{ bestMatch.overallScore }}</span>
                 </div>
-                <el-button class="mt-2 w-full" type="success" size="small" :disabled="isRecommendationProcessing" @click="runMatchAnalyze(bestMatch.jobId, 'auto')">使用该推荐</el-button>
+                <el-button class="mt-2 w-full" type="success" size="small" :disabled="isRecommendationProcessing" @click.stop="runMatchAnalyze(bestMatch.jobId, 'auto')">使用该推荐</el-button>
               </div>
             </template>
 
@@ -3369,8 +3440,7 @@ onBeforeUnmount(() => {
                 :key="item.jobId"
                 class="w-full rounded-md border px-3 py-2 text-left transition hover:brightness-[0.99]"
                 :style="scoreSoftCardStyle(item.overallScore)"
-                :disabled="isRecommendationProcessing"
-                @click="runMatchAnalyze(item.jobId, 'auto')"
+                @click="loadJobDetail(item.jobId)"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
@@ -3396,7 +3466,7 @@ onBeforeUnmount(() => {
               v-for="item in pagedFavoriteList"
               :key="item.jobId"
               class="w-full rounded-md border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
-              @click="runMatchAnalyze(item.jobId, 'favorite')"
+              @click="loadJobDetail(item.jobId)"
             >
               <div class="text-sm font-medium text-slate-800">{{ item.jobName }}</div>
               <div class="mt-1 text-xs text-slate-500">{{ item.city }} · {{ displaySalaryText(item) }}</div>
