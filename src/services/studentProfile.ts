@@ -37,6 +37,8 @@ export interface CertificateItem {
 }
 
 export interface ProfileFormData {
+  // 简历 markdown 原文（后端 StudentProfile.content，结构化为废弃模式）
+  content?: string
   basicInfo: BasicInfo
   education: EducationItem[]
   workExperience: WorkExperienceItem[]
@@ -170,8 +172,9 @@ export function getParseProfileJobStatus(parseJobId: string) {
 }
 
 export function saveStudentProfile(profile: ProfileFormData, returnEvidence = true) {
+  // 后端已改为 markdown 存储，保存简历 markdown 原文
   return http.post('/users/me/profile', {
-    profile,
+    content: profile.content ?? '',
     analyzeOptions: {
       returnEvidence,
     },

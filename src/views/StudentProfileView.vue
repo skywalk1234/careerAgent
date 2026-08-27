@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, EditPen, Plus } from '@element-plus/icons-vue'
+import { Check, EditPen } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
 import * as echarts from 'echarts'
 import WordCloudChart from '../components/WordCloudChart.vue'
 import OpenSourceBonusCard from '../components/OpenSourceBonusCard.vue'
@@ -56,9 +57,7 @@ const viewMode = ref<'resume' | 'insight'>('resume')
 const hasServerProfile = ref(false)
 const updatedAt = ref('')
 const profileId = ref('')
-const missingFields = ref<string[]>([])
 const savedSnapshot = ref('')
-const autoFilledFields = ref<string[]>([])
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 
 const showTour = ref(false)
@@ -80,12 +79,11 @@ let radarChart: echarts.ECharts | null = null
 let progressGaugeChart: echarts.ECharts | null = null
 let chartResizeTimer: ReturnType<typeof setTimeout> | null = null
 
-const skillInput = ref('')
-const jobIntentionInput = ref('')
-const organizeExpInput = ref('')
-const projectInput = ref('')
-
 const profile = reactive<ProfileFormData>(createDefaultProfile())
+
+// markdown 渲染（简历已改为 markdown 原文存储，html 转义以防御 XSS）
+const markdownRenderer = new MarkdownIt({ html: false, linkify: true })
+const resumeHtml = computed(() => markdownRenderer.render(profile.content || ''))
 
 const sectionMeta = {
   basicInfo: '基本信息',
@@ -96,33 +94,6 @@ const sectionMeta = {
   organizeExp: '社团/组织经历',
   projects: '项目经历',
   selfEvaluation: '自我评价',
-}
-
-const rules = {
-  basicInfo: {
-    name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-    phone: [
-      { required: true, message: '请输入手机号', trigger: 'blur' },
-      { pattern: /^1\d{10}$/, message: '手机号格式不正确', trigger: 'blur' },
-    ],
-    email: [{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
-    jobIntention: [
-      {
-        trigger: 'change',
-        validator: (_rule: unknown, value: string[], callback: (error?: Error) => void) => {
-          if (Array.isArray(value) && value.some((item) => item.trim())) {
-            callback()
-            return
-          }
-          callback(new Error('请至少填写1个求职岗位'))
-        },
-      },
-    ],
-  },
-  selfEvaluation: [
-    { required: true, message: '请填写自我评价', trigger: 'blur' },
-    { min: 20, max: 500, message: '建议20~500字', trigger: 'blur' },
-  ],
 }
 
 const abilityLabelMap: Record<keyof AbilityScores, string> = {
@@ -231,34 +202,6 @@ const abilitySections = computed(() => {
 })
 
 
-const requiredCompletion = computed(() => {
-  const checks = [
-    Boolean(profile.basicInfo.name.trim()),
-    /^1\d{10}$/.test(profile.basicInfo.phone.trim()),
-    profile.basicInfo.jobIntention.some((item) => item.trim()),
-    profile.education.some((item) => item.school.trim() || item.major.trim() || item.degree.trim()),
-    profile.skills.length > 0,
-    profile.selfEvaluation.trim().length >= 20,
-  ]
-  const done = checks.filter(Boolean).length
-  return Math.round((done / checks.length) * 100)
-})
-
-const richnessCompletion = computed(() => {
-  const checks = [
-    Boolean(profile.basicInfo.gender.trim()),
-    Boolean(profile.basicInfo.birthday.trim()),
-    Boolean(profile.basicInfo.email.trim()),
-    Boolean(profile.basicInfo.city.trim()),
-    profile.workExperience.some((item) => item.company.trim() || item.role.trim() || item.description.trim()),
-    profile.certificates.some((item) => item.name.trim() || item.issuer.trim()),
-    profile.organizeExp.some((item) => item.trim()),
-    profile.projects.some((item) => item.trim()),
-  ]
-  const done = checks.filter(Boolean).length
-  return Math.round((done / checks.length) * 100)
-})
-
 const hasUnsavedChanges = computed(() => {
   return JSON.stringify(normalizeProfile(profile)) !== savedSnapshot.value
 })
@@ -285,31 +228,6 @@ const formattedUpdatedAt = computed(() => {
     second: '2-digit',
     hour12: false,
   }).format(date)
-})
-
-const sectionCompletion = computed(() => {
-  const educationFilled = profile.education.filter((item) => item.school || item.major || item.degree || item.startDate || item.endDate || item.gpa)
-  const workFilled = profile.workExperience.filter((item) => item.company || item.role || item.startDate || item.endDate || item.description)
-  const certificateFilled = profile.certificates.filter((item) => item.name || item.date || item.issuer)
-
-  return {
-    basicInfo: countFilled([
-      profile.basicInfo.name,
-      profile.basicInfo.gender,
-      profile.basicInfo.birthday,
-      profile.basicInfo.phone,
-      profile.basicInfo.email,
-      profile.basicInfo.city,
-      profile.basicInfo.jobIntention.join('、'),
-    ], 7),
-    education: educationFilled.length ? listCompletion(educationFilled, ['school', 'major', 'degree', 'startDate', 'endDate']) : 0,
-    workExperience: workFilled.length ? listCompletion(workFilled, ['company', 'role', 'startDate', 'endDate', 'description']) : 0,
-    skills: profile.skills.length > 0 ? 100 : 0,
-    certificates: certificateFilled.length ? listCompletion(certificateFilled, ['name', 'date', 'issuer']) : 0,
-    organizeExp: profile.organizeExp.length > 0 ? 100 : 0,
-    projects: profile.projects.length > 0 ? 100 : 0,
-    selfEvaluation: profile.selfEvaluation.trim().length >= 20 ? 100 : 0,
-  }
 })
 
 const keywordTerms = computed(() => {
@@ -355,6 +273,7 @@ const scoreAsideClass = computed(() => ({
 
 function createDefaultProfile(): ProfileFormData {
   return {
+    content: '',
     basicInfo: {
       name: '',
       gender: '',
@@ -401,11 +320,6 @@ function createCertificateItem(): CertificateItem {
     date: '',
     issuer: '',
   }
-}
-
-function countFilled(values: string[], total: number) {
-  const filled = values.filter((item) => item.trim()).length
-  return Math.round((filled / total) * 100)
 }
 
 function normalizeStringList(input: unknown): string[] {
@@ -457,15 +371,6 @@ function normalizeDayString(input: unknown): string {
   return value
 }
 
-function listCompletion<T extends Record<string, string>>(items: T[], fields: Array<keyof T>) {
-  if (!items.length) return 0
-  const values = items.map((item) => {
-    const done = fields.filter((field) => String(item[field] ?? '').trim()).length
-    return Math.round((done / fields.length) * 100)
-  })
-  return Math.round(values.reduce((sum, item) => sum + item, 0) / values.length)
-}
-
 function extractPayload<T>(response: { data: ApiResponse<T> }): T | undefined {
   return response.data.payload ?? response.data.data
 }
@@ -480,6 +385,7 @@ function normalizeProfile(input?: Partial<ProfileFormData> | null): ProfileFormD
     typeof basicInfo.jobIntention === 'string' ? normalizeStringList([basicInfo.jobIntention]) : []
 
   return {
+    content: input.content ?? defaultProfile.content,
     basicInfo: {
       ...defaultProfile.basicInfo,
       ...basicInfo,
@@ -519,6 +425,7 @@ function normalizeProfile(input?: Partial<ProfileFormData> | null): ProfileFormD
 }
 
 function replaceProfileData(next: ProfileFormData) {
+  profile.content = next.content ?? ''
   profile.basicInfo = { ...next.basicInfo }
   profile.education = next.education.map((item) => ({ ...item }))
   profile.workExperience = next.workExperience.map((item) => ({ ...item }))
@@ -527,106 +434,6 @@ function replaceProfileData(next: ProfileFormData) {
   profile.organizeExp = [...next.organizeExp]
   profile.projects = [...next.projects]
   profile.selfEvaluation = next.selfEvaluation
-}
-
-function isHighlighted(path: string) {
-  return autoFilledFields.value.includes(path)
-}
-
-function addSkill() {
-  const value = skillInput.value.trim()
-  if (!value) return
-  if (profile.skills.includes(value)) {
-    ElMessage.warning('技能已存在')
-    return
-  }
-  profile.skills.push(value)
-  skillInput.value = ''
-}
-
-function removeSkill(skill: string) {
-  profile.skills = profile.skills.filter((item) => item !== skill)
-}
-
-function addJobIntention() {
-  const value = jobIntentionInput.value.trim()
-  if (!value) return
-  if (profile.basicInfo.jobIntention.includes(value)) {
-    ElMessage.warning('求职岗位已存在')
-    return
-  }
-  profile.basicInfo.jobIntention.push(value)
-  jobIntentionInput.value = ''
-}
-
-function removeJobIntention(jobIntention: string) {
-  profile.basicInfo.jobIntention = profile.basicInfo.jobIntention.filter((item) => item !== jobIntention)
-}
-
-function addOrganizeExp() {
-  const value = organizeExpInput.value.trim()
-  if (!value) return
-  if (profile.organizeExp.includes(value)) {
-    ElMessage.warning('该社团/组织经历已存在')
-    return
-  }
-  profile.organizeExp.push(value)
-  organizeExpInput.value = ''
-}
-
-function removeOrganizeExp(item: string) {
-  profile.organizeExp = profile.organizeExp.filter((value) => value !== item)
-}
-
-function addProjectExp() {
-  const value = projectInput.value.trim()
-  if (!value) return
-  if (profile.projects.includes(value)) {
-    ElMessage.warning('该项目经历已存在')
-    return
-  }
-  profile.projects.push(value)
-  projectInput.value = ''
-}
-
-function removeProjectExp(item: string) {
-  profile.projects = profile.projects.filter((value) => value !== item)
-}
-
-function addEducation() {
-  profile.education.push(createEducationItem())
-}
-
-function removeEducation(index: number) {
-  if (profile.education.length === 1) {
-    profile.education[0] = createEducationItem()
-    return
-  }
-  profile.education.splice(index, 1)
-}
-
-function addWorkExperience() {
-  profile.workExperience.push(createWorkItem())
-}
-
-function removeWorkExperience(index: number) {
-  if (profile.workExperience.length === 1) {
-    profile.workExperience[0] = createWorkItem()
-    return
-  }
-  profile.workExperience.splice(index, 1)
-}
-
-function addCertificate() {
-  profile.certificates.push(createCertificateItem())
-}
-
-function removeCertificate(index: number) {
-  if (profile.certificates.length === 1) {
-    profile.certificates[0] = createCertificateItem()
-    return
-  }
-  profile.certificates.splice(index, 1)
 }
 
 function updateViewportMode() {
@@ -969,7 +776,7 @@ async function loadProfile() {
     const payload = await appStore.ensureProfileSnapshot(true)
     hasServerProfile.value = Boolean(payload?.hasProfile)
     if (!payload?.hasProfile || !payload.profile) {
-      isEditing.value = true
+      isEditing.value = false
       savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
       scoreData.value = null
       suggestions.value = []
@@ -1128,27 +935,8 @@ async function handleOpenSourceUnbound() {
 
 async function saveProfile() {
   if (saveLoading.value) return
-  if (!formRef.value) return
-
-  try {
-    await formRef.value.validate()
-  } catch {
-    ElMessage.warning('请先完善必填项后再保存')
-    return
-  }
-
-  if (!profile.skills.length) {
-    ElMessage.warning('请至少填写1项技能特长')
-    return
-  }
-
-  if (!profile.basicInfo.jobIntention.length) {
-    ElMessage.warning('请至少填写1个求职岗位')
-    return
-  }
-
-  if (!profile.education.some((item) => item.school || item.major || item.degree)) {
-    ElMessage.warning('请至少填写1条教育背景')
+  if (!profile.content?.trim()) {
+    ElMessage.warning('请填写简历内容')
     return
   }
 
@@ -1254,8 +1042,6 @@ function cancelEditing() {
     fallback = normalizeProfile(profile)
   }
   replaceProfileData(fallback)
-  missingFields.value = []
-  autoFilledFields.value = []
   isEditing.value = false
   ElMessage.info('已取消编辑并恢复到上次保存内容')
 }
@@ -1372,8 +1158,6 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
         <p class="mt-1 text-xs text-slate-500 md:text-sm">通过上传文件或自行录入简历，使用大模型拆解、分析，对学生就业能力进行完整度、竞争力评分。</p>
       </div>
       <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-        <span class="rounded-full bg-slate-100 px-3 py-1">必填完成度 {{ requiredCompletion }}%</span>
-        <span class="rounded-full bg-slate-100 px-3 py-1">内容丰富度 {{ richnessCompletion }}%</span>
         <span v-if="formattedUpdatedAt" class="rounded-full bg-slate-100 px-3 py-1">最近保存：{{ formattedUpdatedAt }}</span>
       </div>
     </div>
@@ -1409,237 +1193,24 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
                         <el-button type="primary" plain :loading="parseLoading" @click="handleUploadChange">上传简历并解析</el-button>
                         <input ref="fileInputRef" type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,application/pdf,image/*" @change="handleFileSelected" />
                       </div>
-                      <p class="text-xs text-slate-500">支持 PDF / 图片简历（jpg、png、webp），解析后自动回填表单</p>
+                      <p class="text-xs text-slate-500">支持 PDF / 图片简历（jpg、png、webp），解析后自动填充到简历中</p>
                     </div>
                   </div>
                 </header>
 
-                <el-alert
-                  v-if="missingFields.length && isEditing"
-                  type="warning"
-                  show-icon
-                  :closable="false"
-                  title="以下字段识别不完整，请手动补全"
-                  :description="missingFields.map((field) => sectionMeta[field as keyof typeof sectionMeta] || field).join('、')"
-                />
-
                 <el-form ref="formRef" :model="profile" label-position="top" :disabled="!isEditing || parseLoading || saveLoading" class="space-y-5">
-            <section id="section-basicInfo" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo') }">
-              <div class="resume-title">基本信息 <span class="resume-rate">完成度 {{ sectionCompletion.basicInfo }}%</span></div>
-              <div class="mt-4 grid gap-3 md:grid-cols-2">
-                <el-form-item label="姓名" prop="basicInfo.name" :rules="rules.basicInfo.name" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.name') }"><el-input v-model="profile.basicInfo.name" placeholder="请输入姓名" /></el-form-item>
-                <el-form-item label="性别" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.gender') }"><el-select v-model="profile.basicInfo.gender" placeholder="请选择"><el-option label="男" value="male" /><el-option label="女" value="female" /></el-select></el-form-item>
-                <el-form-item label="出生日期" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.birthday') }"><el-date-picker v-model="profile.basicInfo.birthday" type="date" value-format="YYYY-MM-DD" placeholder="请选择日期" class="w-full" /></el-form-item>
-                <el-form-item label="电话" prop="basicInfo.phone" :rules="rules.basicInfo.phone" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.phone') }"><el-input v-model="profile.basicInfo.phone" placeholder="11位手机号" /></el-form-item>
-                <el-form-item label="邮箱" prop="basicInfo.email" :rules="rules.basicInfo.email" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.email') }"><el-input v-model="profile.basicInfo.email" placeholder="请输入邮箱" /></el-form-item>
-                <el-form-item
-                  label="求职岗位（可多选）"
-                  prop="basicInfo.jobIntention"
-                  :rules="rules.basicInfo.jobIntention"
-                  :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.jobIntention') }"
-                >
-                  <div class="w-full space-y-2">
-                    <div class="flex flex-wrap gap-2">
-                      <el-tag
-                        v-for="item in profile.basicInfo.jobIntention"
-                        :key="item"
-                        :closable="isEditing"
-                        @close="removeJobIntention(item)"
-                      >
-                        {{ item }}
-                      </el-tag>
-                      <span v-if="!profile.basicInfo.jobIntention.length" class="text-sm text-slate-400">暂未添加求职岗位</span>
-                    </div>
-                    <div class="flex flex-col gap-2 sm:flex-row">
-                      <el-input
-                        v-model="jobIntentionInput"
-                        maxlength="40"
-                        placeholder="如：前端开发工程师"
-                        @keyup.enter="addJobIntention"
-                      />
-                      <el-button plain @click="addJobIntention">添加岗位</el-button>
-                    </div>
-                  </div>
-                </el-form-item>
-                <el-form-item label="现居城市" class="md:col-span-2" :class="{ 'auto-fill-highlight': isHighlighted('basicInfo.city') }"><el-input v-model="profile.basicInfo.city" placeholder="请输入城市" /></el-form-item>
-              </div>
-            </section>
-
-            <section id="section-education" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('education') }">
-              <div class="resume-title">教育背景 <span class="resume-rate">完成度 {{ sectionCompletion.education }}%</span></div>
-              <div class="mt-4 space-y-4">
-                <div v-for="(item, index) in profile.education" :key="`education-${index}`" class="rounded-lg border border-slate-200 p-3">
-                  <div class="mb-2 flex items-center justify-between">
-                    <span class="text-sm font-medium text-slate-700">教育经历 {{ index + 1 }}</span>
-                    <el-button text type="danger" @click="removeEducation(index)">删除</el-button>
-                  </div>
-                  <div class="grid gap-3 md:grid-cols-2">
-                    <el-input v-model="item.school" placeholder="学校" />
-                    <el-input v-model="item.major" placeholder="专业" />
-                    <el-input v-model="item.degree" placeholder="学历（本科/硕士）" />
-                    <el-input v-model="item.gpa" placeholder="成绩/GPA（可选）" />
-                    <el-date-picker v-model="item.startDate" type="month" value-format="YYYY-MM" placeholder="开始时间" class="w-full" />
-                    <el-date-picker v-model="item.endDate" type="month" value-format="YYYY-MM" placeholder="结束时间" class="w-full" />
-                  </div>
-                </div>
-                <el-button plain @click="addEducation"><el-icon class="mr-1"><Plus /></el-icon>添加教育经历</el-button>
-              </div>
-            </section>
-
-            <section id="section-workExperience" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('workExperience') }">
-              <div class="resume-title">工作经验 <span class="resume-rate">完成度 {{ sectionCompletion.workExperience }}%</span></div>
-              <div class="mt-4 space-y-4">
-                <div v-for="(item, index) in profile.workExperience" :key="`work-${index}`" class="rounded-lg border border-slate-200 p-3">
-                  <div class="mb-2 flex items-center justify-between">
-                    <span class="text-sm font-medium text-slate-700">经历 {{ index + 1 }}</span>
-                    <el-button text type="danger" @click="removeWorkExperience(index)">删除</el-button>
-                  </div>
-                  <div class="grid gap-3 md:grid-cols-2">
-                    <el-input v-model="item.company" placeholder="公司" />
-                    <el-input v-model="item.role" placeholder="岗位/在项目中承担的职责" />
-                    <el-date-picker v-model="item.startDate" type="month" value-format="YYYY-MM" placeholder="开始时间" class="w-full" />
-                    <el-date-picker v-model="item.endDate" type="month" value-format="YYYY-MM" placeholder="结束时间" class="w-full" />
-                    <el-input
-                      v-model="item.description"
-                      type="textarea"
-                      :rows="3"
-                      maxlength="300"
-                      show-word-limit
-                      placeholder="描述职责、项目、成果"
-                      class="md:col-span-2"
-                    />
-                  </div>
-                </div>
-                <el-button plain @click="addWorkExperience"><el-icon class="mr-1"><Plus /></el-icon>添加工作/实习经历</el-button>
-              </div>
-            </section>
-
-            <section id="section-skills" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('skills') }">
-              <div class="resume-title">技能特长 <span class="resume-rate">完成度 {{ sectionCompletion.skills }}%</span></div>
-              <div class="mt-4 space-y-3">
-                <div class="flex flex-wrap gap-2">
-                  <el-tag v-for="skill in profile.skills" :key="skill" :closable="isEditing" @close="removeSkill(skill)">{{ skill }}</el-tag>
-                  <span v-if="!profile.skills.length" class="text-sm text-slate-400">暂未添加技能</span>
-                </div>
-                <div class="flex flex-col gap-2 sm:flex-row">
-                  <el-input v-model="skillInput" maxlength="30" placeholder="输入技能后回车或点击添加" @keyup.enter="addSkill" />
-                  <el-button plain @click="addSkill">添加技能</el-button>
-                </div>
-              </div>
-            </section>
-
-            <section id="section-certificates" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('certificates') }">
-              <div class="resume-title">荣誉证书 <span class="resume-rate">完成度 {{ sectionCompletion.certificates }}%</span></div>
-              <div class="mt-4 space-y-4">
-                <div v-for="(item, index) in profile.certificates" :key="`certificate-${index}`" class="rounded-lg border border-slate-200 p-3">
-                  <div class="mb-2 flex items-center justify-between">
-                    <span class="text-sm font-medium text-slate-700">证书 {{ index + 1 }}</span>
-                    <el-button text type="danger" @click="removeCertificate(index)">删除</el-button>
-                  </div>
-                  <div class="grid gap-3 md:grid-cols-3">
-                    <el-input v-model="item.name" placeholder="证书名称" />
-                    <el-date-picker v-model="item.date" type="month" value-format="YYYY-MM" placeholder="获得日期" class="w-full" />
-                    <el-input v-model="item.issuer" placeholder="颁发机构" />
-                  </div>
-                </div>
-                <el-button plain @click="addCertificate"><el-icon class="mr-1"><Plus /></el-icon>添加证书</el-button>
-              </div>
-            </section>
-
-            <section id="section-organizeExp" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('organizeExp') }">
-              <div class="resume-title">社团/组织经历 <span class="resume-rate">完成度 {{ sectionCompletion.organizeExp }}%</span></div>
-              <div class="mt-4 space-y-3">
-                <div class="space-y-2">
-                  <div
-                    v-for="(item, index) in profile.organizeExp"
-                    :key="`organize-${index}-${item}`"
-                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-                  >
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="space-y-1">
-                        <p class="text-xs font-medium text-slate-500">组织经历 {{ index + 1 }}</p>
-                        <p class="text-sm leading-6 whitespace-pre-wrap break-words text-slate-700">{{ item }}</p>
-                      </div>
-                      <el-button
-                        v-if="isEditing"
-                        text
-                        type="danger"
-                        class="shrink-0"
-                        @click="removeOrganizeExp(item)"
-                      >删除</el-button>
-                    </div>
-                  </div>
-                  <span v-if="!profile.organizeExp.length" class="text-sm text-slate-400">暂未添加社团/组织经历</span>
-                </div>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
-                  <el-input
-                    v-model="organizeExpInput"
-                    type="textarea"
-                    :rows="2"
-                    maxlength="500"
-                    show-word-limit
-                    placeholder="输入社团/组织经历（支持多行），按 Ctrl+Enter 或点击添加"
-                    @keydown.ctrl.enter="addOrganizeExp"
-                  />
-                  <el-button plain @click="addOrganizeExp">添加经历</el-button>
-                </div>
-              </div>
-            </section>
-
-            <section id="section-projects" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('projects') }">
-              <div class="resume-title">项目经历 <span class="resume-rate">完成度 {{ sectionCompletion.projects }}%</span></div>
-              <div class="mt-4 space-y-3">
-                <div class="space-y-2">
-                  <div
-                    v-for="(item, index) in profile.projects"
-                    :key="`project-${index}-${item}`"
-                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-                  >
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="space-y-1">
-                        <p class="text-xs font-medium text-slate-500">项目经历 {{ index + 1 }}</p>
-                        <p class="text-sm leading-6 whitespace-pre-wrap break-words text-slate-700">{{ item }}</p>
-                      </div>
-                      <el-button
-                        v-if="isEditing"
-                        text
-                        type="danger"
-                        class="shrink-0"
-                        @click="removeProjectExp(item)"
-                      >删除</el-button>
-                    </div>
-                  </div>
-                  <span v-if="!profile.projects.length" class="text-sm text-slate-400">暂未添加项目经历</span>
-                </div>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
-                  <el-input
-                    v-model="projectInput"
-                    type="textarea"
-                    :rows="3"
-                    maxlength="500"
-                    show-word-limit
-                    placeholder="输入项目经历（支持多行），按 Ctrl+Enter 或点击添加"
-                    @keydown.ctrl.enter="addProjectExp"
-                  />
-                  <el-button plain @click="addProjectExp">添加项目</el-button>
-                </div>
-              </div>
-            </section>
-
-            <section id="section-selfEvaluation" class="resume-section" :class="{ 'auto-fill-highlight': isHighlighted('selfEvaluation') }">
-              <div class="resume-title">自我评价 <span class="resume-rate">完成度 {{ sectionCompletion.selfEvaluation }}%</span></div>
-              <div class="mt-4">
-                <el-form-item prop="selfEvaluation" :rules="rules.selfEvaluation" class="mb-0">
-                  <el-input
-                    v-model="profile.selfEvaluation"
-                    type="textarea"
-                    :rows="5"
-                    maxlength="500"
-                    show-word-limit
-                    placeholder="建议描述：优势能力、项目实践、协作沟通、职业目标"
-                  />
-                </el-form-item>
-              </div>
+            <section id="section-basicInfo" class="resume-section">
+              <div class="resume-title">基本信息</div>
+              <el-input
+                v-if="isEditing"
+                v-model="profile.content"
+                type="textarea"
+                :rows="18"
+                class="resume-editor mt-4"
+                placeholder="请输入简历内容（支持 Markdown 语法）"
+              />
+              <div v-else-if="profile.content" class="resume-markdown mt-4" v-html="resumeHtml"></div>
+              <el-empty v-else description="还没有简历" :image-size="80" />
             </section>
 
                   <div v-if="isEditing" class="hidden items-center justify-end gap-2 border-t border-slate-200 pt-4 lg:flex">
@@ -1780,7 +1351,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
         </el-card>
 
         <el-card v-if="!hasServerProfile" shadow="never">
-          <p class="text-sm text-slate-600">你还没有保存过画像，建议先上传简历并完善字段，再点击“保存并分析”。</p>
+          <p class="text-sm text-slate-600">你还没有保存过画像，建议先上传简历，或点击“手动编辑”填写简历内容（支持 Markdown），再点击“保存并分析”。</p>
         </el-card>
       </aside>
     </div>
@@ -1793,7 +1364,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
 
     <el-tour v-model="showTour" @close="handleTourClose">
       <el-tour-step title="开始填写简历" description="先点击编辑，进入可填写状态。" :target="getTourEditTarget" />
-      <el-tour-step title="上传自动解析" description="支持pdf/jpg/jpeg/png/docx/doc，系统会自动回填可识别字段。" :target="getTourUploadTarget" />
+      <el-tour-step title="上传自动解析" description="支持 PDF / 图片简历（jpg、png、webp），解析后自动填充到简历中。" :target="getTourUploadTarget" />
       <el-tour-step title="查看评分建议" description="保存分析后，在右侧查看评分、证据与改进建议。" :target="getTourScoreTarget" />
     </el-tour>
   </section>
@@ -1856,6 +1427,76 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
   font-size: 12px;
   font-weight: 400;
   color: #dce8ee;
+}
+
+.resume-markdown {
+  line-height: 1.8;
+  color: rgb(51 65 85);
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.resume-markdown h1,
+.resume-markdown h2,
+.resume-markdown h3,
+.resume-markdown h4 {
+  margin: 16px 0 8px;
+  font-weight: 600;
+  color: rgb(30 41 59);
+}
+
+.resume-markdown h1:first-child,
+.resume-markdown h2:first-child,
+.resume-markdown h3:first-child {
+  margin-top: 0;
+}
+
+.resume-markdown p {
+  margin: 6px 0;
+}
+
+.resume-markdown ul,
+.resume-markdown ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+
+.resume-markdown li {
+  margin: 3px 0;
+}
+
+.resume-markdown strong {
+  color: rgb(30 41 59);
+}
+
+.resume-markdown code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgb(241 245 249);
+  font-size: 13px;
+}
+
+.resume-markdown blockquote {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-left: 3px solid #3f6f88;
+  color: rgb(71 85 105);
+  background: rgb(248 250 252);
+}
+
+.resume-markdown hr {
+  margin: 14px 0;
+  border: none;
+  border-top: 1px solid rgb(226 232 240);
+}
+
+.resume-markdown a {
+  color: #3f6f88;
+}
+
+.resume-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.7;
 }
 
 .auto-fill-highlight {
