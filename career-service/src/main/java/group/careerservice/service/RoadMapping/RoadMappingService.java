@@ -81,8 +81,7 @@ public class RoadMappingService {
 //            开始组装整个路径报告
             PathRef pathRef = getPathRef(evalRes);
             log.info("组装pathRef完成");
-            ProfileSnapshot profileSnapshot = getProfileSnapshot(profile);
-            log.info("组装profileSnapshot完成");
+            // ProfileSnapshot 功能已暂停（简历已改为 markdown 存储，不再有结构化字段）
             EvaluationSnapshot evaluationSnapshot = getEvaluationSnapshot(evalRes);
             String jsonString = objectMapper.writeValueAsString(profile.getData());
 
@@ -104,7 +103,6 @@ public class RoadMappingService {
                     .templateVersion(templateVersion)
                     .status("draft")
                     .pathRef(pathRef)
-                    .profileSnapshot(profileSnapshot)
                     .evaluationSnapShot(evaluationSnapshot)
                     .reportSections(reportSections)
                     .editingMeta(editingMeta)
@@ -205,25 +203,6 @@ public class RoadMappingService {
 
         return pathRef;
     }
-    public ProfileSnapshot getProfileSnapshot(Result profile) throws JsonProcessingException {
-        ProfileSnapshot profileSnapshot = new ProfileSnapshot();
-        String jsonString = objectMapper.writeValueAsString(profile.getData());
-
-        // 再解析为目标对象
-        GetProfileResponse profileData = objectMapper.readValue(jsonString, GetProfileResponse.class);
-
-
-        profileSnapshot.setProfileId(profileData.getProfileId());
-        profileSnapshot.setName(profileData.getProfile().getBasicInfo().getName());
-        profileSnapshot.setMajor(profileData.getProfile().getEducation().get(profileData.getProfile().getEducation().size()-1).getMajor());
-        profileSnapshot.setCity(profileData.getProfile().getBasicInfo().getCity());
-        profileSnapshot.setJobIntention(profileData.getProfile().getBasicInfo().getJobIntention());
-        profileSnapshot.setCompletenessScore(profileData.getScores().getCompletenessScore());
-        profileSnapshot.setCompetitivenessScore(profileData.getScores().getCompetitivenessScore());
-        return profileSnapshot;
-
-    }
-
     public EvaluationSnapshot getEvaluationSnapshot(DeepEvalStatusRes evalRes) {
         EvaluationSnapshot evaluationSnapshot = new EvaluationSnapshot();
         evaluationSnapshot.setReadinessScore(evalRes.getEvaluation().getReadinessScore());

@@ -48,20 +48,20 @@ public class FileListener {
         }
         //提取文字成功了
 //        System.out.println("解析内容："+ textContent);
-        String res_json = null;
+        String markdown = null;
 
         try{
-            res_json = ai_parser.parse(textContent);
+            markdown = ai_parser.parse(textContent);
         }catch (Exception e){
-            log.error("AI解析简历失败", e);
+            log.error("AI整理简历Markdown失败", e);
         }
         //发消息
-        log.info("关键词提取完成");
+        log.info("Markdown整理完成");
         String profile_que = "profile_storage";
-        if (res_json != null) {
+        if (markdown != null) {
             Map<String, Object> profile_msg = new HashMap<>();
             profile_msg.put("userId", message.getUserId());
-            profile_msg.put("profileData", res_json);
+            profile_msg.put("profileData", markdown);
             profile_msg.put("fileName", message.getFileName());
             profile_msg.put("fileType", message.getFileType());
             profile_msg.put("timestamp", System.currentTimeMillis());
@@ -75,7 +75,7 @@ public class FileListener {
 //            共用同一个profile_msg对象，前面已经填了userId了
             String evaluation_json = null;
             try{
-                evaluation_json = ai_score.resume_score(res_json);
+                evaluation_json = ai_score.resume_score(markdown);
                 log.info("评分完成");
             }catch (Exception e){
                 log.error("AI评分失败", e);

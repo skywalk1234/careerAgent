@@ -1,69 +1,22 @@
 package group.resumeparserservice.prompts;/* I love coding */
 
 public class Prompt_tool {
-    public static String buildExtractionPrompt(String resumeText) {
+    public static String buildMarkdownPrompt(String resumeText) {
         return """
-            请仔细分析以下简历文本，从中提取结构化的信息，并以JSON格式返回。
-            
-            返回的JSON必须严格匹配以下Java类结构：
-            {
-              "basicInfo": {
-                "name": "姓名",
-                "gender": "性别，填写 male/female",
-                "birthday": "出生日期，格式为YYYY-MM-DD",
-                "phone": "手机号",
-                "email": "邮箱",
-                "city": "城市",
-                "jobIntention": ["意向职位数组"]
-              },
-              "education": [
-                {
-                  "school": "学校名称",
-                  "major": "专业",
-                  "degree": "学历（本科/硕士等）",
-                  "startDate": "开始日期，格式为YYYY-MM",
-                  "endDate": "结束日期，格式为YYYY-MM",
-                  "gpa": "绩点"
-                }
-              ],
-              "workExperience": [
-                {
-                  "company": "公司名称",
-                  "role": "职位",
-                  "startDate": "开始日期，格式为YYYY-MM",
-                  "endDate": "结束日期，格式为YYYY-MM",
-                  "description": "工作描述"
-                }
-              ],
-              "skills": ["技能1", "技能2"],
-              "certificates": [
-                {
-                  "name": "证书名称",
-                  "date": "获得日期，格式为YYYY-MM",
-                  "issuer": "颁发机构"
-                }
-              ],
-              "organizeExp": ["组织经历描述"],
-              "projects": ["项目描述"],
-              "selfEvaluation": "自我评价"
-            }
-            
-            注意：
-            1. 如果某个字段在简历中没有明确提到，请保持对应的JSON值为空数组[]、空列表[]或空字符串""
-            2. 日期格式必须严格按照要求，不能使用"至今"、"当前"等词语
-            3. 对于不完整的日期（如只有年份），请尽可能推断并补全为完整格式
-            4. 手机号格式为11位数字
-            5. 邮箱格式需验证
-            6. 不确定的句子都可以写到自我评价里面
-            
-            以下是需要解析的简历文本：
-            
+            请将以下简历的原始文本整理成结构清晰、可读性强的 Markdown 格式。
+
+            要求：
+            1. 使用合适的 Markdown 语法：标题（## / ###）、有序/无序列表（- / 1.）、加粗（**）、换行等
+            2. 对简历进行合理的分区，例如：基本信息、教育背景、工作/实习经历、项目经历、技能、证书、获奖情况、自我评价等
+            3. 保留原始文本中的所有内容和细节，不得增删、改写、概括任何事实信息，仅调整排版与层级
+            4. 保持原有的语句表达，不要润色措辞或修改语气
+            5. 如果原始文本本身没有分区结构，请根据内容语义推断合理分区
+            6. 只返回整理后的 Markdown 文本，不要包含任何解释性文字，不要使用代码块包裹
+
+            以下是需要整理的简历原始文本：
+
             """
-                + resumeText
-                + """
-            
-            请只返回JSON对象，不要包含任何解释性文字。
-            """;
+                + resumeText + "\n";
     }
     public static String buildScorePrompt(String resumeText) {
         return """

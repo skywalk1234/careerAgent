@@ -68,22 +68,6 @@ public class SaveProfileService {
 //        log.info("插入证书成功");
         return 1;
     }
-    public Resume getResume(StudentProfile profile, Integer userId){
-        Resume resume = new Resume();
-        resume.setUserId(userId);
-        resume.setName(profile.getBasicInfo().getName());
-        resume.setPhone(profile.getBasicInfo().getPhone());
-        resume.setEmail(profile.getBasicInfo().getEmail());
-        resume.setJobIntention(profile.getBasicInfo().getJobIntention());
-        resume.setCity(profile.getBasicInfo().getCity());
-        resume.setSkills(profile.getSkills());
-        resume.setOrganizeExp(profile.getOrganizeExp());
-        resume.setProjects(profile.getProjects());
-        resume.setSelfEvaluation(profile.getSelfEvaluation());
-        resume.setCreatedAt(LocalDateTime.now());
-        resume.setUpdatedAt(LocalDateTime.now());
-        return resume;
-    }
 
     public Integer deleteProfile(Long userId) {
         QueryWrapper<ResumeFull> wrapper = new QueryWrapper<>();

@@ -12,7 +12,6 @@ import group.profileservice.domain.response.QueryResumeRes;
 
 import group.profileservice.domain.response.ResumeNullRes;
 import group.profileservice.service.*;
-import group.profileservice.tools.StudentProfileChecker;
 import group.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +19,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +35,7 @@ public class ProfileController {
     //保存简历
     @RabbitListener(queues = "profile_storage")
     public void listen_profile_exchange(Map<String, Object> profileMsg) {  // 直接接收对象
-        String res_json = (String) profileMsg.get("profileData");
+        String content = (String) profileMsg.get("profileData");
 
         //由于序列化过程可能导致long处理成integer，所以这里要判断
         Object userIdObj = profileMsg.get("userId");
@@ -53,27 +53,17 @@ public class ProfileController {
         }
 
 
-        System.out.println("消费者接收到json");
+        System.out.println("消费者接收到markdown内容");
         System.out.println("userid:  "+userId);
         System.out.println("fileName: "+ profileMsg.get("fileName"));
         System.out.println("fileType: "+ profileMsg.get("fileType"));
-        // 将json转为对象
-        ObjectMapper objectMapper = new ObjectMapper();
+        // 组装 StudentProfile（content 为带 markdown 语法的简历原始文本）
         StudentProfile studentProfile = new StudentProfile();
-
-        try {
-            studentProfile = objectMapper.readValue(res_json, StudentProfile.class);
-        }catch (Exception e){
-            throw new RuntimeException(e);
-        }
-
-        // 验证映射结果
-        System.out.println("学生姓名: " + studentProfile.getBasicInfo().getName());
-        System.out.println("技能列表: " + studentProfile.getSkills());
         studentProfile.setId(userId);
+        studentProfile.setContent(content);
         // ... 处理业务逻辑
         saveProfileService.saveProfile(studentProfile, userId, (String)profileMsg.get("fileName"), (String)profileMsg.get("fileType"));
-        System.out.println("整个解析简历提取关键词工作完成");
+        System.out.println("整个简历markdown整理存储工作完成");
 
 
     }
@@ -89,7 +79,11 @@ public class ProfileController {
         QueryResumeRes queryResumeRes = new QueryResumeRes();
         queryResumeRes.setParseJobId(parseJobId);
         queryResumeRes.setStatus("success");
-        List<String> missing = StudentProfileChecker.checkNullFields(studentProfile);
+        // 简历内容已统一为 markdown 文本，缺失检测只在内容为空时生效
+        List<String> missing = new ArrayList<>();
+        if (studentProfile == null || studentProfile.getContent() == null || studentProfile.getContent().trim().isEmpty()) {
+            missing.add("content");
+        }
         Map<String, String> sourceMeta = new HashMap<>();
         sourceMeta.put("fileName", resumeFull.getFileName());
         sourceMeta.put("fileType", resumeFull.getFileType());

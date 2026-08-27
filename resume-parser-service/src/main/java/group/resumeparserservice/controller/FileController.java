@@ -1,8 +1,6 @@
 package group.resumeparserservice.controller;/* I love coding */
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import group.common.Result;
-import group.dto.StudentProfile;
 import group.resumeparserservice.client.Profile_client;
 import group.resumeparserservice.domain.dto.ResumeParseMessage;
 import group.resumeparserservice.domain.response.FileParseRes;
@@ -153,38 +151,27 @@ public class FileController {
             if (result.getCode().equals(200)) {
                 log.info("成功删除旧简历和旧评分");
             }
-            ObjectMapper mapper = new ObjectMapper();
-
-            // 获取 profile 的 Map
-            Map<String, Object> profileMap = (Map<String, Object>) requestMap.get("profile");
-            if (profileMap == null) {
-                return Result.error(114,"profile字段不能为空");
+            // 获取 markdown 简历文本
+            String content = (String) requestMap.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                return Result.error(114, "content字段不能为空");
             }
-
-            // 将 profile Map 转换为 JSON 字符串
-            String profileJson = mapper.writeValueAsString(profileMap);
-
-            // 如果需要转为 StudentProfile 对象
-            StudentProfile studentProfile = mapper.convertValue(profileMap, StudentProfile.class);
 
             // 放到保存简历的消息队列
             String profile_que = "profile_storage";
             Map<String, Object> profile_msg = new HashMap<>();
-            if (profileJson != null) {
+            profile_msg.put("userId", userId);
+            profile_msg.put("profileData", content);
+            profile_msg.put("fileName", null);
+            profile_msg.put("fileType", null);
+            profile_msg.put("timestamp", System.currentTimeMillis());
 
-                profile_msg.put("userId", userId);
-                profile_msg.put("profileData", profileJson);
-                profile_msg.put("fileName", null);
-                profile_msg.put("fileType", null);
-                profile_msg.put("timestamp", System.currentTimeMillis());
-
-                rabbitTemplate.convertAndSend(profile_que, profile_msg);
-                log.info("成功发送给简历存储服务");
-            }
+            rabbitTemplate.convertAndSend(profile_que, profile_msg);
+            log.info("成功发送给简历存储服务");
 
             String evaluation_json = null;
             try{
-                evaluation_json = ai_score.resume_score(profileJson);
+                evaluation_json = ai_score.resume_score(content);
                 log.info("评分完成");
             }catch (Exception e){
                 log.error("AI评分失败", e);

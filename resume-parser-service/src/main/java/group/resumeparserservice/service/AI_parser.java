@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import static group.resumeparserservice.prompts.Prompt_tool.buildExtractionPrompt;
+import static group.resumeparserservice.prompts.Prompt_tool.buildMarkdownPrompt;
 
 /**
- * 简历解析：调用 DeepSeek V4 Flash 从简历文本中抽取结构化信息
+ * 简历整理：调用 DeepSeek 将简历原始文本整理为可读性更强的 Markdown 格式
  */
 @Service
 @RequiredArgsConstructor
@@ -17,8 +17,8 @@ public class AI_parser {
     private final DeepSeekClient deepSeekClient;
 
     public String parse(String resumeText) {
-        log.info("开始使用 DeepSeek 解析简历文本，长度: {} 字符", resumeText.length());
-        String prompt = buildExtractionPrompt(resumeText);
+        log.info("开始使用 DeepSeek 整理简历 Markdown，长度: {} 字符", resumeText.length());
+        String prompt = buildMarkdownPrompt(resumeText);
         return deepSeekClient.chat(null, prompt);
     }
 }

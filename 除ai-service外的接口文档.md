@@ -77,35 +77,17 @@
 
 ### StudentProfile（学生画像 / 简历）
 
-`group.dto.StudentProfile`，存储于 `resume_full.resume_data`（JSON 列）：
+`group.dto.StudentProfile`，存储于 `resume_full.resume_data`（JSON 列）。**2026-08-27 起由结构化字段改为 markdown 原文**，`content` 为带 markdown 语法的简历原始文本，完整保留简历内容，便于后续简历润色优化：
 
 ```json
 {
   "id": 1001,
-  "basicInfo": {
-    "name": "张三",
-    "gender": "男",
-    "birthday": "2004-05-12",
-    "phone": "13800138000",
-    "email": "zhangsan@example.com",
-    "city": "武汉",
-    "jobIntention": ["后端开发", "Java开发工程师"]
-  },
-  "education": [
-    { "school": "武汉大学", "major": "软件工程", "degree": "本科", "startDate": "2022-09", "endDate": "2026-06", "gpa": "3.6" }
-  ],
-  "workExperience": [
-    { "company": "某公司", "role": "后端实习生", "startDate": "2025-06", "endDate": "2025-09", "description": "负责……" }
-  ],
-  "skills": ["Java", "Spring Boot", "MySQL"],
-  "certificates": [
-    { "name": "大学英语四级", "date": "2023-06", "issuer": "教育部" }
-  ],
-  "organizeExp": ["校学生会干事"],
-  "projects": ["大学生职业规划平台"],
-  "selfEvaluation": "热爱编程，学习能力强……"
+  "content": "## 张三\n\n**基本信息**\n- 电话：13800138000\n- 邮箱：zhangsan@example.com\n- 求职意向：后端开发\n\n### 教育背景\n- 武汉大学 | 软件工程 | 本科 | 2022-09 至 2026-06\n\n### 项目经历\n- 大学生职业规划平台：负责后端接口开发……"
 }
 ```
+
+> ⚠️ 原结构化字段（basicInfo/education/workExperience/skills/certificates/organizeExp/projects/selfEvaluation）已全部废弃。
+> 由于画像不再有结构化字段，**career-service 的 ProfileSnapshot（职业路径报告中的画像快照）功能已暂停**。
 
 ### 评分结果 ResumeEvaluationResult
 
@@ -137,7 +119,7 @@
 {
   "hasProfile": true,
   "profileId": "1001",
-  "profile": { "……StudentProfile……" },
+  "profile": { "id": 1001, "content": "## 张三\n\n**基本信息**\n- 电话：13800138000\n…（markdown 简历文本）" },
   "scores": { "completenessScore": 85, "competitivenessScore": 78, "abilityScores": {}, "bonusByDimension": {} },
   "evidence": { "learning": ["获得国家奖学金"] },
   "improvementSuggestions": [ { "dimension": "internship", "priority": "high", "advice": "……" } ],
@@ -166,7 +148,7 @@
 |---|---|---|
 | hasProfile | boolean | 是否已存在画像 |
 | profileId | string | 用户 id |
-| profile | StudentProfile \| null | 画像数据；无画像时为 null |
+| profile | StudentProfile \| null | 画像数据（`{id, content}`，content 为 markdown 简历文本）；无画像时为 null |
 | scores | Scores \| null | 评分（完整度、竞争力、12 维能力、各维度加分）；无评分为 null |
 | evidence | map<string, list\<string\>> \| null | 评分证据 |
 | improvementSuggestions | list\<Suggestion\> \| null | 改进建议（dimension / priority / advice） |
@@ -182,7 +164,7 @@
   "data": {
     "hasProfile": true,
     "profileId": "1001",
-    "profile": { "id": 1001, "basicInfo": { "name": "张三" }, "education": [] },
+    "profile": { "id": 1001, "content": "## 张三\n\n### 教育背景\n- …（markdown 简历文本）" },
     "scores": { "completenessScore": 85, "competitivenessScore": 78 },
     "evidence": { "learning": ["获得国家奖学金"] },
     "improvementSuggestions": [],
@@ -221,8 +203,8 @@
   "parseJobId": "1234567890",
   "status": "success",
   "result": {
-    "parsedProfile": { "……StudentProfile……" },
-    "missingFields": ["workExperience", "certificates"],
+    "parsedProfile": { "id": 1234567890, "content": "## 张三\n\n### 教育背景\n- …（markdown 简历文本）" },
+    "missingFields": [],
     "sourceMeta": { "fileName": "张三-简历.pdf", "fileType": "application/pdf" }
   }
 }
@@ -232,8 +214,8 @@
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| parsedProfile | StudentProfile | 解析出的画像 |
-| missingFields | list\<string\> | 缺失/为空的字段名，可能取值：`basicInfo`、`education`、`workExperience`、`skills`、`certificates`、`organizeExp`、`projects`、`selfEvaluation`（由 `StudentProfileChecker` 判定） |
+| parsedProfile | StudentProfile | 解析出的画像（`{id, content}`，content 为 markdown 简历文本） |
+| missingFields | list\<string\> | 缺失检测：简历内容（content）为空时返回 `["content"]`，否则为空数组 `[]`（原字段级缺失检测已随结构化字段废弃） |
 | sourceMeta | map | 来源文件信息：`fileName`、`fileType` |
 
 ---
@@ -404,14 +386,14 @@
 ```json
 {
   "userId": 1001,
-  "profileData": "{ \"id\": 1001, \"basicInfo\": {...}, \"skills\": [...] }",
+  "profileData": "## 张三\n\n**基本信息**\n- 电话：13800138000\n…（markdown 简历文本）",
   "fileName": "张三-简历.pdf",
   "fileType": "application/pdf",
   "timestamp": 1780000000000
 }
 ```
 
-- **逻辑**：`profileData` 为 **JSON 字符串**，反序列化为 `StudentProfile`（`id` 置为用户 id）；若 `resume_full` 中已存在该 `user_id` 则更新，否则插入（`created_at` 只在插入时设置）。
+- **逻辑**：`profileData` 为 **markdown 简历文本字符串**（不再传结构化 JSON），直接组装为 `StudentProfile`（`id` 置为用户 id，`content` 置为 markdown 文本）；若 `resume_full` 中已存在该 `user_id` 则更新，否则插入（`created_at` 只在插入时设置）。
 
 ### 4.2 保存评分 — 队列 `eval_storage`
 
@@ -441,7 +423,7 @@ resume-parser-service (gateway order 0)
   │  投递 queue=file_tran
   ▼
 FileListener 监听 file_tran
-  │  抽取文本 → AI 解析 StudentProfile JSON → AI 评分 JSON
+  │  抽取文本 → AI 整理 Markdown 简历文本 → AI 评分 JSON
   ├─→ queue=profile_storage ──→ profile-service 存 resume_full 表
   └─→ queue=eval_storage   ──→ profile-service 存 ability_score 表
   │
@@ -450,7 +432,7 @@ FileListener 监听 file_tran
 前端获取 GET /users/me/profile                       （→ profile-service，见接口 1）
 ```
 
-> 手动保存画像（`POST /users/me/profile`，实现在 resume-parser-service）与图片解析（`POST /users/me/profile/parse-image`）同样最终走上述两个队列落库。
+> 手动保存画像（`POST /users/me/profile`，实现在 resume-parser-service，请求体已改为 `{"content": "markdown 简历文本"}`，废弃原结构化表单）与图片解析（`POST /users/me/profile/parse-image`）同样最终走上述两个队列落库。
 
 ---
 
@@ -458,7 +440,7 @@ FileListener 监听 file_tran
 
 | 表名 | 关键字段 | 说明 |
 |---|---|---|
-| `resume_full` | `id`、`user_id`（唯一）、`resume_data`(JSON)、`file_name`、`file_type`、`created_at`、`updated_at` | 学生画像/简历 |
+| `resume_full` | `id`、`user_id`（唯一）、`resume_data`(JSON，存 `{id, content}`，content 为 markdown 简历文本)、`file_name`、`file_type`、`created_at`、`updated_at` | 学生画像/简历 |
 | `ability_score` | `id`、`user_id`、`scores_data`(JSON)、`created_at`、`updated_at` | 评分结果 |
 | `github_auth` | `user_id`、`account_name`、`profile_url`、`access_token`、`contribution_heatmap`(JSON)、`language_stats`(JSON)、`bonus_details`(JSON)、`total_bonus`、`authorized_at`、`created_at` | GitHub 授权记录 |
 
