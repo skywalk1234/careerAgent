@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, ArrowUp, Delete, Position, Rank, Star, StarFilled } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, ChatDotRound, Delete, Position, Rank, Star, StarFilled } from '@element-plus/icons-vue'
 import G6 from '@antv/g6'
 import * as echarts from 'echarts'
 import matchEmptyImage from '../assets/match.png'
@@ -1835,6 +1835,21 @@ async function loadJobDetail(jobId: string) {
   }
 }
 
+// 把当前展示的岗位添加到智能小助手对话：输入框展示岗位名，发送时底层转为 jobId:<id>
+function handleAddJobToAssistant() {
+  const detail = jobDetail.value
+  if (!detail) return
+  openGlobalAssistant({
+    routePath: '/match',
+    pageTitle: '职业规划',
+    contextPrompt: '已把岗位添加到对话，请结合该岗位给出建议。',
+    pendingJob: {
+      jobId: String(detail.jobId || '').trim(),
+      jobName: String(detail.jobName || '').trim() || '岗位',
+    },
+  })
+}
+
 function resolveRecommendationMetaForAnalyze(jobId: string) {
   const normalizedJobId = String(jobId || '').trim()
   if (!normalizedJobId) return null
@@ -3255,6 +3270,9 @@ onBeforeUnmount(() => {
                       <el-tag v-if="jobDetail.companyType" size="small" effect="plain">{{ jobDetail.companyType }}</el-tag>
                     </div>
                   </div>
+                  <el-button size="small" type="primary" plain :icon="ChatDotRound" @click="handleAddJobToAssistant">
+                    添加到对话
+                  </el-button>
                 </div>
               </div>
 

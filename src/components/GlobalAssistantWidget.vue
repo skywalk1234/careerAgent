@@ -970,6 +970,23 @@ function formatSessionTitle(session: HomeSession) {
   return text.length > 10 ? `${text.slice(0, 10)}...` : text
 }
 
+// 把岗位添加到对话：输入框直接展示 jobId:<id>，发送时原样发送
+function addPendingJobRef(job: { jobId: string; jobName: string }) {
+  const jobId = String(job?.jobId || '').trim()
+  const jobName = String(job?.jobName || '').trim()
+  if (!jobId) return
+
+  const jobToken = `jobId:${jobId}`
+  const nextDraft = String(draft.value || '')
+  draft.value = nextDraft.includes(jobToken)
+    ? nextDraft
+    : nextDraft.trim()
+      ? `${nextDraft.trim()} ${jobToken}`
+      : jobToken
+  ElMessage.success(`已添加岗位${jobName ? `「${jobName}」` : ''}到对话`)
+  nextTick(() => composerInputRef.value?.focus())
+}
+
 async function tryAutoSendPendingInitialMessage() {
   const shouldAutoSendInitial = Boolean(incomingContext.value?.autoSendInitialMessage)
   const initialMessage = String(pendingInitialMessage.value || '').trim()
@@ -1702,6 +1719,9 @@ function openWidget(payload?: GlobalAssistantContextPayload | null) {
   incomingContext.value = payload || null
   refreshContextHint(payload)
   pendingInitialMessage.value = String(payload?.initialMessage || '').trim()
+  if (payload?.pendingJob?.jobId && payload?.pendingJob?.jobName) {
+    addPendingJobRef(payload.pendingJob)
+  }
   visible.value = true
 
   if (alreadyVisible) {

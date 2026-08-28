@@ -6,6 +6,8 @@ export interface GlobalAssistantContextPayload {
   autoSendPrompt?: boolean
   initialMessage?: string
   autoSendInitialMessage?: boolean
+  /** 添加到对话的岗位：输入框直接展示 jobId:<id>，发送时原样发送 */
+  pendingJob?: { jobId: string; jobName: string }
 }
 
 export const GLOBAL_ASSISTANT_OPEN_EVENT = 'global-assistant-open'
