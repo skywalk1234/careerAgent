@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { isSuccessCode } from '../services/http'
@@ -93,6 +93,7 @@ const editingUserMessageDraft = ref('')
 const quickPrompts = ref<string[]>([])
 const eventSourceRef = ref<EventSource | null>(null)
 const chatListRef = ref<HTMLDivElement>()
+const composerInputRef = ref<HTMLTextAreaElement>()
 const shouldStickToBottom = ref(true)
 const panelRef = ref<HTMLDivElement>()
 
@@ -1047,6 +1048,32 @@ async function ensureSession() {
   return activeSessionId.value
 }
 
+async function handleNewSession() {
+  if (sending.value || Boolean(regeneratingMessageId.value)) return
+  closeStream()
+  try {
+    const response = await createHomeSession()
+    const payload = response.data as ApiResponse<{ sessionId: string; welcomeMessage: HomeMessage | null }>
+    if (!isSuccessCode(payload.code) || !payload.data?.sessionId) {
+      throw new Error(payload.msg || '创建会话失败')
+    }
+
+    activeSessionId.value = payload.data.sessionId
+    messages.value = payload.data.welcomeMessage ? [payload.data.welcomeMessage] : []
+    traceExpandedByMessageId.value = {}
+    pendingApprovalsByMessageId.value = {}
+    cancelEditUserMessage()
+    draft.value = ''
+    forceStickToBottom()
+    await refreshSessions()
+    await scrollToBottom()
+    nextTick(() => composerInputRef.value?.focus())
+    ElMessage.success('已创建新会话')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '创建会话失败')
+  }
+}
+
 async function startSseStream(messageId: string, streamUrl: string) {
   closeStream()
 
@@ -1814,6 +1841,16 @@ onBeforeUnmount(() => {
           >
             {{ formatSessionTitle(item) }}
           </button>
+          <button
+            class="session-new-btn"
+            type="button"
+            :disabled="sending || Boolean(regeneratingMessageId)"
+            @click="handleNewSession"
+            title="新建会话"
+          >
+            <el-icon><Plus /></el-icon>
+            新会话
+          </button>
         </div>
 
         <div v-if="quickPrompts.length" class="assistant-quick-row">
@@ -2049,6 +2086,7 @@ onBeforeUnmount(() => {
 
         <div class="assistant-composer">
           <textarea
+            ref="composerInputRef"
             v-model="draft"
             class="assistant-input"
             placeholder="输入你的问题（回车发送）"
@@ -2201,6 +2239,35 @@ onBeforeUnmount(() => {
 .session-chip.is-task-log {
   border-color: #93c5fd;
   background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+}
+
+.session-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px dashed #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  border-radius: 8px;
+  padding: 5px 9px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+}
+
+.session-new-btn:hover {
+  background: #e0ebff;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.12);
+}
+
+.session-new-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.session-new-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .assistant-quick-row {
