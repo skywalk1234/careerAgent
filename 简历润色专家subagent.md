@@ -1,19 +1,23 @@
 # 简历润色专家 Subagent 方案
 
 > 状态：方案设计（待实施）
-> 更新：2026-08-27（v2：改为「subagent 出题 + 主 agent 传话」，RAG 优秀简历列为 V2 展望）
+> 更新：2026-08-28（v3：改为「服务端状态机 + 自由文本问答」，去掉结构化提问卡；问题/答案均为自由文本，前端零改动）
 > 落点：`fc2026/ai-service-py`（Python AI 服务，前端主 agent 当前使用）
 
 ## 一、背景与目标
 
-简历已由「结构化字段」改为「markdown 原文」存储（`StudentProfile = {id, content}`），恰好成为简历润色最理想的输入。本方案新增一个**简历润色专家 subagent**：
+简历已由「结构化字段」改为「markdown 原文」存储（`StudentProfile = {id, content}`），恰好成为简历润色最理想的输入。本方案新增一个**简历润色专家流程**：
 
-- 读取用户当前收藏岗位的完整信息（JD）
-- 依据岗位要求向用户提出少量关键澄清问题（**由 subagent 出题，主 agent 转述**）
+- 读取用户目标岗位的完整信息（JD）
+- 依据岗位要求向用户提出少量关键澄清问题（**自由文本，用户手动输入回答**）
 - 根据用户答复修改用户当前的简历（markdown 原文）
 - 修改后执行 **reflect 自检**，确保不丢事实、不产生幻觉、对齐岗位关键词
 
-subagent 不作为独立入口，而是**作为工具被主 agent（`chat.py` 工具调用循环）调用**，无状态。
+**v2 → v3 演进说明**：v2 采用「subagent 出题 + 主 agent 传话」，问题以结构化卡片呈现、主 agent 负责转述与重组答案，存在 schema 漂移、进度难追踪的麻烦。v3 改为**服务端状态机 + 自由文本问答**：
+
+- 流程路由由 FastAPI 服务端决定（进度存 Redis），**LLM 不再当调度员**，只做两件事：① 差距分析出题、② polish + reflect；
+- 问题/答案均为自由文本，通过现有 SSE `delta` 事件普通文字呈现，**不新增事件、不新增前端组件**；
+- 每轮只调 1 次 LLM，主 LLM 在流程进行中完全不参与。
 
 ## 二、数据基础（均已存在）
 
@@ -26,77 +30,120 @@ subagent 不作为独立入口，而是**作为工具被主 agent（`chat.py` �
 
 > ⚠️ 收藏列表只返回岗位摘要，**完整 JD 需按 `jobId` 再调一次 `GET /jobs/{jobId}`**。
 
-## 三、总体架构：Subagent 出题 + 主 Agent 传话
+## 三、总体架构：服务端状态机 + 自由文本问答
 
-核心思路：**对话始终发生在主对话**（用户只和主 agent 说话），但「问什么」由 subagent 的专业 prompt 决定，主 agent 只做转述与编排。subagent 每次工具调用无状态，`stage` 由参数显式传入，问答历史通过参数累积传递。
+核心思路：**「接下来干嘛」由服务端决定，LLM 只负责吐内容。** 对话内容全部走现有 SSE 协议（`delta` 事件普通文字），进度存 Redis，不依赖 LLM 记忆（工具结果不落库，主 LLM 下一条消息对上一轮一无所知）。
+
+### 会话状态机（Redis 存储）
 
 ```
-主 agent
-  ├─ 用户："我想去这个岗位"
-  ├─ 调 resume_polish_expert { jobId, stage: "ask" }
-  │     └─ 内部：get_favorite_jobs / get_job_detail / get_student_profile
-  │     └─ 返回 { stage:"ask", diagnosis:"...", questions:[{id, question, options?}] }   // 最多 2~3 个
-  ├─ 主 agent 转述问题 → 用户回答（新消息）
-  ├─ 再调 resume_polish_expert { jobId, stage:"ask", answers:[{id, answer}] }
-  │     └─ 返回下一批问题，或 { stage:"ready", summary:"信息已够用" }
-  ├─ 用户说"开始修改" → 调 resume_polish_expert { jobId, stage:"polish", answers:[...] }
-  │     └─ 内部：原简历 + 用户答复 + JD → 修订版 markdown
-  │     └─ 返回 { revisedContent, changes[], reflectChecklist[] }
-  └─ 主 agent 展示 diff → 用户确认 → 调现有 POST /users/me/profile {content} 写库 → 自动重新评分
+       用户要求改简历               答完本批问题          用户确认
+ idle ──────────────► gathering ──────────────► ready ──────────► polishing ──► done ──► idle
+   ▲                     │ 岔开话题/放弃               │保存/放弃          │
+   └─────────────────────┴───────────────────────────┴──────────────────┘
 ```
 
-关键技术点：
+**状态存储**：Redis，key `resume_flow:{session_id}`，值 JSON，TTL 30 分钟（活动时刷新）：
 
-1. **工具循环上限不受影响**：`chat.py` 的 `for _ in range(5)` 是**每一条用户消息的回复内**独立计数。用户每回答一次就是一条新消息、一次新的流式回复，其中只调 1 次 subagent，5 轮预算绰绰有余。
-2. **状态靠参数传递**：subagent 保持无状态，靠 `answers` 参数累积问答历史；每次被调用时内部重跑「JD vs 简历+已收集回答」的差距分析，保证下一个问题基于最新上下文、不重复不跑偏。
-3. **结构化传参，不传原始对话**：主 agent 把问答消化成 `{id, answer}` 键值对传给 subagent，而非转储整段对话——省 token、抓重点、压低幻觉。
+```json
+{
+  "state": "gathering",              // idle | gathering | ready | polishing | done
+  "jobId": 42,
+  "history": [
+    {"question": "① 实习里做过并发/性能优化相关的事吗？", "answer": "做过，帮公司接口压测优化"}
+  ],
+  "revised": null                    // polish 完成后暂存修订稿，等用户确认写库
+}
+```
 
-## 四、状态流（Subagent 两阶段）
+> 进度不放在 LLM 对话里，放在 Redis 里——即使主 LLM 对之前对话无记忆，服务端也知道这个会话问到哪了。这是"不会丢进度/跑偏"的保证。
 
-### 阶段 1：ask（出题）
-1. **拉取数据**：`get_favorite_jobs`（让用户选或取最近收藏）→ `get_job_detail(jobId)`（完整 JD）→ `get_student_profile`（简历 markdown 原文）。
-2. **诊断 + 提问**：对比「简历 vs JD」，输出差距诊断 + **最多 2~3 个问题**，优先问「JD 要求但简历缺失/证据不足」的点，每个问题可附带选项，降低用户回答成本。
-3. **判断收尾**：若信息已足够（`stage: "ready"`），提示主 agent 可进入修改；主 agent 应主动向用户确认一次（"补充这些后我可以开始改，要开始吗？"），防止用户信息没问全就催促修改。
+### LLM 仅两处被调用（均为一次性、结构化输入输出）
 
-### 阶段 2：polish（修改 + Reflect）
-4. **修改简历**：用「原简历 + 用户答复 + JD」产出修订版 markdown，结构化输出 `{revisedContent, changes[]}`（changes 记录每处变更点，供前端 diff 展示）。
-5. **Reflect 自检**：对修订稿执行审查 pass，逐项核对：
-   - 事实是否保留（不丢原有经历、数字、时间）
-   - 是否编造经历/量化数字（幻觉检查）
-   - 是否命中 JD 关键词与能力要求
-   - 是否遗漏原简历内容
-   输出 `reflectChecklist`；若自检不通过，模型自行再修一轮（prompt 强制）。
-6. **用户确认落库**：展示 diff → 用户确认 → `POST /users/me/profile {content}` 写回 → 复用现有 `profile_storage → eval_storage` 队列自动重新评分。
+| 步骤 | 输入 | 输出 |
+|---|---|---|
+| **差距分析（gather）** | JD + 简历 markdown + 累积问答历史 | `{next, text}` |
+| **润色（polish + reflect）** | JD + 简历 markdown + 累积问答历史 | `{revisedContent, changes[], reflectChecklist}` |
+
+### 控制信号（唯一的结构化字段）
+
+差距分析返回 `{next, text}`：`text` 自由文本直接流给用户，`next` 决定状态跳转（用户永远看不到 JSON）。
+
+| next | 含义 | 状态动作 |
+|---|---|---|
+| `ask_more` | 还需要补充信息 | 保持 gathering，text 作为下一批问题流出 |
+| `ready` | 信息已够 | 转 ready，text 提示「信息够了，要开始改吗？」 |
+| `abandon` | 用户岔开话题/放弃 | 回 idle（本条消息不再走主循环，初版简单处理） |
+
+**内容和控制分离：内容自由文本，控制一个枚举字段。**
+
+## 四、状态流详解
+
+### 各状态下的消息路由
+
+| 状态 | 含义 | 用户发一条消息，服务端做什么 |
+|---|---|---|
+| `idle` | 普通聊天 | 走现有 `for _ in range(5)` 主 LLM 工具循环，完全不变；仅新增 `start_resume_polish` 工具供主 LLM 调用来进入流程 |
+| `gathering` | 正在问问题 | **不跑主 LLM**。本条消息视为对上一批问题的回答 → append 进 Redis `history` → 调一次差距分析 LLM → 按 `next` 跳转并流式输出 text |
+| `ready` | 信息够用 | 等用户明确确认。用户说「开始/改吧」→ 转 polishing；说「算了」→ 回 idle |
+| `polishing` | 正在生成修订稿 | 调一次 polish LLM → 流式展示修订稿 + changes → 状态 done |
+| `done` | 修订稿已生成 | 用户确认「保存」→ 服务端 `POST /users/me/profile {content}` 写库（自动触发重评分）→ 回 idle；「放弃」→ 回 idle |
+
+### 全链路走一遍
+
+**第 1 条消息**：「帮我针对 Java 后端岗位优化简历」
+
+- `idle` → 主 LLM 工具循环（现有逻辑）。主 LLM 识别意图，可先调 `get_favorite_jobs` 确认目标岗位，再调 `start_resume_polish(jobId)`。
+- 工具内部：拉 JD + 简历 → 设 Redis `gathering`、存 jobId → 调一次差距分析 LLM（历史为空）→ 返回 `{next:"ask_more", text:"我对比了你的简历和这个 JD，主要差距：①……②……补充几个问题：① ……② ……"}`。
+- chat.py 识别到该工具返回 → 把 `text` 当普通 `delta` 流给用户 → **短路跳出主循环**，不让主 LLM 复述。
+
+**第 2 条消息**（用户的自由回答，如「实习做过接口压测优化」）：
+
+- `gathering` → 不跑主 LLM。把上一条问题文本 + 本条回答原文 append 进 `history` → 调差距分析 LLM（JD + 简历 + history）→
+  - `next:"ask_more"` → 继续流文本再问一轮；
+  - `next:"ready"` → 状态转 ready，流「信息够了，要开始改吗？」。
+
+**第 3 条消息**：「开始改」→ `ready` → 转 `polishing` → 调 polish LLM（JD + 简历 + history）→ 流式展示修订稿 + 变更点 → `done`。
+
+**第 4 条消息**：「保存」→ `done` → 服务端 `POST /users/me/profile {content: 修订稿}` → 回 `idle`。写库后现有 `profile_storage → eval_storage` 队列自动重新评分。
+
+### gathering 轮次上限
+
+服务端强制上限（如 4 轮）：超过后不再问，直接 `ready`，防止无限追问。每轮只有 1 次 LLM 调用，整条流程 3~5 次调用，成本可控。
 
 ## 五、实施清单（改动集中在 Python 端）
 
 | 文件 | 改动 |
 |---|---|
-| `app/tools.py` | 新增 3 个工具：`get_favorite_jobs`、`get_job_detail`、`resume_polish_expert`（subagent 本体），注册进 `ALL_TOOLS` |
-| 新增 `app/services/resume_polish.py` | 润色核心：ask / polish / reflect 三段 prompt + 结构化 JSON 解析（强制「不增删事实」红线） |
-| `app/routers/chat.py` | 基本不用动（工具循环天然支持）；可选：在 `_summarize_tool_result` 增加润色结果摘要分支 |
-
-工具内 HTTP 调用参考 `tools.py` 中 `get_student_profile` 的写法：透传用户 JWT（`Authorization: Bearer <token>`），经网关访问 Java 服务。
+| `app/tools.py` | 新增 `get_favorite_jobs`、`start_resume_polish(jobId)`（入口信号，内部拉数据 + 首次差距分析 + 设 Redis 状态），注册进 `ALL_TOOLS` |
+| 新增 `app/services/resume_polish.py` | 核心：`gather(job, resume, history)` 与 `polish(job, resume, history)` 两个一次性 LLM 调用 + 结构化 JSON 解析；内部 HTTP 拉 JD/简历参考 `tools.py` 中 `get_student_profile` 的写法（透传 JWT） |
+| 新增 `app/services/flow.py`（或并入 chat.py） | Redis 状态读写：`get_flow / set_flow / clear_flow`，key `resume_flow:{session_id}`，TTL 30 分钟 |
+| `app/routers/chat.py` | `stream_message` 开头按状态分支：非 `idle` 走润色流程（gathering 接管/ready/polishing/done），`idle` 走现有主循环；主循环内识别 `start_resume_polish` 返回 → 流 text + 短路跳出 |
+| `app/config.py` / `requirements.txt` | 增加 Redis 连接配置与依赖（当前 ai-service-py 未连 Redis，Java Agent 在用） |
+| 前端 | **零改动** |
 
 ## 六、关键设计决策
 
-1. **提问由 subagent 产出**：问题质量由专用 prompt 保证（按 JD 能力要求逐项比对），主 agent 只转述，降低主 agent prompt 复杂度。
-2. **一次最多 2~3 个问题**：避免审问式体验；每个问题尽量带可选答案。
-3. **Reflect 兜底幻觉**：polish 输出必须带 `reflectChecklist`；自检不通过则模型自行再修，这是对抗 LLM 重写简历产生幻觉的核心防线。
-4. **防幻觉红线**：subagent system prompt 硬性要求「只能重组、扩写用户明确承认的内容，不得虚构公司、项目、量化数字」。
-5. **覆盖保护**：修订稿先 diff 展示、用户确认后才写库，不直接覆盖原简历。
-6. **评分联动**：写回后复用现有队列链路自动重新评分，无需新逻辑。
+1. **流程控制归服务端**：LLM 只吐内容，状态跳转由 Redis 状态机决定——规避"主 LLM 每轮必须记得再调工具并带上历史"的脆弱性，这是 v2 方案最麻烦的部分。
+2. **入口交给 LLM，流程交给服务端**：主 LLM 只做一个布尔判断（是不是润色请求 + 目标岗位是谁），做完交棒。它理解自然语言灵活，服务端流程可靠。
+3. **自由文本问答，无结构化卡片**：问题/答案均自由文本，前端零改动、用户自由度最高。唯一结构化的是控制信号 `next`（`ask_more | ready | abandon`）。
+4. **一次最多 2~3 个问题**：避免审问式体验；gathering 设轮次上限（4 轮）防止无限追问。
+5. **Reflect 兜底幻觉**：polish 输出必须带 `reflectChecklist`；自检不通过则模型自行再修，是对抗 LLM 重写简历产生幻觉的核心防线。
+6. **防幻觉红线**：polish prompt 硬性要求「只能重组、扩写用户明确承认的内容，不得虚构公司、项目、量化数字」。
+7. **覆盖保护**：修订稿先展示、用户确认后才写库，不直接覆盖原简历。
+8. **评分联动**：写回后复用现有队列链路自动重新评分，无需新逻辑。
 
 ## 七、风险与取舍
 
 1. **幻觉风险（最高优先级）**：LLM 重写简历易凭空补经历/数字。prompt 红线 + reflect 自检 + 用户确认三道防线。
-2. **工具循环轮次上限**：`chat.py` 当前 `for _ in range(5)` 按「每条消息的回复」计数，ask/polish 每轮只消耗 1 次调用，不构成瓶颈；若后续出现单条消息内多次调用（如同时对比多岗位），再考虑上调上限。
-3. **无状态 + 参数累积**：问答历史靠 `answers` 参数传递，多轮后 token 成本线性增长，但单次会话仅 2~3 个问题，成本可控。
-4. **主 agent 对话管理**：主 agent 需判断「用户是回答当前问题还是岔开话题」，通过主 agent system prompt 约束。
+2. **gathering 阶段用户岔开话题**：差距分析返回 `abandon` 直接回 idle。初版不重放该条消息（简单）；后续可优化为「abandon 时将该条消息重新投递到主循环」。
+3. **Redis 引入**：ai-service-py 当前未连 Redis，需新增依赖与连接；可用同一套 `192.168.118.130:6379` 实例。若不想引入 Redis，也可退化为内存 dict（进程重启丢失，仅适合单机调试）。
+4. **历史累积成本**：`history` 线性增长，但单次流程仅 2~3 轮、每轮一问一答，token 可控。
+5. **主 LLM 与流程的边界**：主 LLM 需在入口时正确识别意图并传对 jobId；若用户表达含糊（没说是哪个岗位），`start_resume_polish` 返回提示让用户明确，流程不进入 gathering。
 
 ## 八、V2 展望：优秀简历 RAG 参考
 
-当前向量库仅有 `job_category_vector` / `job_detail_vector` 两张岗位表，**无简历语料**。V2 可引入：
+当前向量库仅有 `job_category_vector` / `job_detail_vector` 两张岗位表，**无简历语料**。后续可引入：
 
 1. 采集优秀简历样本（脱敏的历史高分简历 / 人工整理样本）；
 2. 向量化存入新增表（如 `resume_example_vector`）；
@@ -109,11 +156,11 @@ subagent 不作为独立入口，而是**作为工具被主 agent（`chat.py` �
 本地启动 ai-service-py 后走通：
 
 ```
-主对话："帮我针对收藏的岗位优化简历"
-  → 工具 ask 输出诊断 + 2~3 个问题
-  → 用户回答
-  → 工具 ask 输出下一批问题 / ready
-  → 用户说"开始修改"
-  → 工具 polish 输出修订稿 + changes + reflectChecklist
-  → 用户确认 → 写库 → 轮询评分完成
+主对话："帮我针对收藏的 Java 后端岗位优化简历"
+  → 主 LLM 调 get_favorite_jobs + start_resume_polish → 流式输出首轮问题（普通文字）
+  → 用户自由回答 → 服务端调差距分析 → 再问一轮 / 「信息够了，要开始改吗？」
+  → 用户说"开始改" → polish 输出修订稿 + 变更点 → 用户确认
+  → 保存 → 写库 → 轮询评分完成 → 回普通聊天
 ```
+
+另验证：gathering 阶段用户岔开话题（abandon → 回 idle）、连续回答多轮不重复提问、修订稿不丢原有经历/数字。
