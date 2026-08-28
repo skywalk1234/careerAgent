@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # 工具获取学生简历时调用（网关默认 8080；若本地绕过网关可改直连 profile-service 端口）
     profile_service_base_url: str = "http://127.0.0.1:8080"
 
+    # ---------- Java career-service 地址 ----------
+    # 工具查询岗位详情时调用（网关默认 8080；若本地绕过网关可改直连 career-service 端口）
+    career_service_base_url: str = "http://127.0.0.1:8080"
+
     # ---------- pgvector 向量库配置 ----------
     # 存 job_category_vector / job_detail_vector 两张 Spring AI PgVectorStore 表。
     # 真实库在 8.147.71.59:40086（见 a_fuchuang_2026/test_script/testing 的 application.yml），

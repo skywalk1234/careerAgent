@@ -35,6 +35,47 @@ async def get_student_profile(
 
 
 @tool
+async def query_job_detail(
+    job_id: str,
+    token: Annotated[str, InjectedToolArg],
+) -> str:
+    """根据岗位ID查询岗位的详细信息（岗位名称、公司、城市、薪资、岗位描述、能力要求、核心技能等）。
+
+    当用户发送的对话消息中涉及到某个具体的岗位ID（形如 `jobId:xxx`、`jobID:xxx` 或直接给出岗位编号如 JOB2024...）
+    并希望了解该岗位的具体信息（工作内容、任职要求、薪资待遇等）时，必须调用本工具获取岗位详细信息，
+    再基于查询结果回答用户。模型需要从对话中抽取岗位ID填入 job_id 参数（可去掉 jobId: 前缀，只传纯ID）。
+    """
+    raw_job_id = str(job_id or "").strip()
+    if not raw_job_id:
+        return json.dumps({"error": "缺少岗位ID，请从对话中抽取 jobId 后重试"}, ensure_ascii=False)
+
+    # 用户消息中可能携带 jobId: 前缀（形如 jobId:123455），去掉前缀只保留纯 ID
+    normalized_job_id = raw_job_id.split(":", 1)[-1].strip() if ":" in raw_job_id else raw_job_id
+    if not normalized_job_id:
+        return json.dumps({"error": "岗位ID无效，请从对话中抽取 jobId 后重试"}, ensure_ascii=False)
+
+    url = f"{settings.career_service_base_url}/jobs/{normalized_job_id}"
+    # 透传用户 JWT：网关对 /jobs/** 有登录校验，不带 token 会被 401 拦截
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            payload = resp.json()
+    except Exception as e:
+        return json.dumps({"error": f"获取岗位详情失败: {e}"}, ensure_ascii=False)
+
+    data = payload.get("data")
+    if not data:
+        return json.dumps(
+            {"error": payload.get("msg") or f"岗位 {normalized_job_id} 不存在或查询失败"},
+            ensure_ascii=False,
+        )
+
+    return json.dumps(data, ensure_ascii=False, default=str)
+
+
+@tool
 async def recommend_specific_jobs(
     job_intention: str,
     city: Optional[str] = None,
@@ -76,4 +117,4 @@ async def recommend_specific_jobs(
 
 
 # 所有可注册给模型的工具（新增工具只需追加到这里）
-ALL_TOOLS = [get_student_profile, recommend_specific_jobs]
+ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail]
