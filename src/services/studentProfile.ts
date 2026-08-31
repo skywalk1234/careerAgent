@@ -39,6 +39,8 @@ export interface CertificateItem {
 export interface ProfileFormData {
   // 简历 markdown 原文（后端 StudentProfile.content，结构化为废弃模式）
   content?: string
+  // 简历id（一个学生可有多份简历）；新建简历时前端生成 UUID，保存时携带
+  profileId?: string
   basicInfo: BasicInfo
   education: EducationItem[]
   workExperience: WorkExperienceItem[]
@@ -134,6 +136,16 @@ export interface GetProfileResult {
   updatedAt: string | null
 }
 
+// GET /users/me/profile/list 返回的单份简历（多简历标签页用，最新的在前）
+export interface ResumeListItem {
+  profileId: string | null
+  title?: string
+  content?: string
+  updatedAt?: string
+  fileName?: string
+  fileType?: string
+}
+
 export interface ProfileAggregateResult {
   sampleSize: number
   updatedAt: string
@@ -172,9 +184,10 @@ export function getParseProfileJobStatus(parseJobId: string) {
 }
 
 export function saveStudentProfile(profile: ProfileFormData, returnEvidence = true) {
-  // 后端已改为 markdown 存储，保存简历 markdown 原文
+  // 后端已改为 markdown 存储，保存简历 markdown 原文；携带 profileId 定位修改的是哪份简历
   return http.post('/users/me/profile', {
     content: profile.content ?? '',
+    profileId: profile.profileId ?? '',
     analyzeOptions: {
       returnEvidence,
     },
@@ -187,6 +200,10 @@ export function getProfileAnalyzeJobStatus(analyzeJobId: string) {
 
 export function getStudentProfile() {
   return http.get('/users/me/profile')
+}
+
+export function getStudentProfileList() {
+  return http.get('/users/me/profile/list')
 }
 
 export function getStudentProfileAggregate() {

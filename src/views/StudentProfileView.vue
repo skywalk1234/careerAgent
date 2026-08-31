@@ -10,9 +10,9 @@ import OpenSourceBonusCard from '../components/OpenSourceBonusCard.vue'
 import studentEmptyImage from '../assets/student.png'
 import {
   createParseProfileJob,
-  getProfileAnalyzeJobStatus,
   getStudentProfileAggregate,
   getStudentProfile,
+  getStudentProfileList,
   parseImageResume,
   saveStudentProfile,
   type AbilityScores,
@@ -21,9 +21,9 @@ import {
   type GetProfileResult,
   type ImprovementSuggestion,
   type ParseJobCreated,
-  type ProfileAnalyzeJobStatusResult,
   type ProfileAggregateResult,
   type ProfileFormData,
+  type ResumeListItem,
   type SaveProfileResult,
   type ScoreData,
   type WorkExperienceItem,
@@ -49,7 +49,6 @@ const parseLoading = ref(false)
 const saveLoading = ref(false)
 const scorePanelLoading = ref(false)
 const suggestionPanelLoading = ref(false)
-const analysisPending = ref(false)
 const aggregateLoading = ref(false)
 const isEditing = ref(false)
 const isDesktop = ref(window.innerWidth >= 1024)
@@ -58,6 +57,9 @@ const hasServerProfile = ref(false)
 const updatedAt = ref('')
 const profileId = ref('')
 const savedSnapshot = ref('')
+const resumeList = ref<ResumeListItem[]>([])
+const activeResumeId = ref('')
+const listLoading = ref(false)
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 
 const showTour = ref(false)
@@ -274,6 +276,7 @@ const scoreAsideClass = computed(() => ({
 function createDefaultProfile(): ProfileFormData {
   return {
     content: '',
+    profileId: '',
     basicInfo: {
       name: '',
       gender: '',
@@ -386,6 +389,7 @@ function normalizeProfile(input?: Partial<ProfileFormData> | null): ProfileFormD
 
   return {
     content: input.content ?? defaultProfile.content,
+    profileId: String(input.profileId ?? '').trim(),
     basicInfo: {
       ...defaultProfile.basicInfo,
       ...basicInfo,
@@ -426,6 +430,7 @@ function normalizeProfile(input?: Partial<ProfileFormData> | null): ProfileFormD
 
 function replaceProfileData(next: ProfileFormData) {
   profile.content = next.content ?? ''
+  profile.profileId = next.profileId ?? ''
   profile.basicInfo = { ...next.basicInfo }
   profile.education = next.education.map((item) => ({ ...item }))
   profile.workExperience = next.workExperience.map((item) => ({ ...item }))
@@ -434,6 +439,108 @@ function replaceProfileData(next: ProfileFormData) {
   profile.organizeExp = [...next.organizeExp]
   profile.projects = [...next.projects]
   profile.selfEvaluation = next.selfEvaluation
+}
+
+// ---------- 多简历标签页 ----------
+function genResumeId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `resume-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+// 标签标题 = 简历第一行文本（去掉前导 markdown 标记，截断避免过长）
+function extractResumeTitle(content?: string): string {
+  const line = String(content ?? '').split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? ''
+  const title = line.replace(/^[#>*_\-\s]+/, '').trim()
+  const text = title || line || '未命名简历'
+  return text.length > 12 ? `${text.slice(0, 12)}…` : text
+}
+
+function getResumeTitle(item: ResumeListItem): string {
+  return extractResumeTitle(item.content)
+}
+
+function applyProfileContent(item: ResumeListItem) {
+  const next = normalizeProfile({ profileId: item.profileId ?? undefined, content: item.content ?? '' })
+  replaceProfileData(next)
+  activeResumeId.value = item.profileId ?? ''
+  savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
+}
+
+async function loadResumeList(selectFirst = true) {
+  listLoading.value = true
+  try {
+    const response = await getStudentProfileList()
+    const result = response.data as ApiResponse<ResumeListItem[]>
+    if (!isSuccessCode(Number(result.code))) return
+    const payload = extractPayload<ResumeListItem[]>(response as { data: ApiResponse<ResumeListItem[]> })
+    const list = Array.isArray(payload) ? payload : []
+    resumeList.value = list
+
+    if (list.length === 0) {
+      // 没有任何简历：创建一个空白标签（含新生成的 profileId，保存时才落库）
+      const blank: ResumeListItem = { profileId: genResumeId(), title: '未命名简历', content: '' }
+      resumeList.value = [blank]
+      applyProfileContent(blank)
+      return
+    }
+
+    if (selectFirst) {
+      applyProfileContent(list[0])
+    }
+  } finally {
+    listLoading.value = false
+  }
+}
+
+async function selectResume(item: ResumeListItem) {
+  const pid = item.profileId ?? ''
+  if (pid && pid === activeResumeId.value) return
+  if (isEditing.value && hasUnsavedChanges.value) {
+    try {
+      await ElMessageBox.confirm('当前简历有未保存的修改，切换后将丢失，是否继续？', '切换简历', {
+        type: 'warning',
+        confirmButtonText: '继续切换',
+        cancelButtonText: '留下继续编辑',
+      })
+    } catch {
+      return
+    }
+  }
+  applyProfileContent(item)
+  isEditing.value = false
+}
+
+async function createNewResume() {
+  if (isEditing.value && hasUnsavedChanges.value) {
+    try {
+      await ElMessageBox.confirm('当前简历有未保存的修改，新建简历后将丢失，是否继续？', '新建简历', {
+        type: 'warning',
+        confirmButtonText: '继续',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      return
+    }
+  }
+  const blank: ResumeListItem = { profileId: genResumeId(), title: '未命名简历', content: '' }
+  resumeList.value = [...resumeList.value, blank]
+  applyProfileContent(blank)
+  isEditing.value = true
+}
+
+// 保存成功后，用当前 profile 的内容刷新对应标签的标题/内容
+function refreshResumeListTab() {
+  const pid = profile.profileId || ''
+  if (!pid) return
+  const title = extractResumeTitle(profile.content)
+  const idx = resumeList.value.findIndex((it) => it.profileId === pid)
+  if (idx >= 0) {
+    resumeList.value[idx] = { ...resumeList.value[idx], title, content: profile.content ?? '' }
+  } else {
+    resumeList.value.push({ profileId: pid, title, content: profile.content ?? '' })
+  }
 }
 
 function updateViewportMode() {
@@ -773,6 +880,8 @@ async function loadProfile() {
   scorePanelLoading.value = true
   suggestionPanelLoading.value = true
   try {
+    // 简历内容来自标签列表（多简历）；评分/证据/建议来自单份快照（用户级）
+    await loadResumeList(true)
     const payload = await appStore.ensureProfileSnapshot(true)
     hasServerProfile.value = Boolean(payload?.hasProfile)
     if (!payload?.hasProfile || !payload.profile) {
@@ -789,7 +898,6 @@ async function loadProfile() {
       return
     }
 
-    replaceProfileData(normalizeProfile(payload.profile))
     scoreData.value = payload.scores
     evidenceMap.value = payload.evidence ?? {}
     suggestions.value = payload.improvementSuggestions ?? []
@@ -798,14 +906,12 @@ async function loadProfile() {
     isEditing.value = false
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
 
+    // 已取消自动评分：没有历史评分就停留在简历视图，不再轮询评分结果
     if (!payload.scores) {
-      analysisPending.value = true
       viewMode.value = 'resume'
-      void pollProfileResultWhilePending()
       return
     }
 
-    analysisPending.value = false
     await fetchAggregateData(false)
     viewMode.value = isDesktop.value ? 'insight' : 'resume'
     if (viewMode.value === 'insight') {
@@ -841,7 +947,6 @@ async function refreshScoreResult(maxRetry = 3) {
         evidenceMap.value = payload.evidence ?? {}
         suggestions.value = payload.improvementSuggestions ?? []
         updatedAt.value = payload.updatedAt ?? updatedAt.value
-        analysisPending.value = false
         return true
       }
       await new Promise((resolve) => setTimeout(resolve, 700))
@@ -853,60 +958,6 @@ async function refreshScoreResult(maxRetry = 3) {
     scorePanelLoading.value = false
     suggestionPanelLoading.value = false
   }
-}
-
-async function pollProfileResultWhilePending(maxRound = 6) {
-  for (let index = 0; index < maxRound; index += 1) {
-    if (!isPageActive || !analysisPending.value) return
-
-    const refreshed = await refreshScoreResult(4)
-    if (!isPageActive || !analysisPending.value) return
-
-    if (refreshed) {
-      if (isDesktop.value && !isEditing.value) {
-        await fetchAggregateData(false)
-        viewMode.value = 'insight'
-        nextTick(() => {
-          renderRadarChart()
-          renderRingCharts()
-          resizeInsightChartsDebounced()
-        })
-      }
-      return
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 800))
-  }
-}
-
-async function pollProfileAnalyzeJob(analyzeJobId: string, initialInterval = 1000, maxRetry = 50) {
-  let intervalMs = Math.max(1000, Math.min(2000, initialInterval))
-
-  for (let index = 0; index < maxRetry; index += 1) {
-    const response = await getProfileAnalyzeJobStatus(analyzeJobId)
-    const result = response.data as ApiResponse<ProfileAnalyzeJobStatusResult>
-    if (!isSuccessCode(Number(result.code))) {
-      throw new Error(result.msg || '分析任务状态查询失败')
-    }
-
-    const payload = extractPayload<ProfileAnalyzeJobStatusResult>(response as { data: ApiResponse<ProfileAnalyzeJobStatusResult> })
-    if (!payload) {
-      throw new Error('分析任务状态返回为空')
-    }
-
-    if (payload.status === 'succeeded') {
-      return true
-    }
-
-    if (payload.status === 'failed') {
-      throw new Error('分析失败')
-    }
-
-    intervalMs = payload.pollAfterMs ? Math.max(1000, Math.min(2000, payload.pollAfterMs)) : intervalMs
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
-  }
-
-  throw new Error('分析超时，请稍后刷新查看')
 }
 
 async function refreshProfileAfterOpenSourceChange() {
@@ -953,9 +1004,14 @@ async function saveProfile() {
 
     const payload = extractPayload<SaveProfileResult>(response as { data: ApiResponse<SaveProfileResult> })
     profileId.value = payload?.profileId ?? ''
+    // 后端回显前端生成的简历id，更新到当前简历，并刷新对应标签
+    if (payload?.profileId) {
+      profile.profileId = payload.profileId
+    }
     updatedAt.value = payload?.updatedAt ?? ''
     hasServerProfile.value = true
     isEditing.value = false
+    refreshResumeListTab()
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
 
     if (payload?.scores) {
@@ -963,17 +1019,10 @@ async function saveProfile() {
       evidenceMap.value = payload?.evidence ?? {}
       suggestions.value = payload?.improvementSuggestions ?? []
     } else {
-      if (payload?.analyzeJobId) {
-        await pollProfileAnalyzeJob(payload.analyzeJobId)
-      }
-
-      const refreshed = await refreshScoreResult(6)
-      if (!refreshed) {
-        scoreData.value = null
-        suggestions.value = []
-        evidenceMap.value = {}
-        ElMessage.warning('画像分析仍在处理中，请稍后刷新查看')
-      }
+      // 后端已取消自动评分，保存后不再轮询评分结果，评分面板保持空态
+      scoreData.value = null
+      suggestions.value = []
+      evidenceMap.value = {}
     }
 
     await fetchAggregateData(true)
@@ -986,7 +1035,7 @@ async function saveProfile() {
       improvementSuggestions: suggestions.value,
       updatedAt: updatedAt.value || null,
     })
-    ElMessage.success(payload?.scores ? '保存成功，开始分析' : '保存成功，分析完成')
+    ElMessage.success('保存成功')
     return true
   } catch {
     ElMessage.error('保存失败，请稍后重试')
@@ -1172,7 +1221,20 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
                   <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <div class="flex flex-wrap items-center gap-2">
-                        <h3 class="text-3xl font-semibold tracking-wide text-[#3d6c85]">个人简历</h3>
+                        <div class="resume-tabs flex items-end gap-1" v-loading="listLoading">
+                          <button
+                            v-for="(item, index) in resumeList"
+                            :key="item.profileId || `new-${index}`"
+                            type="button"
+                            class="resume-tab"
+                            :class="{ 'resume-tab-active': item.profileId === activeResumeId }"
+                            :title="getResumeTitle(item)"
+                            @click="selectResume(item)"
+                          >
+                            {{ getResumeTitle(item) }}
+                          </button>
+                          <button type="button" class="resume-tab-new" title="新建简历" @click="createNewResume">＋</button>
+                        </div>
                         <div ref="tourEditBtnRef">
                           <el-button
                             size="small"
@@ -1286,7 +1348,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
             </div>
           </template>
 
-          <div v-loading="scorePanelLoading || analysisPending" class="min-h-[180px]">
+          <div v-loading="scorePanelLoading" class="min-h-[180px]">
             <div v-if="scoreData" class="space-y-3">
             <div class="grid grid-cols-2 gap-3">
               <div class="rounded-lg bg-slate-50 p-3 text-center">
@@ -1325,7 +1387,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
             </div>
             </div>
 
-            <el-empty v-else class="student-empty" :image="studentEmptyImageUrl" :description="analysisPending ? '画像分析中，请稍候...' : '保存并分析后显示评分'" :image-size="80" />
+            <el-empty v-else class="student-empty" :image="studentEmptyImageUrl" description="暂无评分数据" :image-size="80" />
           </div>
         </el-card>
 
@@ -1334,7 +1396,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
             <span class="font-medium">优先改进建议</span>
           </template>
 
-          <div v-loading="suggestionPanelLoading || analysisPending" class="min-h-[120px]">
+          <div v-loading="suggestionPanelLoading" class="min-h-[120px]">
             <div v-if="suggestions.length" class="space-y-3">
             <div v-for="(item, index) in suggestions" :key="`${item.dimension}-${index}`" class="cursor-pointer rounded-lg border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50" @click="handleSuggestionClick(item.dimension)">
               <div class="mb-1 flex items-center justify-between">
@@ -1346,7 +1408,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
               <p class="text-sm text-slate-600">{{ item.advice }}</p>
             </div>
             </div>
-            <el-empty v-else class="student-empty" :image="studentEmptyImageUrl" :description="analysisPending ? '画像分析中，请稍候...' : '暂无建议，先完成分析'" :image-size="80" />
+            <el-empty v-else class="student-empty" :image="studentEmptyImageUrl" description="暂无改进建议" :image-size="80" />
           </div>
         </el-card>
 
@@ -1401,6 +1463,66 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
 
 .resume-header {
   position: relative;
+}
+
+.resume-tabs {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.resume-tab {
+  position: relative;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 7px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #64748b;
+  background: #eef2f5;
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.resume-tab:hover {
+  color: #3d6c85;
+  background: #e4eaf0;
+}
+
+.resume-tab-active {
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(180deg, #3f6f88 0%, #547f96 100%);
+  border-color: #3f6f88;
+}
+
+.resume-tab-new {
+  width: 32px;
+  height: 32px;
+  margin-left: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 8px 0 0;
+  border: 1px dashed #cbd5e1;
+  border-bottom: none;
+  color: #94a3b8;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.resume-tab-new:hover {
+  color: #3d6c85;
+  border-color: #3d6c85;
+  background: #f0f7fa;
 }
 
 .resume-section {
