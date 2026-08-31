@@ -11,6 +11,7 @@ import {
   Delete,
   Microphone,
   Connection,
+  Document,
   Refresh,
   DocumentCopy,
   Promotion,
@@ -56,12 +57,14 @@ import {
   getStudentProfile,
   getParseProfileJobStatus,
   getProfileAnalyzeJobStatus,
+  getStudentProfileList,
   saveStudentProfile,
   type AbilityScores,
   type ParseProfileJobCreateResult,
   type ParseProfileJobStatusResult,
   type ProfileAnalyzeJobStatusResult,
   type ProfileFormData,
+  type ResumeListItem,
   type SaveProfileResult,
 } from '../services/studentProfile'
 import { getToken } from '../utils/auth'
@@ -124,6 +127,9 @@ const regeneratingMessageId = ref('')
 const updatingSessionId = ref('')
 const activeSessionId = ref('')
 const draft = ref('')
+const resumeOptions = ref<ResumeListItem[]>([])
+const resumePickerVisible = ref(false)
+let resumePickerHideTimer: ReturnType<typeof setTimeout> | null = null
 const editingUserMessageId = ref('')
 const editingUserMessageDraft = ref('')
 const overview = ref<HomeOverviewResult | null>(null)
@@ -1538,6 +1544,63 @@ async function handleSend() {
   await sendMessage(draft.value)
 }
 
+function resumeOptionTitle(item: ResumeListItem): string {
+  const content = String(item.content ?? '')
+  const line = content.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? ''
+  const title = line.replace(/^[#>*_\-\s]+/, '').trim()
+  const text = title || line || '未命名简历'
+  return text.length > 14 ? `${text.slice(0, 14)}…` : text
+}
+
+async function loadResumeOptions() {
+  try {
+    const response = await getStudentProfileList()
+    const result = response.data as ApiResponse<ResumeListItem[]>
+    if (!isSuccessCode(Number(result.code))) return
+    const payload = (result as unknown as { payload?: ResumeListItem[] }).payload ?? result.data
+    resumeOptions.value = Array.isArray(payload) ? payload : []
+  } catch {
+    resumeOptions.value = []
+  }
+}
+
+function openResumePicker() {
+  if (resumePickerHideTimer) {
+    clearTimeout(resumePickerHideTimer)
+    resumePickerHideTimer = null
+  }
+  if (resumeOptions.value.length === 0) {
+    void loadResumeOptions()
+  }
+  resumePickerVisible.value = true
+}
+
+function closeResumePicker() {
+  if (resumePickerHideTimer) clearTimeout(resumePickerHideTimer)
+  resumePickerHideTimer = setTimeout(() => {
+    resumePickerVisible.value = false
+  }, 150)
+}
+
+function pickResume(item: ResumeListItem) {
+  const pid = String(item.profileId ?? '').trim()
+  if (!pid) {
+    ElMessage.warning('该简历暂无 id，请先到「学生画像」页保存')
+    return
+  }
+  const token = `profileId:${pid}`
+  const nextDraft = String(draft.value || '')
+  draft.value = nextDraft.includes(token)
+    ? nextDraft
+    : nextDraft.trim() ? `${nextDraft.trim()} ${token}` : token
+  resumePickerVisible.value = false
+  if (resumePickerHideTimer) {
+    clearTimeout(resumePickerHideTimer)
+    resumePickerHideTimer = null
+  }
+  nextTick(() => inputRef.value?.focus())
+}
+
 async function handleQuickPrompt(prompt: string) {
   draft.value = prompt
   await sendMessage(prompt)
@@ -2472,6 +2535,25 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="composer-panel">
+            <div class="home-resume-picker" @mouseenter="openResumePicker" @mouseleave="closeResumePicker">
+              <button type="button" class="home-resume-btn">
+                <el-icon><Document /></el-icon>
+                <span>选择简历</span>
+              </button>
+              <div v-if="resumePickerVisible" class="home-resume-dropdown">
+                <p v-if="resumeOptions.length === 0" class="home-resume-empty">暂无简历，请先到「学生画像」页创建</p>
+                <button
+                  v-for="item in resumeOptions"
+                  :key="`${String(item.profileId)}-${item.title}`"
+                  type="button"
+                  class="home-resume-item"
+                  :title="resumeOptionTitle(item)"
+                  @click="pickResume(item)"
+                >
+                  {{ resumeOptionTitle(item) }}
+                </button>
+              </div>
+            </div>
             <textarea
               ref="inputRef"
               v-model="draft"
@@ -4021,6 +4103,74 @@ onBeforeUnmount(() => {
   background: white;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
   padding: 10px 12px;
+}
+
+.home-resume-picker {
+  position: relative;
+  align-self: flex-start;
+  margin-bottom: 6px;
+}
+
+.home-resume-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #dbeafe;
+  border-radius: 9999px;
+  background: #f8fbff;
+  color: #3d6c85;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.home-resume-btn:hover {
+  border-color: #3d6c85;
+  background: #eef6fa;
+}
+
+.home-resume-dropdown {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 60;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+}
+
+.home-resume-empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.home-resume-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-resume-item:hover {
+  background: #eef6fa;
+  color: #1d4ed8;
 }
 
 .chat-input {

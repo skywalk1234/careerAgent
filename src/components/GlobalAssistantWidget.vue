@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus, Document } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { isSuccessCode } from '../services/http'
@@ -27,6 +27,7 @@ import {
   type HomeSession,
   type HomePageContext,
 } from '../services/home'
+import { getStudentProfileList, type ResumeListItem } from '../services/studentProfile'
 import { polishCareerReport } from '../services/careerReport'
 import { getMatchRecommendations, refineMatchRecommendations, type MatchRecommendationsResult } from '../services/matchAnalysis'
 import { getToken } from '../utils/auth'
@@ -94,6 +95,9 @@ const quickPrompts = ref<string[]>([])
 const eventSourceRef = ref<EventSource | null>(null)
 const chatListRef = ref<HTMLDivElement>()
 const composerInputRef = ref<HTMLTextAreaElement>()
+const resumeOptions = ref<ResumeListItem[]>([])
+const resumePickerVisible = ref(false)
+let resumePickerHideTimer: ReturnType<typeof setTimeout> | null = null
 const shouldStickToBottom = ref(true)
 const panelRef = ref<HTMLDivElement>()
 
@@ -1320,6 +1324,60 @@ async function startSseStream(messageId: string, streamUrl: string) {
   }
 }
 
+// ---------- 选择简历（多简历，把 profileId 塞进输入框） ----------
+function resumeOptionTitle(item: ResumeListItem): string {
+  const content = String(item.content ?? '')
+  const line = content.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? ''
+  const title = line.replace(/^[#>*_\-\s]+/, '').trim()
+  const text = title || line || '未命名简历'
+  return text.length > 14 ? `${text.slice(0, 14)}…` : text
+}
+
+async function loadResumeOptions() {
+  try {
+    const response = await getStudentProfileList()
+    const result = response.data as ApiResponse<ResumeListItem[]>
+    if (!isSuccessCode(Number(result.code))) return
+    const payload = (result as unknown as { payload?: ResumeListItem[] }).payload ?? result.data
+    resumeOptions.value = Array.isArray(payload) ? payload : []
+  } catch {
+    resumeOptions.value = []
+  }
+}
+
+function openResumePicker() {
+  if (resumePickerHideTimer) {
+    clearTimeout(resumePickerHideTimer)
+    resumePickerHideTimer = null
+  }
+  if (resumeOptions.value.length === 0) {
+    void loadResumeOptions()
+  }
+  resumePickerVisible.value = true
+}
+
+function closeResumePicker() {
+  if (resumePickerHideTimer) clearTimeout(resumePickerHideTimer)
+  resumePickerHideTimer = setTimeout(() => {
+    resumePickerVisible.value = false
+  }, 150)
+}
+
+function pickResume(item: ResumeListItem) {
+  const pid = String(item.profileId ?? '').trim()
+  if (!pid) {
+    ElMessage.warning('该简历暂无 id，请先保存')
+    return
+  }
+  const token = `profileId:${pid}`
+  const nextDraft = String(draft.value || '')
+  draft.value = nextDraft.includes(token)
+    ? nextDraft
+    : nextDraft.trim() ? `${nextDraft.trim()} ${token}` : token
+  resumePickerVisible.value = false
+  nextTick(() => composerInputRef.value?.focus())
+}
+
 async function sendMessage(content: string, contextPayload?: GlobalAssistantContextPayload | null) {
   const text = String(content || '').trim()
   if (!text || sending.value) return
@@ -2105,6 +2163,25 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="assistant-composer">
+          <div class="assistant-resume-picker" @mouseenter="openResumePicker" @mouseleave="closeResumePicker">
+            <button type="button" class="assistant-resume-btn">
+              <el-icon><Document /></el-icon>
+              <span>选择简历</span>
+            </button>
+            <div v-if="resumePickerVisible" class="assistant-resume-dropdown">
+              <p v-if="resumeOptions.length === 0" class="assistant-resume-empty">暂无简历，请先到「学生画像」页创建</p>
+              <button
+                v-for="item in resumeOptions"
+                :key="`${String(item.profileId)}-${item.title}`"
+                type="button"
+                class="assistant-resume-item"
+                :title="resumeOptionTitle(item)"
+                @click="pickResume(item)"
+              >
+                {{ resumeOptionTitle(item) }}
+              </button>
+            </div>
+          </div>
           <textarea
             ref="composerInputRef"
             v-model="draft"
@@ -2967,6 +3044,73 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.assistant-resume-picker {
+  position: relative;
+  align-self: flex-start;
+}
+
+.assistant-resume-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #dbeafe;
+  border-radius: 9999px;
+  background: #f8fbff;
+  color: #3d6c85;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.assistant-resume-btn:hover {
+  border-color: #3d6c85;
+  background: #eef6fa;
+}
+
+.assistant-resume-dropdown {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 60;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+}
+
+.assistant-resume-empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.assistant-resume-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assistant-resume-item:hover {
+  background: #eef6fa;
+  color: #1d4ed8;
 }
 
 .assistant-input {
