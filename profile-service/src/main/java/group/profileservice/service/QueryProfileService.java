@@ -19,7 +19,7 @@ public class QueryProfileService {
     private final ScoreMapper scoreMapper;
     public StudentProfile getProfile(Long userId) {
         QueryWrapper<ResumeFull> wrapper = new QueryWrapper<>();
-        wrapper.eq("user_id", userId);
+        wrapper.eq("user_id", userId).orderByDesc("updated_at").last("LIMIT 1");
         ResumeFull resumeFull = profileMapper.selectOne(wrapper);
 
         if (resumeFull == null) {

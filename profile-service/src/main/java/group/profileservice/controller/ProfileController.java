@@ -57,12 +57,16 @@ public class ProfileController {
         System.out.println("userid:  "+userId);
         System.out.println("fileName: "+ profileMsg.get("fileName"));
         System.out.println("fileType: "+ profileMsg.get("fileType"));
+        // 前端手动保存会带 profileId（编辑已有简历）；上传解析等走 MQ 的路径没有则为空（落库时自动生成）
+        String profileId = (String) profileMsg.get("profileId");
+        System.out.println("profileId: "+ profileId);
         // 组装 StudentProfile（content 为带 markdown 语法的简历原始文本）
         StudentProfile studentProfile = new StudentProfile();
         studentProfile.setId(userId);
+        studentProfile.setProfileId(profileId);
         studentProfile.setContent(content);
         // ... 处理业务逻辑
-        saveProfileService.saveProfile(studentProfile, userId, (String)profileMsg.get("fileName"), (String)profileMsg.get("fileType"));
+        saveProfileService.saveProfile(studentProfile, userId, profileId, (String)profileMsg.get("fileName"), (String)profileMsg.get("fileType"));
         System.out.println("整个简历markdown整理存储工作完成");
 
 
@@ -128,6 +132,50 @@ public class ProfileController {
         res.setUpdatedAt(LocalDateTime.now().toString());
 
         return Result.success(res);
+    }
+
+    // 获取学生全部简历（一个学生多份简历，前端标签页用），最新的在前
+    @GetMapping("/users/me/profile/list")
+    public Result list_profile(@RequestParam(required = false) String userId) {
+        if (userId == null) {
+            Long userIdLong = UserContext.getUser();
+            userId = userIdLong != null ? userIdLong.toString() : "111";
+        }
+        List<ResumeFull> resumeList = saveProfileService.listResumes(Long.parseLong(userId));
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (ResumeFull resumeFull : resumeList) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("profileId", resumeFull.getProfileId());
+            StudentProfile profile = resumeFull.getResumeData();
+            String content = profile != null ? profile.getContent() : null;
+            item.put("content", content);
+            item.put("title", buildResumeTitle(content));
+            item.put("updatedAt", resumeFull.getUpdatedAt() != null ? resumeFull.getUpdatedAt().toString() : null);
+            item.put("fileName", resumeFull.getFileName());
+            item.put("fileType", resumeFull.getFileType());
+            items.add(item);
+        }
+        return Result.success(items);
+    }
+
+    // 取简历第一行作为标签标题，去掉前导 markdown 标记并截断，避免标题过长
+    private String buildResumeTitle(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return "未命名简历";
+        }
+        String firstLine = content.lines()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .findFirst()
+                .orElse("");
+        if (firstLine.isEmpty()) {
+            return "未命名简历";
+        }
+        String title = firstLine.replaceFirst("^[#>*_\\-\\s]+", "");
+        if (title.isEmpty()) {
+            title = firstLine;
+        }
+        return title.length() > 20 ? title.substring(0, 20) + "…" : title;
     }
 
 

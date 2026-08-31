@@ -1,16 +1,17 @@
 package group.profileservice.service;/* I love coding */
 
-import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import group.dto.StudentProfile;
-import group.profileservice.domain.po.*;
-import group.profileservice.mapper.ProfileMapper;
+import group.profileservice.domain.po.ResumeFull;
 import group.profileservice.mapper.ResumeFullMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 //将StudentProfile这个类拆分，并写入数据库
 @Service
@@ -18,55 +19,53 @@ import java.time.LocalDateTime;
 @Slf4j
 public class SaveProfileService {
 
-//    private final ProfileMapper profileMapper;
     private final ResumeFullMapper resumeFullMapper;
-    public Integer saveProfile(StudentProfile profile, Long userId, String fileName, String fileType) {
+
+    /**
+     * 保存/更新一份简历（一个学生可有多份）。
+     * profileId 非空：按 user_id + profile_id 定位更新，不存在则按新简历插入；
+     * profileId 为空（上传解析等走 MQ 的路径）：落库时自动生成 UUID 作为简历id 并插入。
+     */
+    public Integer saveProfile(StudentProfile profile, Long userId, String profileId, String fileName, String fileType) {
         ResumeFull resumeFull = new ResumeFull();
         resumeFull.setUser_id(userId);
-        resumeFull.setResumeData(profile);
         resumeFull.setFileName(fileName);
         resumeFull.setFileType(fileType);
-        // 设置时间
         resumeFull.setUpdatedAt(LocalDateTime.now());
 
+        if (StringUtils.hasText(profileId)) {
+            // 编辑已有简历：user_id + profile_id 定位
+            profile.setProfileId(profileId);
+            resumeFull.setProfileId(profileId);
+            resumeFull.setResumeData(profile);
 
-        // 先查询是否存在
-        QueryWrapper<ResumeFull> wrapper = new QueryWrapper<>();
-        wrapper.eq("user_id", userId);
-
-        if (resumeFullMapper.exists(wrapper)) {
-            // 更新
-            resumeFullMapper.update(resumeFull, wrapper);
+            QueryWrapper<ResumeFull> wrapper = new QueryWrapper<>();
+            wrapper.eq("user_id", userId).eq("profile_id", profileId);
+            if (resumeFullMapper.exists(wrapper)) {
+                // 更新（null 字段默认不写入，created_at 保留原值）
+                resumeFullMapper.update(resumeFull, wrapper);
+            } else {
+                // 前端生成的 id 在库中不存在，按新简历插入
+                resumeFull.setCreatedAt(LocalDateTime.now());
+                resumeFullMapper.insert(resumeFull);
+            }
         } else {
-            // 插入
+            // 新简历：落库时生成 profile_id
+            String newProfileId = UUID.randomUUID().toString();
+            profile.setProfileId(newProfileId);
+            resumeFull.setProfileId(newProfileId);
+            resumeFull.setResumeData(profile);
             resumeFull.setCreatedAt(LocalDateTime.now());
             resumeFullMapper.insert(resumeFull);
         }
-
-//        profileMapper.insert(getResume(profile, userId));
-//        log.info("插入简历成功");
-//        profile.getEducation().stream().map(source -> {
-//            Education education = new Education();
-//            education.setUserId(userId);
-//            BeanUtil.copyProperties(source, education, false);
-//            return education;
-//        }).forEach(profileMapper::insert);
-//        log.info("插入教育经历成功");
-//        profile.getWorkExperience().stream().map(source -> {
-//            WorkExperience exp = new WorkExperience();
-//            exp.setUserId(userId);
-//            BeanUtil.copyProperties(source, exp, false);
-//            return exp;
-//        }).forEach(profileMapper::insert);
-//        log.info("插入工作经历成功");
-//        profile.getCertificates().stream().map(source -> {
-//            Certificates certificates = new Certificates();
-//            certificates.setUserId(userId);
-//            BeanUtil.copyProperties(source, certificates, false);
-//            return certificates;
-//        }).forEach(profileMapper::insert);
-//        log.info("插入证书成功");
         return 1;
+    }
+
+    /** 查询用户全部简历，按最近更新排序（最新的在前），供前端标签页展示 */
+    public List<ResumeFull> listResumes(Long userId) {
+        QueryWrapper<ResumeFull> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId).orderByDesc("updated_at");
+        return resumeFullMapper.selectList(wrapper);
     }
 
     public Integer deleteProfile(Long userId) {

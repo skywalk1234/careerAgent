@@ -1,7 +1,6 @@
 package group.resumeparserservice.controller;/* I love coding */
 
 import group.common.Result;
-import group.resumeparserservice.client.Profile_client;
 import group.resumeparserservice.domain.dto.ResumeParseMessage;
 import group.resumeparserservice.domain.response.FileParseRes;
 
@@ -28,7 +27,6 @@ public class FileController {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
-    private final Profile_client profile_client;
     private final AI_road_mapping ai_road_mapping;
     private final AI_image_parser ai_image_parser;
 //  上传pdf并解析
@@ -138,7 +136,7 @@ public class FileController {
         );
     }
 
-    //    更新学生简历并保存（不再自动触发 AI 评分，仅落库）
+    //    更新学生简历并保存（不再自动触发 AI 评分，仅落库；一个学生可有多份简历，按 profileId 定位）
     @PostMapping("/users/me/profile")
     public Result saveProfile(@RequestBody Map<String, Object> requestMap) {
         try {
@@ -147,19 +145,18 @@ public class FileController {
             if (content == null || content.trim().isEmpty()) {
                 return Result.error(114, "content字段不能为空");
             }
+            // 简历id：编辑已有简历时前端携带；新建简历前端会生成 UUID 一并带上，为空则走 MQ 落库时由 profile-service 自动生成
+            String profileId = (String) requestMap.get("profileId");
 
             Long userIdLong = UserContext.getUser();
             String userId = userIdLong != null ? userIdLong.toString() : "111";
-//            先调用profile-service中的方法删除旧简历和旧评分
-            Result result = profile_client.delete_profile(userId);
-            if (result.getCode().equals(200)) {
-                log.info("成功删除旧简历和旧评分");
-            }
+//            多简历下不能再调用 delete_profile 删除该用户全部简历，改为按 user_id+profile_id 落库时 upsert
 
             // 放到保存简历的消息队列，由 profile-service 异步落库
             String profile_que = "profile_storage";
             Map<String, Object> profile_msg = new HashMap<>();
             profile_msg.put("userId", userId);
+            profile_msg.put("profileId", profileId);
             profile_msg.put("profileData", content);
             profile_msg.put("fileName", null);
             profile_msg.put("fileType", null);
@@ -170,8 +167,8 @@ public class FileController {
 
             Map<String, Object> resultMap = new HashMap<>();
 
-// 添加各个字段
-            resultMap.put("profileId", userId);
+// 添加各个字段（profileId 回显前端生成的简历id，便于前端定位新标签）
+            resultMap.put("profileId", profileId != null && !profileId.trim().isEmpty() ? profileId : userId);
             resultMap.put("updatedAt", "2026-02-15T10:30:00+08:00");
             resultMap.put("analysisStatus", "succeeded");
 

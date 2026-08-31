@@ -20,6 +20,9 @@ public class ResumeFull {
     @TableField(value = "user_id")
     private Long user_id;
 
+    @TableField(value = "profile_id")
+    private String profileId;//简历id，一个学生可有多份简历
+
     @TableField(value = "resume_data", typeHandler = JacksonTypeHandler.class)
     private StudentProfile resumeData;
 
