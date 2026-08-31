@@ -13,12 +13,27 @@ from app.services import job_recommend
 async def get_student_profile(
     user_id: Annotated[int, InjectedToolArg],
     token: Annotated[str, InjectedToolArg],
+    profile_id: Optional[str] = None,
 ) -> str:
-    """获取当前学生的简历画像信息（基本信息、教育背景、技能、工作经历等），用于简历评估与岗位推荐。"""
-    url = f"{settings.profile_service_base_url}/users/me/profile"
+    """获取当前学生的简历画像信息（基本信息、教育背景、技能、工作经历等 markdown 简历原文），用于简历评估与岗位推荐。
+
+    一个学生可有多份简历。当用户对话消息中涉及某个具体简历（形如 `profileId:xxx`、`profileID:xxx`，
+    或用户明确指定了某份简历标题/编号）时，必须从对话中抽取简历id填入 profile_id 参数（可去掉
+    profileId: 前缀只传纯ID），根据该 profile_id 查询对应简历的详情；
+    若用户未指定简历，则默认获取最新一份简历。
+    """
     # 转发用户 JWT：Java 网关 AuthGlobalFilter 会对 /users/me/profile 做登录校验，
     # 不带 token 会被网关直接 401 拦截，导致下游 profile-service 根本收不到请求。
     headers = {"Authorization": f"Bearer {token}"} if token else {}
+
+    if profile_id and str(profile_id).strip():
+        # 用户消息中可能携带 profileId: 前缀（形如 profileId:xxxx），去掉前缀只保留纯 ID
+        raw_profile_id = str(profile_id).strip()
+        normalized_profile_id = raw_profile_id.split(":", 1)[-1].strip() if ":" in raw_profile_id else raw_profile_id
+        url = f"{settings.profile_service_base_url}/users/me/profile/{normalized_profile_id}"
+    else:
+        url = f"{settings.profile_service_base_url}/users/me/profile"
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, params={"userId": user_id}, headers=headers)

@@ -158,6 +158,28 @@ public class ProfileController {
         return Result.success(items);
     }
 
+    // 根据简历id获取指定一份简历（多简历场景，聊天助手按 profileId 查询用）
+    @GetMapping("/users/me/profile/{profileId}")
+    public Result get_profile_by_id(@PathVariable String profileId,
+                                    @RequestParam(required = false) String userId) {
+        if (userId == null) {
+            Long userIdLong = UserContext.getUser();
+            userId = userIdLong != null ? userIdLong.toString() : "111";
+        }
+        StudentProfile profile = queryProfileService.getProfileByProfileId(Long.parseLong(userId), profileId);
+
+        GetProfileResponse res = new GetProfileResponse();
+        res.setHasProfile(profile != null);
+        res.setProfileId(profileId);
+        res.setProfile(profile);
+        res.setScores(null);
+        res.setEvidence(null);
+        res.setImprovementSuggestions(null);
+        res.setOpenSourceBonus(new OpenSourceBonus());
+        res.setUpdatedAt(LocalDateTime.now().toString());
+        return Result.success(res);
+    }
+
     // 取简历第一行作为标签标题，去掉前导 markdown 标记并截断，避免标题过长
     private String buildResumeTitle(String content) {
         if (content == null || content.trim().isEmpty()) {

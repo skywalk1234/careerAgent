@@ -32,6 +32,20 @@ public class QueryProfileService {
         return profile;
     }
 
+    /** 按简历id查询指定一份简历（多简历场景，聊天助手按 profileId 查询用） */
+    public StudentProfile getProfileByProfileId(Long userId, String profileId) {
+        QueryWrapper<ResumeFull> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId).eq("profile_id", profileId).last("LIMIT 1");
+        ResumeFull resumeFull = profileMapper.selectOne(wrapper);
+
+        if (resumeFull == null) {
+            log.info("用户id为{}的简历{}不存在...", userId, profileId);
+            return null;
+        }
+
+        return resumeFull.getResumeData();
+    }
+
     public ResumeEvaluationResult getEvaluationResult(Long userId) {
         QueryWrapper<Evaluation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId);
