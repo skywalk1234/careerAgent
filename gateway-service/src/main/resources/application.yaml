@@ -28,6 +28,15 @@ spring:
           predicates:
             - Path=/users/me/profile/parse-jobs,/users/me/profile/parse-image,/users/me/home/**
           order: 0
+        # resume-parser-service 路由：保存简历（POST /users/me/profile）
+        # 注意：必须用 Method=POST 限定方法，否则 GET /users/me/profile（查询画像）也会被
+        # 抢到 resume-parser-service，导致 profile-service 的画像查询失效
+        - id: resume-parser-save-profile
+          uri: lb://resume-parser-service
+          predicates:
+            - Method=POST
+            - Path=/users/me/profile
+          order: 0
         # career-service 路由：/users/me/** 其他路径（匹配 career-path, career-report, favorite-jobs, match 等）
         - id: career-user
           uri: lb://career-service

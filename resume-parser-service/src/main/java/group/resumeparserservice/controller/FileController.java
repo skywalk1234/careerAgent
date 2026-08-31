@@ -8,7 +8,6 @@ import group.resumeparserservice.domain.response.FileParseRes;
 import group.resumeparserservice.service.AI_image_parser;
 import group.resumeparserservice.service.AI_road_mapping;
 import group.resumeparserservice.service.AI_route_eval;
-import group.resumeparserservice.service.AI_score;
 import group.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +28,6 @@ public class FileController {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
-    private final AI_score ai_score;
     private final Profile_client profile_client;
     private final AI_road_mapping ai_road_mapping;
     private final AI_image_parser ai_image_parser;
@@ -140,10 +138,16 @@ public class FileController {
         );
     }
 
-    //    更新学生简历并重新评分
+    //    更新学生简历并保存（不再自动触发 AI 评分，仅落库）
     @PostMapping("/users/me/profile")
     public Result saveProfile(@RequestBody Map<String, Object> requestMap) {
         try {
+            // 获取 markdown 简历文本
+            String content = (String) requestMap.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                return Result.error(114, "content字段不能为空");
+            }
+
             Long userIdLong = UserContext.getUser();
             String userId = userIdLong != null ? userIdLong.toString() : "111";
 //            先调用profile-service中的方法删除旧简历和旧评分
@@ -151,13 +155,8 @@ public class FileController {
             if (result.getCode().equals(200)) {
                 log.info("成功删除旧简历和旧评分");
             }
-            // 获取 markdown 简历文本
-            String content = (String) requestMap.get("content");
-            if (content == null || content.trim().isEmpty()) {
-                return Result.error(114, "content字段不能为空");
-            }
 
-            // 放到保存简历的消息队列
+            // 放到保存简历的消息队列，由 profile-service 异步落库
             String profile_que = "profile_storage";
             Map<String, Object> profile_msg = new HashMap<>();
             profile_msg.put("userId", userId);
@@ -169,33 +168,18 @@ public class FileController {
             rabbitTemplate.convertAndSend(profile_que, profile_msg);
             log.info("成功发送给简历存储服务");
 
-            String evaluation_json = null;
-            try{
-                evaluation_json = ai_score.resume_score(content);
-                log.info("评分完成");
-            }catch (Exception e){
-                log.error("AI评分失败", e);
-            }
-            String score_que = "eval_storage";
-            if (evaluation_json != null) {
-                profile_msg.put("profileData", evaluation_json);
-            }
-            rabbitTemplate.convertAndSend(score_que, profile_msg);
-            log.info("成功发送给评分存储服务");
-
             Map<String, Object> resultMap = new HashMap<>();
 
 // 添加各个字段
             resultMap.put("profileId", userId);
             resultMap.put("updatedAt", "2026-02-15T10:30:00+08:00");
-            resultMap.put("analysisStatus", "processing");
-            resultMap.put("analyzeJobId", userId);
+            resultMap.put("analysisStatus", "succeeded");
 
 // 对于 null 值，可以放 null 或者根据需要处理
             resultMap.put("scores", null);
             resultMap.put("evidence", null);
             resultMap.put("improvementSuggestions", null);
-            return Result.success(resultMap, "保存成功，分析中");
+            return Result.success(resultMap, "保存成功");
         } catch (Exception e) {
             return Result.error(0,"处理失败: " + e.getMessage());
         }
