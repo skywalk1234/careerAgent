@@ -186,3 +186,13 @@ async def save_profile(profile_id: str, content: str, token: str) -> None:
     code = payload.get("code")
     if code is None or not (200 <= int(code) < 300):
         raise ValueError(payload.get("msg") or f"保存失败（code={code}）")
+
+
+async def save_profile_as_new(content: str, token: str) -> None:
+    """把修订稿另存为一份新简历，原简历保持不变。
+
+    profileId 传空，由 profile-service 落库时用 UUID.randomUUID() 自动生成新简历 id 并插入
+    （SaveProfileService.saveProfile 的空 profileId 分支）。
+    注意：Java 端 FileController 对 fileName 写死 null，新简历在前端列表暂无标题，只会出现在最近更新位置。
+    """
+    await save_profile("", content, token)

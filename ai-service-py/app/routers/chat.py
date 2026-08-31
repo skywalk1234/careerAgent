@@ -37,6 +37,8 @@ GATHER_MAX_ROUNDS = resume_polish.GATHER_MAX_ROUNDS
 # ready / done 状态下的确认与取消判定（取消优先级高于确认，如「不保存」含「保存」）
 _CONFIRM_WORDS = ("开始", "改吧", "保存", "确认", "就按这个", "开始改")
 _CANCEL_WORDS = ("算了", "取消", "不保存", "不用了", "放弃", "不要了", "先不了")
+# done 状态下「另存为新简历」的意图词（覆盖原简历之外的第二种保存方式）
+_SAVE_AS_NEW_WORDS = ("另存", "新建", "新简历", "复制一份")
 
 
 def _match_confirm(text: str) -> str | None:
@@ -76,7 +78,7 @@ def _format_polish_result(result: dict) -> str:
         for i, c in enumerate(changes, 1):
             reason = c.get("reason") if isinstance(c, dict) else str(c)
             lines.append(f"{i}. {reason}")
-    lines += ["", "确认没问题的话，回复「保存」写入简历；回复「不保存」放弃。"]
+    lines += ["", "确认没问题的话，回复「保存」覆盖原简历，或回复「另存」保存为新简历；回复「不保存」放弃。"]
     return "\n".join(lines)
 
 
@@ -166,22 +168,30 @@ async def _run_polish_flow(
         return "修订稿正在生成中，请稍候片刻再继续。"
 
     if state == "done":
+        is_save_as_new = any(w in user_msg.content for w in _SAVE_AS_NEW_WORDS)
         verdict = _match_confirm(user_msg.content)
         if verdict == "cancel":
             print(f"[resume-flow] done → 未保存，清空状态回到 idle")
             await clear_flow(redis_client, session_id)
             return "好的，未保存修改，已退出简历润色。"
-        if verdict == "confirm":
+        if verdict == "confirm" or is_save_as_new:
             try:
                 revised_content = (flow.get("revised") or {}).get("revisedContent") or ""
-                await resume_polish.save_profile(flow.get("profileId") or "", revised_content, token)
-                text = "已保存到简历，评分任务已触发。可以继续问我其他问题～"
+                if is_save_as_new:
+                    await resume_polish.save_profile_as_new(revised_content, token)
+                    text = "已另存为一份新简历，原简历保持不变，评分任务已触发。可以继续问我其他问题～"
+                else:
+                    await resume_polish.save_profile(flow.get("profileId") or "", revised_content, token)
+                    text = "已保存到简历，评分任务已触发。可以继续问我其他问题～"
             except Exception as e:
                 text = f"保存失败：{e}"
-            print(f"[resume-flow] done → 确认保存，清空状态回到 idle（profileId={flow.get('profileId')!r}）")
+            print(
+                f"[resume-flow] done → {'另存为新简历' if is_save_as_new else '覆盖原简历'}，"
+                f"清空状态回到 idle（profileId={flow.get('profileId')!r}）"
+            )
             await clear_flow(redis_client, session_id)
             return text
-        return "请回复「保存」确认写入简历，或回复「不保存」放弃这次修改。"
+        return "请回复「保存」覆盖原简历，回复「另存」保存为新简历，或回复「不保存」放弃这次修改。"
 
     # 未知状态兜底：清掉状态，回到正常对话
     print(f"[resume-flow] 未知状态 {state!r}，清空状态回到 idle")
