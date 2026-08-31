@@ -49,6 +49,7 @@
 {
   "state": "gathering",              // idle | gathering | ready | polishing | done
   "jobId": 42,
+  "profileId": "uuid-xxx",           // 目标简历 id，写回时定位用
   "history": [
     {"question": "① 实习里做过并发/性能优化相关的事吗？", "answer": "做过，帮公司接口压测优化"}
   ],
@@ -57,6 +58,8 @@
 ```
 
 > 进度不放在 LLM 对话里，放在 Redis 里——即使主 LLM 对之前对话无记忆，服务端也知道这个会话问到哪了。这是"不会丢进度/跑偏"的保证。
+
+> **入口工具只被调用一次，不是嵌套循环。** `start_resume_polish` 是同步工具调用，在当前 SSE 流内执行完就返回（返回首批问题文本），**工具里没有"循环等用户回答"的通道**——工具调用期间拿不到用户下一条消息。v3 的"循环"是**跨用户消息**的：每一条新消息都是一次新的请求，服务端在 `stream_message` 入口按 Redis 状态路由到对应分支。整个流程里入口工具只出现一次，之后到 `done` 回 `idle`，主 LLM 工具循环才重新接管。
 
 ### LLM 仅两处被调用（均为一次性、结构化输入输出）
 
@@ -89,12 +92,18 @@
 | `polishing` | 正在生成修订稿 | 调一次 polish LLM → 流式展示修订稿 + changes → 状态 done |
 | `done` | 修订稿已生成 | 用户确认「保存」→ 服务端 `POST /users/me/profile {content}` 写库（自动触发重评分）→ 回 idle；「放弃」→ 回 idle |
 
+### 入口前置条件（双必填 + 缺参先问）
+
+`start_resume_polish(job_id, profile_id)` **两个参数均为必填**，且必须从用户消息中确定（沿用 `query_job_detail` / `get_student_profile` 的抽取约定：消息中带 `jobId:xxx`、`profileId:xxx` 标记，或岗位名 / 简历标题明确指向）。**两者缺一时，主 LLM 不得调用该工具**，而是先追问一轮（普通对话，流程不进入 gathering），待用户给出后再进入。
+
+> ⚠️ 此规则**比 `get_student_profile` 更严**：`get_student_profile` 允许"未指定则默认最新一份"，但 `start_resume_polish` **不采用该宽松约定**——简历必须被明确指认（`profileId:` 标记 / 简历标题 / 编号）。用户只泛泛说"我的简历"而不指明哪一份，即视为 `profile_id` 缺失，需追问让用户选择（可先调 `/users/me/profile/list` 列出简历供其确认）。`job_id` 同理，泛泛说"这个岗位"视为缺失。
+
 ### 全链路走一遍
 
-**第 1 条消息**：「帮我针对 Java 后端岗位优化简历」
+**第 1 条消息**：「帮我把简历[profileId:abc]针对岗位[jobId:42]优化」
 
-- `idle` → 主 LLM 工具循环（现有逻辑）。主 LLM 识别意图，可先调 `get_favorite_jobs` 确认目标岗位，再调 `start_resume_polish(jobId)`。
-- 工具内部：拉 JD + 简历 → 设 Redis `gathering`、存 jobId → 调一次差距分析 LLM（历史为空）→ 返回 `{next:"ask_more", text:"我对比了你的简历和这个 JD，主要差距：①……②……补充几个问题：① ……② ……"}`。
+- `idle` → 主 LLM 工具循环（现有逻辑）。主 LLM 识别意图，从消息中抽取 `jobId` 与 `profile_id`，两者齐全才调 `start_resume_polish(job_id, profile_id)`；缺任一 → 先追问，不进入流程。
+- 工具内部：按 profileId 拉简历（`GET /users/me/profile/{profileId}`）+ 按 jobId 拉 JD（`GET /jobs/{jobId}`）→ 设 Redis `gathering`、存 jobId/profileId → 调一次差距分析 LLM（历史为空）→ 返回 `{next:"ask_more", text:"我对比了你的简历和这个 JD，主要差距：①……②……补充几个问题：① ……② ……"}`。
 - chat.py 识别到该工具返回 → 把 `text` 当普通 `delta` 流给用户 → **短路跳出主循环**，不让主 LLM 复述。
 
 **第 2 条消息**（用户的自由回答，如「实习做过接口压测优化」）：
@@ -115,7 +124,7 @@
 
 | 文件 | 改动 |
 |---|---|
-| `app/tools.py` | 新增 `get_favorite_jobs`、`start_resume_polish(jobId)`（入口信号，内部拉数据 + 首次差距分析 + 设 Redis 状态），注册进 `ALL_TOOLS` |
+| `app/tools.py` | 新增 `start_resume_polish(job_id, profile_id)`（**双必填**，均从用户消息中抽取，缺参不调用；内部按 profileId 拉简历 + 按 jobId 拉 JD + 首次差距分析 + 设 Redis 状态），注册进 `ALL_TOOLS`。若用户按岗位名/简历标题而非 id 指定，另补 `get_favorite_jobs`（收藏列表）/ `get_profiles`（`/users/me/profile/list`）解析工具 |
 | 新增 `app/services/resume_polish.py` | 核心：`gather(job, resume, history)` 与 `polish(job, resume, history)` 两个一次性 LLM 调用 + 结构化 JSON 解析；内部 HTTP 拉 JD/简历参考 `tools.py` 中 `get_student_profile` 的写法（透传 JWT） |
 | 新增 `app/services/flow.py`（或并入 chat.py） | Redis 状态读写：`get_flow / set_flow / clear_flow`，key `resume_flow:{session_id}`，TTL 30 分钟 |
 | `app/routers/chat.py` | `stream_message` 开头按状态分支：非 `idle` 走润色流程（gathering 接管/ready/polishing/done），`idle` 走现有主循环；主循环内识别 `start_resume_polish` 返回 → 流 text + 短路跳出 |
@@ -125,7 +134,7 @@
 ## 六、关键设计决策
 
 1. **流程控制归服务端**：LLM 只吐内容，状态跳转由 Redis 状态机决定——规避"主 LLM 每轮必须记得再调工具并带上历史"的脆弱性，这是 v2 方案最麻烦的部分。
-2. **入口交给 LLM，流程交给服务端**：主 LLM 只做一个布尔判断（是不是润色请求 + 目标岗位是谁），做完交棒。它理解自然语言灵活，服务端流程可靠。
+2. **入口交给 LLM，流程交给服务端**：主 LLM 只做三件事——判断是否润色请求、从用户消息确定 `job_id` + `profile_id`、调用入口工具，做完交棒。参数缺一时先追问（普通对话）而不是硬调工具。它理解自然语言灵活，服务端流程可靠。
 3. **自由文本问答，无结构化卡片**：问题/答案均自由文本，前端零改动、用户自由度最高。唯一结构化的是控制信号 `next`（`ask_more | ready | abandon`）。
 4. **一次最多 2~3 个问题**：避免审问式体验；gathering 设轮次上限（4 轮）防止无限追问。
 5. **Reflect 兜底幻觉**：polish 输出必须带 `reflectChecklist`；自检不通过则模型自行再修，是对抗 LLM 重写简历产生幻觉的核心防线。
@@ -139,7 +148,7 @@
 2. **gathering 阶段用户岔开话题**：差距分析返回 `abandon` 直接回 idle。初版不重放该条消息（简单）；后续可优化为「abandon 时将该条消息重新投递到主循环」。
 3. **Redis 引入**：ai-service-py 当前未连 Redis，需新增依赖与连接；可用同一套 `192.168.118.130:6379` 实例。若不想引入 Redis，也可退化为内存 dict（进程重启丢失，仅适合单机调试）。
 4. **历史累积成本**：`history` 线性增长，但单次流程仅 2~3 轮、每轮一问一答，token 可控。
-5. **主 LLM 与流程的边界**：主 LLM 需在入口时正确识别意图并传对 jobId；若用户表达含糊（没说是哪个岗位），`start_resume_polish` 返回提示让用户明确，流程不进入 gathering。
+5. **入口参数必须齐全**：`job_id` 与 `profile_id` 都需从用户消息确定，缺任一，主 LLM 追问一轮而非调用工具（避免带半截参数进入流程）。若用户按岗位名/简历标题而非 id 指定，需补 `get_favorite_jobs` / `get_profiles` 解析工具让主 LLM 把名称解析成 id。
 
 ## 八、V2 展望：优秀简历 RAG 参考
 
@@ -156,11 +165,13 @@
 本地启动 ai-service-py 后走通：
 
 ```
-主对话："帮我针对收藏的 Java 后端岗位优化简历"
-  → 主 LLM 调 get_favorite_jobs + start_resume_polish → 流式输出首轮问题（普通文字）
+主对话："帮我把简历[profileId:abc]针对岗位[jobId:42]优化"
+  → 主 LLM 从消息抽 jobId + profileId → 调 start_resume_polish → 流式输出首轮问题（普通文字）
   → 用户自由回答 → 服务端调差距分析 → 再问一轮 / 「信息够了，要开始改吗？」
   → 用户说"开始改" → polish 输出修订稿 + 变更点 → 用户确认
   → 保存 → 写库 → 轮询评分完成 → 回普通聊天
 ```
+
+另验证入口缺参：消息只带 jobId 没带 profileId（或反之）→ 主 LLM 追问一轮，**不**调用工具、不进入流程。
 
 另验证：gathering 阶段用户岔开话题（abandon → 回 idle）、连续回答多轮不重复提问、修订稿不丢原有经历/数字。

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,9 +24,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[main] pgvector 连接池创建失败，岗位推荐将不可用: {e}")
         app.state.pg_pool = None
+    # Redis 连接（简历润色流程状态机存储）。不可用时置 None，入口工具会返回清晰提示。
+    try:
+        app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        await app.state.redis.ping()
+    except Exception as e:
+        print(f"[main] Redis 连接失败，简历润色流程将不可用: {e}")
+        app.state.redis = None
     yield
     if app.state.pg_pool is not None:
         await app.state.pg_pool.close()
+    if app.state.redis is not None:
+        await app.state.redis.aclose()
 
 
 app = FastAPI(

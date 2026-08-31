@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_session
-from app.models import utcnow
+from app.models import ChatMessage, utcnow
 from app.schemas import (
     ApiResponse,
     CreateSessionRequest,
@@ -22,11 +22,156 @@ from app.schemas import (
     StreamConfigOut,
 )
 from app.security import extract_token, get_current_user_id
-from app.services import chat_service
+from app.services import chat_service, resume_polish
+from app.services.flow import clear_flow, get_flow, set_flow
 from app.services.llm import get_llm, get_llm_with_tools
 from app.tools import ALL_TOOLS
 
 router = APIRouter(prefix="/users/me/home/assistant")
+
+# ===================== 简历润色流程（服务端状态机 + 自由文本问答）=====================
+
+# gather 阶段最多问答轮数，超出强制转 ready，防止无限追问
+GATHER_MAX_ROUNDS = resume_polish.GATHER_MAX_ROUNDS
+
+# ready / done 状态下的确认与取消判定（取消优先级高于确认，如「不保存」含「保存」）
+_CONFIRM_WORDS = ("开始", "改吧", "保存", "确认", "就按这个", "开始改")
+_CANCEL_WORDS = ("算了", "取消", "不保存", "不用了", "放弃", "不要了", "先不了")
+
+
+def _match_confirm(text: str) -> str | None:
+    """判断用户消息是确认、取消还是其他。取消优先于确认。"""
+    t = text.strip()
+    if any(w in t for w in _CANCEL_WORDS):
+        return "cancel"
+    if any(w in t for w in _CONFIRM_WORDS):
+        return "confirm"
+    return None
+
+
+async def _sse_chunks(text: str):
+    """把一段文本按 ~30ms 时间片切块，产出 (delta, 累计content)，避免高频 DOM 渲染卡顿"""
+    loop = asyncio.get_event_loop()
+    frame_start = loop.time()
+    pending = ""
+    accumulated = ""
+    for ch in text:
+        pending += ch
+        accumulated += ch
+        now = loop.time()
+        if now - frame_start >= 0.03:
+            yield pending, accumulated
+            pending = ""
+            frame_start = now
+    if pending:
+        yield pending, accumulated
+
+
+def _format_polish_result(result: dict) -> str:
+    """把 polish 结果整理成展示文本（修订稿 + 变更点 + 保存确认提示）"""
+    lines = ["简历润色完成，下面是修订稿：", "", str(result.get("revisedContent") or "")]
+    changes = result.get("changes") or []
+    if changes:
+        lines += ["", "主要变更："]
+        for i, c in enumerate(changes, 1):
+            reason = c.get("reason") if isinstance(c, dict) else str(c)
+            lines.append(f"{i}. {reason}")
+    lines += ["", "确认没问题的话，回复「保存」写入简历；回复「不保存」放弃。"]
+    return "\n".join(lines)
+
+
+async def _run_polish_flow(
+    session_id: str,
+    token: str,
+    user_msg: ChatMessage,
+    redis_client,
+    flow: dict,
+) -> str:
+    """润色流程的状态分支处理，返回要流式输出并保存的助手文本。
+
+    仅处理「状态非 idle」的消息；gathering 期间完全不跑主 LLM 循环。
+    """
+    state = flow.get("state")
+    job = flow.get("job") or {}
+    resume = flow.get("resume") or ""
+    history = flow.get("history") or []
+
+    if state == "gathering":
+        # 本条消息视为对上一批问题的回答
+        history = history + [{"question": flow.get("last_question") or "", "answer": user_msg.content}]
+        if len(history) >= GATHER_MAX_ROUNDS:
+            signal = {"next": "ready", "text": "信息已经收集得比较充分了，可以开始修改简历。要现在开始吗？"}
+        else:
+            signal = await resume_polish.gather(job, resume, history)
+        if signal["next"] == "abandon":
+            await clear_flow(redis_client, session_id)
+            return signal["text"]
+        flow["history"] = history
+        if signal["next"] == "ready":
+            flow["state"] = "ready"
+            flow["last_question"] = None
+        else:
+            flow["state"] = "gathering"
+            flow["last_question"] = signal["text"]
+        await set_flow(redis_client, session_id, flow)
+        return signal["text"]
+
+    if state == "ready":
+        verdict = _match_confirm(user_msg.content)
+        if verdict == "cancel":
+            await clear_flow(redis_client, session_id)
+            return "好的，已取消简历润色，回到正常对话。"
+        if verdict == "confirm":
+            # 先落 polishing 状态再执行（防止并发消息看到旧状态），生成完成后转 done
+            flow["state"] = "polishing"
+            await set_flow(redis_client, session_id, flow)
+            try:
+                result = await resume_polish.polish(job, resume, history)
+            except Exception as e:
+                await clear_flow(redis_client, session_id)
+                return f"生成修订稿时出错：{e}，已退出简历润色流程。"
+            flow["state"] = "done"
+            flow["revised"] = result
+            await set_flow(redis_client, session_id, flow)
+            return _format_polish_result(result)
+        # 既非确认也非取消 → 当作补充信息，回到 gathering 再分析一次
+        history = history + [{"question": flow.get("last_question") or "（补充说明）", "answer": user_msg.content}]
+        flow["history"] = history
+        signal = await resume_polish.gather(job, resume, history)
+        if signal["next"] == "abandon":
+            await clear_flow(redis_client, session_id)
+            return signal["text"]
+        if signal["next"] == "ready":
+            flow["state"] = "ready"
+            flow["last_question"] = None
+        else:
+            flow["state"] = "gathering"
+            flow["last_question"] = signal["text"]
+        await set_flow(redis_client, session_id, flow)
+        return signal["text"]
+
+    if state == "polishing":
+        return "修订稿正在生成中，请稍候片刻再继续。"
+
+    if state == "done":
+        verdict = _match_confirm(user_msg.content)
+        if verdict == "cancel":
+            await clear_flow(redis_client, session_id)
+            return "好的，未保存修改，已退出简历润色。"
+        if verdict == "confirm":
+            try:
+                revised_content = (flow.get("revised") or {}).get("revisedContent") or ""
+                await resume_polish.save_profile(flow.get("profileId") or "", revised_content, token)
+                text = "已保存到简历，评分任务已触发。可以继续问我其他问题～"
+            except Exception as e:
+                text = f"保存失败：{e}"
+            await clear_flow(redis_client, session_id)
+            return text
+        return "请回复「保存」确认写入简历，或回复「不保存」放弃这次修改。"
+
+    # 未知状态兜底：清掉状态，回到正常对话
+    await clear_flow(redis_client, session_id)
+    return "简历润色流程状态异常，已回到正常对话。"
 
 
 def _sse(name: str, data: dict) -> str:
@@ -245,8 +390,39 @@ async def stream_message(
             )
             yield emit_trace()
 
+            # ---------- 简历润色流程接管（状态非 idle 时，本消息直接由服务端状态机处理）----------
+            # gathering 期间完全不跑主 LLM 循环；文本通过现有 delta 事件普通文字流出，前端零改动
+            redis_client = getattr(request.app.state, "redis", None)
+            flow = await get_flow(redis_client, session_id) if redis_client else None
+            flow_state = (flow or {}).get("state")
+
+            if flow_state and flow_state != "idle":
+                flow_text = await _run_polish_flow(session_id, token or "", user_msg, redis_client, flow)
+                async for delta, content in _sse_chunks(flow_text):
+                    yield _sse("delta", {"type": "delta", "delta": delta, "content": content})
+                full = flow_text
+                finished_at = _now_iso()
+                yield emit_trace(status="succeeded", finished_at=finished_at)
+                await chat_service.save_assistant_message(db, session_id, full)
+                yield _sse(
+                    "done",
+                    {
+                        "type": "done",
+                        "message": {
+                            "messageId": message_id,
+                            "role": "assistant",
+                            "content": full,
+                            "status": "succeeded",
+                            "actions": [],
+                            "agentTrace": build_trace(status="succeeded", finished_at=finished_at),
+                        },
+                    },
+                )
+                return
+
             # ---------- 工具调用循环 ----------
             # 最多迭代 5 轮，防止模型反复调用工具陷入死循环
+            entry_triggered = False
             for _ in range(5):
                 response = await llm_with_tools.ainvoke(messages)
                 tool_calls = response.tool_calls
@@ -324,17 +500,38 @@ async def stream_message(
                     if tool_inst is None:
                         result = f"未知工具: {tool_name}"
                     else:
-                        # 强制注入真实用户 id / token / request，覆盖模型可能传入的任何值（身份/上下文参数不可由模型决定）
+                        # 强制注入真实用户 id / token / request / session_id，覆盖模型可能传入的任何值（身份/上下文参数不可由模型决定）
                         tool_args = dict(call["args"] or {})
                         tool_args["user_id"] = user_id
                         tool_args["token"] = token or ""
                         tool_args["request"] = request
+                        tool_args["session_id"] = session_id
                         try:
                             result = await tool_inst.ainvoke(tool_args)
                         except Exception as e:
                             result = f"工具执行失败: {e}"
 
-                    # 更新工具步骤为完成，附结果摘要
+                    # 入口工具特殊处理：成功时返回的 text 直接流给用户并短路跳出，不让主 LLM 复述
+                    if tool_name == "start_resume_polish":
+                        try:
+                            parsed_entry = json.loads(result) if isinstance(result, str) else None
+                        except Exception:
+                            parsed_entry = None
+                        if isinstance(parsed_entry, dict) and parsed_entry.get("flow") == "resume_polish":
+                            tool_step["status"] = "succeeded"
+                            tool_step["outputSummary"] = "进入简历润色流程"
+                            yield emit_trace()
+                            yield _sse("tool_result", {"tool": tool_name, "result": result})
+                            entry_text = str(parsed_entry.get("text") or "")
+                            if entry_text:
+                                async for delta, content in _sse_chunks(entry_text):
+                                    yield _sse("delta", {"type": "delta", "delta": delta, "content": content})
+                                full = entry_text
+                            entry_triggered = True
+                            break
+                        # 失败（缺参 / Redis 不可用 / 拉取失败）→ 落入通用路径，让主 LLM 基于错误信息回复
+
+                    # 更新工具步骤为完成，附结果摘要（通用路径）
                     tool_step["status"] = "succeeded"
                     tool_step["outputSummary"] = _summarize_tool_result(result)
                     yield emit_trace()
@@ -348,26 +545,30 @@ async def stream_message(
                         }
                     )
 
-            # ---------- 真实流式输出最终回答（合帧缓冲）----------
-            # 注意：此时 messages 末尾是工具结果（而非预生成的回答），astream 会据此逐 token 生成
-            # 用 ~30ms 时间片把多个小 chunk 合并成一条事件，减少前端高频 DOM 渲染带来的卡顿
-            loop = asyncio.get_event_loop()
-            FRAME_MS = 0.03
-            frame_start = loop.time()
-            pending = ""
-            async for chunk in get_llm().astream(messages):
-                text = chunk.content or ""
-                if not text:
-                    continue
-                pending += text
-                full += text
-                now = loop.time()
-                if now - frame_start >= FRAME_MS:
+                if entry_triggered:
+                    break
+
+            if not entry_triggered:
+                # ---------- 真实流式输出最终回答（合帧缓冲）----------
+                # 注意：此时 messages 末尾是工具结果（而非预生成的回答），astream 会据此逐 token 生成
+                # 用 ~30ms 时间片把多个小 chunk 合并成一条事件，减少前端高频 DOM 渲染带来的卡顿
+                loop = asyncio.get_event_loop()
+                FRAME_MS = 0.03
+                frame_start = loop.time()
+                pending = ""
+                async for chunk in get_llm().astream(messages):
+                    text = chunk.content or ""
+                    if not text:
+                        continue
+                    pending += text
+                    full += text
+                    now = loop.time()
+                    if now - frame_start >= FRAME_MS:
+                        yield _sse("delta", {"type": "delta", "delta": pending, "content": full})
+                        pending = ""
+                        frame_start = now
+                if pending:
                     yield _sse("delta", {"type": "delta", "delta": pending, "content": full})
-                    pending = ""
-                    frame_start = now
-            if pending:
-                yield _sse("delta", {"type": "delta", "delta": pending, "content": full})
 
             # 收尾：完整 trace 标记成功
             finished_at = _now_iso()

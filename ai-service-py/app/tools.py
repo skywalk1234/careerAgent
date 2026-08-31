@@ -6,7 +6,8 @@ from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
-from app.services import job_recommend
+from app.services import flow as flow_service
+from app.services import job_recommend, resume_polish
 
 
 @tool
@@ -91,6 +92,73 @@ async def query_job_detail(
 
 
 @tool
+async def start_resume_polish(
+    job_id: str,
+    profile_id: str,
+    session_id: Annotated[str, InjectedToolArg],
+    token: Annotated[str, InjectedToolArg] = "",
+    request: Annotated[Request, InjectedToolArg] = None,
+) -> str:
+    """针对目标岗位润色学生的某份简历：对比 JD 找出差距，向用户追问补充信息，最后生成修订稿。
+
+    仅当用户**同时**明确指出了目标岗位与具体简历时才调用，两者都必须从对话中确定：
+    - job_id：目标岗位ID（消息中可能带 `jobId:` 前缀，或岗位编号如 JOB2024...）
+    - profile_id：要润色的简历ID（消息中可能带 `profileId:` 前缀，或用户明确指定的某份简历）
+    若两者缺一，**不要调用本工具**，先向用户追问缺少的信息（如让用户从简历列表里选一份）。
+    调用后本工具会提出 1~3 个澄清问题，之后由服务端按流程继续追问，直至信息充足后生成修订稿。
+    """
+    # 去掉可能携带的 jobId: / profileId: 前缀，只保留纯 ID
+    raw_job_id = str(job_id or "").strip().split(":", 1)[-1].strip()
+    raw_profile_id = str(profile_id or "").strip().split(":", 1)[-1].strip()
+    if not raw_job_id or not raw_profile_id:
+        return json.dumps(
+            {"error": "缺少 job_id 或 profile_id，请先向用户确认目标岗位与要润色的简历"},
+            ensure_ascii=False,
+        )
+
+    redis_client = getattr(request.app.state, "redis", None) if request is not None else None
+    if redis_client is None:
+        return json.dumps({"error": "简历润色服务暂不可用（状态存储未连接）"}, ensure_ascii=False)
+
+    # 拉取目标岗位 JD + 指定简历
+    try:
+        job = await resume_polish.fetch_job_detail(raw_job_id, token)
+        profile = await resume_polish.fetch_profile(raw_profile_id, token)
+    except Exception as e:
+        return json.dumps({"error": f"获取岗位或简历失败: {e}"}, ensure_ascii=False)
+
+    resume_text = profile.get("content") if isinstance(profile, dict) else str(profile)
+    if not resume_text:
+        return json.dumps({"error": "该简历内容为空，无法润色"}, ensure_ascii=False)
+
+    # 首次差距分析（历史为空）→ 进入流程状态
+    signal = await resume_polish.gather(job, resume_text, [])
+    if signal["next"] == "abandon":
+        # 异常/岔开话题：不写入流程状态，让 chat.py 直接流式输出 text 后回到普通对话
+        return json.dumps(
+            {"flow": "resume_polish", "next": signal["next"], "text": signal["text"]},
+            ensure_ascii=False,
+        )
+    flow = {
+        "state": "gathering" if signal["next"] == "ask_more" else "ready",
+        "jobId": raw_job_id,
+        "profileId": raw_profile_id,
+        "job": job,
+        "resume": resume_text,
+        "history": [],
+        "last_question": signal["text"] if signal["next"] == "ask_more" else None,
+        "revised": None,
+    }
+    await flow_service.set_flow(redis_client, session_id, flow)
+
+    # flow 标记供 chat.py 识别：直接流式输出 text 并短路跳出主循环，不让主 LLM 复述
+    return json.dumps(
+        {"flow": "resume_polish", "next": signal["next"], "text": signal["text"]},
+        ensure_ascii=False,
+    )
+
+
+@tool
 async def recommend_specific_jobs(
     job_intention: str,
     city: Optional[str] = None,
@@ -132,4 +200,4 @@ async def recommend_specific_jobs(
 
 
 # 所有可注册给模型的工具（新增工具只需追加到这里）
-ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail]
+ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, start_resume_polish]
