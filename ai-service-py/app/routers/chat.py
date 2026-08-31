@@ -95,6 +95,7 @@ async def _run_polish_flow(
     job = flow.get("job") or {}
     resume = flow.get("resume") or ""
     history = flow.get("history") or []
+    print(f"[resume-flow] _run_polish_flow 进入，当前状态: {state}，问答轮次: {len(history)}")
 
     if state == "gathering":
         # 本条消息视为对上一批问题的回答
@@ -104,13 +105,16 @@ async def _run_polish_flow(
         else:
             signal = await resume_polish.gather(job, resume, history)
         if signal["next"] == "abandon":
+            print(f"[resume-flow] gathering → 放弃（abandon）：{signal['text'][:50]!r}")
             await clear_flow(redis_client, session_id)
             return signal["text"]
         flow["history"] = history
         if signal["next"] == "ready":
+            print(f"[resume-flow] gathering → ready（信息充足，问答 {len(history)} 轮）")
             flow["state"] = "ready"
             flow["last_question"] = None
         else:
+            print(f"[resume-flow] gathering → gathering（继续追问，问答 {len(history)} 轮）")
             flow["state"] = "gathering"
             flow["last_question"] = signal["text"]
         await set_flow(redis_client, session_id, flow)
@@ -119,9 +123,11 @@ async def _run_polish_flow(
     if state == "ready":
         verdict = _match_confirm(user_msg.content)
         if verdict == "cancel":
+            print(f"[resume-flow] ready → 取消，清空状态回到 idle")
             await clear_flow(redis_client, session_id)
             return "好的，已取消简历润色，回到正常对话。"
         if verdict == "confirm":
+            print(f"[resume-flow] ready → polishing（用户确认开始改）")
             # 先落 polishing 状态再执行（防止并发消息看到旧状态），生成完成后转 done
             flow["state"] = "polishing"
             await set_flow(redis_client, session_id, flow)
@@ -130,32 +136,39 @@ async def _run_polish_flow(
             except Exception as e:
                 await clear_flow(redis_client, session_id)
                 return f"生成修订稿时出错：{e}，已退出简历润色流程。"
+            print(f"[resume-flow] polishing → done（修订稿生成完成）")
             flow["state"] = "done"
             flow["revised"] = result
             await set_flow(redis_client, session_id, flow)
             return _format_polish_result(result)
         # 既非确认也非取消 → 当作补充信息，回到 gathering 再分析一次
+        print(f"[resume-flow] ready → 补充信息，回到 gathering 再分析")
         history = history + [{"question": flow.get("last_question") or "（补充说明）", "answer": user_msg.content}]
         flow["history"] = history
         signal = await resume_polish.gather(job, resume, history)
         if signal["next"] == "abandon":
+            print(f"[resume-flow] ready → 放弃（abandon）：{signal['text'][:50]!r}")
             await clear_flow(redis_client, session_id)
             return signal["text"]
         if signal["next"] == "ready":
+            print(f"[resume-flow] gathering → ready（补充信息后仍可开始）")
             flow["state"] = "ready"
             flow["last_question"] = None
         else:
+            print(f"[resume-flow] gathering → gathering（继续追问）")
             flow["state"] = "gathering"
             flow["last_question"] = signal["text"]
         await set_flow(redis_client, session_id, flow)
         return signal["text"]
 
     if state == "polishing":
+        print(f"[resume-flow] polishing 进行中，收到新消息（保持状态不变）")
         return "修订稿正在生成中，请稍候片刻再继续。"
 
     if state == "done":
         verdict = _match_confirm(user_msg.content)
         if verdict == "cancel":
+            print(f"[resume-flow] done → 未保存，清空状态回到 idle")
             await clear_flow(redis_client, session_id)
             return "好的，未保存修改，已退出简历润色。"
         if verdict == "confirm":
@@ -165,11 +178,13 @@ async def _run_polish_flow(
                 text = "已保存到简历，评分任务已触发。可以继续问我其他问题～"
             except Exception as e:
                 text = f"保存失败：{e}"
+            print(f"[resume-flow] done → 确认保存，清空状态回到 idle（profileId={flow.get('profileId')!r}）")
             await clear_flow(redis_client, session_id)
             return text
         return "请回复「保存」确认写入简历，或回复「不保存」放弃这次修改。"
 
     # 未知状态兜底：清掉状态，回到正常对话
+    print(f"[resume-flow] 未知状态 {state!r}，清空状态回到 idle")
     await clear_flow(redis_client, session_id)
     return "简历润色流程状态异常，已回到正常对话。"
 
@@ -395,6 +410,10 @@ async def stream_message(
             redis_client = getattr(request.app.state, "redis", None)
             flow = await get_flow(redis_client, session_id) if redis_client else None
             flow_state = (flow or {}).get("state")
+            print(
+                f"[resume-flow] 会话 {session_id} 本轮消息: {user_msg.content[:60]!r}，"
+                f"当前状态: {flow_state}"
+            )
 
             if flow_state and flow_state != "idle":
                 flow_text = await _run_polish_flow(session_id, token or "", user_msg, redis_client, flow)
