@@ -45,7 +45,7 @@
 用户：回答追问 / 直接说「针对这个岗位[jobId:xxx]帮我优化」
   → 主 LLM 判断意图 = 润色 → 调 polish_resume(profile_id?, job_id?, extra_info=汇总的追问答案+修改要求)
   → 工具拉简历(+可选 JD) → 一次 LLM 润色（含 reflect 自检）→ save_profile_as_new 落库
-  → 返回 {success, changes[], reflectChecklist[], summary}
+  → 返回 {success, changes[], summary}
   → 主 LLM 转述变更摘要 + 「已另存为新简历（原简历保留）」
 ```
 
@@ -65,7 +65,7 @@ async def polish_resume(
     job_id: Optional[str] = None,
     extra_info: Optional[str] = None,   # 主 LLM 汇总的用户补充/修改要求（自由文本）
     token: Annotated[str, InjectedToolArg] = "",
-) -> str:                               # 返回 {"success", "changes", "reflectChecklist", "summary"}
+) -> str:                               # 返回 {"success", "changes", "summary"}
 ```
 
 ### LLM 两处被调用（均为一次性、结构化输出，用 `get_json_llm`）
@@ -73,7 +73,7 @@ async def polish_resume(
 | 工具            | 输入                          | 输出                                             |
 | ------------- | --------------------------- | ---------------------------------------------- |
 | **analyze_resume** | 简历 markdown（+ 可选 JD）         | `{analysis, questions}`                         |
-| **polish_resume**  | JD（可选）+ 简历 markdown + extra_info | `{revisedContent, changes[], reflectChecklist}`（内部用，不回传完整稿） |
+| **polish_resume**  | JD（可选）+ 简历 markdown + extra_info | `{revisedContent, changes[]}`（内部用，不回传完整稿） |
 
 ## 四、工具行为详解
 
@@ -94,7 +94,7 @@ async def polish_resume(
 - 拉简历（同上）；有 `job_id` → 拉 JD。
 - 一次 LLM 润色：`POLISH_SYSTEM`（保留 v3 的防幻觉红线 + reflect 自检）+ 输入 `JD(可选) + 简历 + extra_info`。
 - **直接 `save_profile_as_new(revisedContent)` 另存为新简历**（profileId 传空，Java 落库时生成新 UUID），不询问「是否开始 / 是否保存」。
-- 返回 `{"success": true, "changes": [{"reason": "..."}...], "reflectChecklist": [...], "summary": "已另存为一份新简历（原简历保留），主要变更：1…2…3…"}`——**对话里只展示变更摘要 + 提示**，不回传完整 markdown（避免主 LLM 用 max_tokens=2048 流式输出超长简历被截断）。
+- 返回 `{"success": true, "changes": ["简短改动说明1", "简短改动说明2"], "summary": "已另存为一份新简历（原简历保留），主要变更：1…2…3…"}`——`changes` 是**短字符串数组**（每条 ≤30 字，说明改了什么、为什么），**对话里只展示变更摘要 + 提示**，不回传完整 markdown（避免主 LLM 用 max_tokens=2048 流式输出超长简历被截断）。
 - `extra_info`：主 LLM 汇总的「分析阶段用户对追问的回答 + 本次修改要求」自由文本，可为空（仅按 JD 润色）。
 - ⚠️ `save_profile_as_new` 的响应拿不到新简历 UUID（Java 端回显 userId），工具响应中不声明返回新 profileId。
 
@@ -119,6 +119,7 @@ async def polish_resume(
 5. **对话只展示变更摘要**：润色工具的返回不含完整 markdown，规避主 LLM 流式输出超长简历被 `max_tokens=2048` 截断。
 6. **Reflect 兜底幻觉**：润色 prompt 沿用 v3 的防幻觉红线 + reflect 自检（只能重组、扩写用户明确提供的内容，不虚构公司/项目/量化数字）。
 7. **jobId 仅从对话抽取**：不加岗位解析工具（MVP）。用户只说岗位名而没有 `jobId:xxx` 时，分析/润色做通用处理（无 JD 段）。
+8. **润色延迟控制（实测驱动的三管齐下）**：polish 曾出现 LLM 调用 40~75s「卡住」。实测定位两个因素——(a) `get_json_llm` 不传 `extra_body` 时 deepseek-v4-flash 默认仍做隐藏推理（结构化输出延迟约翻倍）；(b) 原 `POLISH_SYSTEM` 要求输出 `changes:[{before,after,reason}]` + `reflectChecklist`，等于让模型把改动全文在 JSON 里再生成一遍（实测 1314 字符输入要 34.9s）。对策：① `get_json_llm` 显式传 `extra_body={"thinking":{"type":"disabled"}}` 并放宽 timeout 到 150s；② `POLISH_SYSTEM` 精简输出 schema——`changes` 改短字符串数组、`reflectChecklist` 移出输出（reflect 仍作系统指令约束行为，只不自检不自证）；③ `_call_json_llm` 用 `asyncio.wait_for(150s)` 做硬超时兜底（langchain-openai 的 timeout 参数在 async 下可能失效），保证工具永不无限挂起。精简后同一输入从 34.9s 降到 **5.8s**。
 
 ## 七、风险与取舍
 

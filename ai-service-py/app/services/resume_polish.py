@@ -2,10 +2,11 @@
 
 两个专家工具均为同步、一次性、结构化输入输出，由主 LLM 编排（无服务端状态机）：
 - analyze：简历（+ 可选 JD）→ {analysis, questions}（文字诊断 + 可选追问）
-- polish：简历 + JD(可选) + 用户补充/修改要求 → {revisedContent, changes[], reflectChecklist[]}（含 reflect 自检）
+- polish：简历 + JD(可选) + 用户补充/修改要求 → {revisedContent, changes[]}（reflect 自检仅作内部约束，不序列化输出）
 
 本模块不持有任何状态。
 """
+import asyncio
 import json
 import time
 
@@ -37,13 +38,15 @@ POLISH_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家�
 4. 使用清晰有力的简历语言；量化结果只能用用户提供的数据，用户未提供则保留原表述，绝不自己编数字。
 5. 输出完整 markdown 格式简历。
 
-输出前必须自检（reflect），逐项核对并在不通过时自行修正后再输出：
+输出前必须自检（reflect），逐项核对并在不通过时自行修正后再输出，但不要输出自检过程本身：
 - 是否保留原简历全部事实？
 - 是否编造了经历或量化数字？
 - 是否命中 JD 的关键词与能力要求？
 - 是否遗漏原简历内容？
 
-只输出 JSON：{"revisedContent": "完整markdown", "changes": [{"before":"改动前","after":"改动后","reason":"原因"}], "reflectChecklist": [{"item":"核对项","ok":true}]}"""
+只输出 JSON：{"revisedContent": "完整markdown", "changes": ["简要改动说明1", "简要改动说明2"]}
+
+changes 是简短的改动说明列表（每条 30 字以内，说明改了什么、为什么），只列出实际发生的改动，不要逐段复制原文。"""
 
 
 # ---------- LLM 调用 ----------
@@ -61,13 +64,23 @@ def _extract_json(text: str) -> dict:
     return json.loads(text)
 
 
+# 单个 LLM 调用允许的最长耗时。生成整篇简历 markdown 偏重，放宽到 150s；
+# 超过即视为挂死，抛超时错误，由上层工具兜底返回 error（不会无限卡住前端）。
+_LLM_TIMEOUT = 150
+
+
 async def _call_json_llm(system: str, user_content: str) -> dict:
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": user_content},
     ]
     t0 = time.perf_counter()
-    resp = await get_json_llm().ainvoke(messages)
+    # langchain-openai 的 timeout 参数在 async 下可能不生效（曾有挂起问题），
+    # 这里用 asyncio.wait_for 做硬超时兜底，保证工具调用不会无限挂起。
+    try:
+        resp = await asyncio.wait_for(get_json_llm().ainvoke(messages), timeout=_LLM_TIMEOUT)
+    except asyncio.TimeoutError:
+        raise TimeoutError(f"LLM 调用超时（>{_LLM_TIMEOUT}s），输入len={len(user_content)}")
     elapsed = time.perf_counter() - t0
     print(
         f"[resume-tool] LLM调用完成: {elapsed:.2f}s, 输入len={len(user_content)}, "
@@ -119,9 +132,11 @@ async def analyze(job: dict | None, resume: str) -> dict:
 # ---------- 工具：polish（简历润色专家） ----------
 
 async def polish(job: dict | None, resume: str, extra_info: str) -> dict:
-    """润色：JD(可选) + 简历 + 用户补充/修改要求 → 修订稿（含 reflect 自检）。
+    """润色：JD(可选) + 简历 + 用户补充/修改要求 → 修订稿。
 
-    返回 {"revisedContent", "changes", "reflectChecklist"}。解析失败抛异常由上层兜底。
+    reflect 自检只作为系统指令约束模型行为（不通过则自行修正），不要求序列化输出，
+    避免模型把自检过程写进 JSON 徒增输出 token。返回 {"revisedContent", "changes"}。
+    解析失败抛异常由上层兜底。
     """
     parts = []
     if job:
@@ -136,7 +151,6 @@ async def polish(job: dict | None, resume: str, extra_info: str) -> dict:
     return {
         "revisedContent": str(revised),
         "changes": result.get("changes") or [],
-        "reflectChecklist": result.get("reflectChecklist") or [],
     }
 
 

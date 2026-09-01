@@ -212,6 +212,8 @@ async def polish_resume(
         print(f"[resume-tool] polish_resume 润色/保存失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"润色简历失败: {e}"}, ensure_ascii=False)
 
+    # changes 现在是简短字符串列表（POLISH_SYSTEM 精简输出 schema 后的约定），
+    # 兼容旧 dict 结构：{"reason": ...} 取 reason，字符串直接用。
     changes = result.get("changes") or []
     lines = ["已按你的要求完成润色，并另存为一份新简历（原简历保留）。主要变更："]
     for i, c in enumerate(changes, 1):
@@ -224,7 +226,6 @@ async def polish_resume(
         {
             "success": True,
             "changes": changes,
-            "reflectChecklist": result.get("reflectChecklist") or [],
             "summary": "\n".join(lines),
         },
         ensure_ascii=False,
