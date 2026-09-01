@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, EditPen } from '@element-plus/icons-vue'
+import { Check, EditPen, Refresh } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import * as echarts from 'echarts'
 import WordCloudChart from '../components/WordCloudChart.vue'
@@ -60,6 +60,7 @@ const savedSnapshot = ref('')
 const resumeList = ref<ResumeListItem[]>([])
 const activeResumeId = ref('')
 const listLoading = ref(false)
+const refreshLoading = ref(false)
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 
 const showTour = ref(false)
@@ -1146,6 +1147,76 @@ async function handleTaskOrchestratorRouteRefreshEvent(event: Event) {
   await loadProfile().catch(() => {})
 }
 
+// 手动刷新：重新请求所有简历（尽量保留当前选中的那份）与评分/建议快照，无需刷新整个网页
+async function handleRefreshData() {
+  if (parseLoading.value || saveLoading.value) {
+    ElMessage.info('正在上传或保存，请稍后再刷新')
+    return
+  }
+  if (isEditing.value && hasUnsavedChanges.value) {
+    ElMessage.warning('当前有未保存的修改，请先保存或取消后再刷新')
+    return
+  }
+  if (refreshLoading.value) return
+  refreshLoading.value = true
+  try {
+    // ① 重新拉取简历列表
+    const prevId = activeResumeId.value
+    const response = await getStudentProfileList()
+    const result = response.data as ApiResponse<ResumeListItem[]>
+    if (!isSuccessCode(Number(result.code))) {
+      ElMessage.error(result.msg || '刷新简历列表失败')
+      return
+    }
+    const payload = extractPayload<ResumeListItem[]>(response as { data: ApiResponse<ResumeListItem[]> })
+    const list = Array.isArray(payload) ? payload : []
+    resumeList.value = list
+
+    if (list.length === 0) {
+      // 没有任何简历：创建一个空白标签（保存时才落库）
+      const blank: ResumeListItem = { profileId: genResumeId(), title: '未命名简历', content: '' }
+      resumeList.value = [blank]
+      applyProfileContent(blank)
+    } else {
+      // 当前选中的简历还在则保留，否则回落到第一份
+      const keep = list.find((it) => it.profileId && it.profileId === prevId) ?? list[0]
+      applyProfileContent(keep)
+    }
+
+    // ② 重新拉取评分/证据/改进建议（force=true 跳过 store 缓存）
+    const snapshot = await appStore.ensureProfileSnapshot(true)
+    hasServerProfile.value = Boolean(snapshot?.hasProfile)
+    if (snapshot?.hasProfile && snapshot.profile) {
+      scoreData.value = snapshot.scores
+      evidenceMap.value = snapshot.evidence ?? {}
+      suggestions.value = snapshot.improvementSuggestions ?? []
+      updatedAt.value = snapshot.updatedAt ?? ''
+      profileId.value = snapshot.profileId ?? ''
+      isEditing.value = false
+      savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
+      if (isDesktop.value && viewMode.value === 'insight' && snapshot.scores) {
+        await fetchAggregateData(true)
+        nextTick(() => {
+          renderRadarChart()
+          renderRingCharts()
+          resizeInsightChartsDebounced()
+        })
+      }
+    } else {
+      isEditing.value = false
+      scoreData.value = null
+      suggestions.value = []
+      evidenceMap.value = {}
+      savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
+    }
+    ElMessage.success('已刷新简历数据')
+  } catch {
+    ElMessage.error('刷新失败，请稍后重试')
+  } finally {
+    refreshLoading.value = false
+  }
+}
+
 onBeforeRouteLeave(async () => {
   if (saveLoading.value) return true
   if (!isEditing.value || !hasUnsavedChanges.value) return true
@@ -1208,6 +1279,7 @@ watch([viewMode, scoreData, aggregateData, isDesktop], () => {
       </div>
       <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
         <span v-if="formattedUpdatedAt" class="rounded-full bg-slate-100 px-3 py-1">最近保存：{{ formattedUpdatedAt }}</span>
+        <el-button size="small" type="primary" plain :loading="refreshLoading" :icon="Refresh" @click="handleRefreshData">刷新</el-button>
       </div>
     </div>
 
