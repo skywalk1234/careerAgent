@@ -40,6 +40,22 @@ _CANCEL_WORDS = ("算了", "取消", "不保存", "不用了", "放弃", "不要
 # done 状态下「另存为新简历」的意图词（覆盖原简历之外的第二种保存方式）
 _SAVE_AS_NEW_WORDS = ("另存", "新建", "新简历", "复制一份")
 
+# 润色流程的选项卡选项：label 是前端展示文案，send 是点击后作为用户消息发送的文本
+# （send 文本走 _match_confirm / _SAVE_AS_NEW_WORDS 关键词判定，前端只发文本、不接管状态逻辑）
+_FLOW_OPTIONS = {
+    "ready": [
+        {"key": "start", "label": "开始润色", "send": "开始改吧"},
+        {"key": "abandon", "label": "放弃润色", "send": "放弃"},
+        {"key": "supplement", "label": "补充其他信息", "send": ""},
+    ],
+    "done": [
+        {"key": "overwrite", "label": "覆盖当前简历", "send": "保存"},
+        {"key": "save_as_new", "label": "保存到新的简历", "send": "另存为一份新简历"},
+        {"key": "discard", "label": "不保存", "send": "不保存"},
+        {"key": "supplement", "label": "补充其他信息", "send": ""},
+    ],
+}
+
 
 def _match_confirm(text: str) -> str | None:
     """判断用户消息是确认、取消还是其他。取消优先于确认。"""
@@ -88,10 +104,13 @@ async def _run_polish_flow(
     user_msg: ChatMessage,
     redis_client,
     flow: dict,
-) -> str:
-    """润色流程的状态分支处理，返回要流式输出并保存的助手文本。
+) -> tuple[str, str | None]:
+    """润色流程的状态分支处理。
 
     仅处理「状态非 idle」的消息；gathering 期间完全不跑主 LLM 循环。
+    返回 (text, display_state)：text 是要流式输出并保存的助手文本；
+    display_state 是该消息处理后的流程状态，供前端渲染选项卡：ready → 开始润色/放弃/补充，
+    done → 覆盖/另存/不保存/补充，其余状态（gathering 提问、polishing、已结束）为 None。
     """
     state = flow.get("state")
     job = flow.get("job") or {}
@@ -109,7 +128,7 @@ async def _run_polish_flow(
         if signal["next"] == "abandon":
             print(f"[resume-flow] gathering → 放弃（abandon）：{signal['text'][:50]!r}")
             await clear_flow(redis_client, session_id)
-            return signal["text"]
+            return signal["text"], None
         flow["history"] = history
         if signal["next"] == "ready":
             print(f"[resume-flow] gathering → ready（信息充足，问答 {len(history)} 轮）")
@@ -120,14 +139,14 @@ async def _run_polish_flow(
             flow["state"] = "gathering"
             flow["last_question"] = signal["text"]
         await set_flow(redis_client, session_id, flow)
-        return signal["text"]
+        return signal["text"], flow["state"] if flow["state"] == "ready" else None
 
     if state == "ready":
         verdict = _match_confirm(user_msg.content)
         if verdict == "cancel":
             print(f"[resume-flow] ready → 取消，清空状态回到 idle")
             await clear_flow(redis_client, session_id)
-            return "好的，已取消简历润色，回到正常对话。"
+            return "好的，已取消简历润色，回到正常对话。", None
         if verdict == "confirm":
             print(f"[resume-flow] ready → polishing（用户确认开始改）")
             # 先落 polishing 状态再执行（防止并发消息看到旧状态），生成完成后转 done
@@ -137,12 +156,12 @@ async def _run_polish_flow(
                 result = await resume_polish.polish(job, resume, history)
             except Exception as e:
                 await clear_flow(redis_client, session_id)
-                return f"生成修订稿时出错：{e}，已退出简历润色流程。"
+                return f"生成修订稿时出错：{e}，已退出简历润色流程。", None
             print(f"[resume-flow] polishing → done（修订稿生成完成）")
             flow["state"] = "done"
             flow["revised"] = result
             await set_flow(redis_client, session_id, flow)
-            return _format_polish_result(result)
+            return _format_polish_result(result), "done"
         # 既非确认也非取消 → 当作补充信息，回到 gathering 再分析一次
         print(f"[resume-flow] ready → 补充信息，回到 gathering 再分析")
         history = history + [{"question": flow.get("last_question") or "（补充说明）", "answer": user_msg.content}]
@@ -151,7 +170,7 @@ async def _run_polish_flow(
         if signal["next"] == "abandon":
             print(f"[resume-flow] ready → 放弃（abandon）：{signal['text'][:50]!r}")
             await clear_flow(redis_client, session_id)
-            return signal["text"]
+            return signal["text"], None
         if signal["next"] == "ready":
             print(f"[resume-flow] gathering → ready（补充信息后仍可开始）")
             flow["state"] = "ready"
@@ -161,11 +180,11 @@ async def _run_polish_flow(
             flow["state"] = "gathering"
             flow["last_question"] = signal["text"]
         await set_flow(redis_client, session_id, flow)
-        return signal["text"]
+        return signal["text"], flow["state"] if flow["state"] == "ready" else None
 
     if state == "polishing":
         print(f"[resume-flow] polishing 进行中，收到新消息（保持状态不变）")
-        return "修订稿正在生成中，请稍候片刻再继续。"
+        return "修订稿正在生成中，请稍候片刻再继续。", None
 
     if state == "done":
         is_save_as_new = any(w in user_msg.content for w in _SAVE_AS_NEW_WORDS)
@@ -173,7 +192,7 @@ async def _run_polish_flow(
         if verdict == "cancel":
             print(f"[resume-flow] done → 未保存，清空状态回到 idle")
             await clear_flow(redis_client, session_id)
-            return "好的，未保存修改，已退出简历润色。"
+            return "好的，未保存修改，已退出简历润色。", None
         if verdict == "confirm" or is_save_as_new:
             try:
                 revised_content = (flow.get("revised") or {}).get("revisedContent") or ""
@@ -190,13 +209,14 @@ async def _run_polish_flow(
                 f"清空状态回到 idle（profileId={flow.get('profileId')!r}）"
             )
             await clear_flow(redis_client, session_id)
-            return text
-        return "请回复「保存」覆盖原简历，回复「另存」保存为新简历，或回复「不保存」放弃这次修改。"
+            return text, None
+        # 未匹配任何操作 → 提示用户从选项卡选择，状态保持 done，前端仍展示保存选项
+        return "未识别你的操作，请从下方选项中选择，或直接补充其他信息。", "done"
 
     # 未知状态兜底：清掉状态，回到正常对话
     print(f"[resume-flow] 未知状态 {state!r}，清空状态回到 idle")
     await clear_flow(redis_client, session_id)
-    return "简历润色流程状态异常，已回到正常对话。"
+    return "简历润色流程状态异常，已回到正常对话。", None
 
 
 def _sse(name: str, data: dict) -> str:
@@ -382,6 +402,8 @@ async def stream_message(
     async def event_stream():
         yield _sse("start", {"type": "start", "messageId": message_id})
         full = ""
+        # 本流结束后前端应展示的润色流程选项卡状态（ready/done），其余为 None
+        resume_flow_state = None
 
         # ---------- agent trace 状态：供前端展示「思考过程 + 工具调用」 ----------
         started_at = _now_iso()
@@ -426,27 +448,28 @@ async def stream_message(
             )
 
             if flow_state and flow_state != "idle":
-                flow_text = await _run_polish_flow(session_id, token or "", user_msg, redis_client, flow)
+                flow_text, flow_display = await _run_polish_flow(session_id, token or "", user_msg, redis_client, flow)
                 async for delta, content in _sse_chunks(flow_text):
                     yield _sse("delta", {"type": "delta", "delta": delta, "content": content})
                 full = flow_text
+                resume_flow_state = flow_display
                 finished_at = _now_iso()
                 yield emit_trace(status="succeeded", finished_at=finished_at)
                 await chat_service.save_assistant_message(db, session_id, full)
-                yield _sse(
-                    "done",
-                    {
-                        "type": "done",
-                        "message": {
-                            "messageId": message_id,
-                            "role": "assistant",
-                            "content": full,
-                            "status": "succeeded",
-                            "actions": [],
-                            "agentTrace": build_trace(status="succeeded", finished_at=finished_at),
-                        },
-                    },
-                )
+                done_message = {
+                    "messageId": message_id,
+                    "role": "assistant",
+                    "content": full,
+                    "status": "succeeded",
+                    "actions": [],
+                    "agentTrace": build_trace(status="succeeded", finished_at=finished_at),
+                }
+                if resume_flow_state:
+                    done_message["resumeFlow"] = {
+                        "state": resume_flow_state,
+                        "options": _FLOW_OPTIONS.get(resume_flow_state) or [],
+                    }
+                yield _sse("done", {"type": "done", "message": done_message})
                 return
 
             # ---------- 工具调用循环 ----------
@@ -557,6 +580,8 @@ async def stream_message(
                                     yield _sse("delta", {"type": "delta", "delta": delta, "content": content})
                                 full = entry_text
                             entry_triggered = True
+                            # 入口工具首次差距分析即判定信息充足（next=ready）→ 前端展示 ready 选项卡
+                            resume_flow_state = "ready" if parsed_entry.get("next") == "ready" else None
                             break
                         # 失败（缺参 / Redis 不可用 / 拉取失败）→ 落入通用路径，让主 LLM 基于错误信息回复
 
@@ -604,20 +629,20 @@ async def stream_message(
             yield emit_trace(status="succeeded", finished_at=finished_at)
 
             await chat_service.save_assistant_message(db, session_id, full)
-            yield _sse(
-                "done",
-                {
-                    "type": "done",
-                    "message": {
-                        "messageId": message_id,
-                        "role": "assistant",
-                        "content": full,
-                        "status": "succeeded",
-                        "actions": [],
-                        "agentTrace": build_trace(status="succeeded", finished_at=finished_at),
-                    },
-                },
-            )
+            done_message = {
+                "messageId": message_id,
+                "role": "assistant",
+                "content": full,
+                "status": "succeeded",
+                "actions": [],
+                "agentTrace": build_trace(status="succeeded", finished_at=finished_at),
+            }
+            if resume_flow_state:
+                done_message["resumeFlow"] = {
+                    "state": resume_flow_state,
+                    "options": _FLOW_OPTIONS.get(resume_flow_state) or [],
+                }
+            yield _sse("done", {"type": "done", "message": done_message})
         except Exception as e:
             # 出错时也把 trace 标成失败，前端能看到状态
             yield emit_trace(status="failed", finished_at=_now_iso())

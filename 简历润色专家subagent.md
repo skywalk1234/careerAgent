@@ -21,12 +21,12 @@
 
 ## 二、数据基础（均已存在）
 
-| 需求 | 来源 | 接口 |
-|---|---|---|
-| 收藏岗位列表 | career-service | `GET /users/me/favorite-jobs` → `FavoriteRes{total, list:[{jobId, jobName, city, ...}]}` |
-| 完整岗位 JD | career-service | `GET /jobs/{jobId}` → `JobDocument`（含 `jobDescription`、`abilityRequirements`） |
-| 当前简历 markdown | profile-service | `GET /users/me/profile` → `{hasProfile, profile: {id, content}}` |
-| 写回简历 | resume-parser-service | `POST /users/me/profile` body `{content: "markdown"}` → `profile_storage` 队列落库 → 自动触发重新评分 |
+| 需求            | 来源                    | 接口                                                                                        |
+| ------------- | --------------------- | ----------------------------------------------------------------------------------------- |
+| 收藏岗位列表        | career-service        | `GET /users/me/favorite-jobs` → `FavoriteRes{total, list:[{jobId, jobName, city, ...}]}`  |
+| 完整岗位 JD       | career-service        | `GET /jobs/{jobId}` → `JobDocument`（含 `jobDescription`、`abilityRequirements`）             |
+| 当前简历 markdown | profile-service       | `GET /users/me/profile` → `{hasProfile, profile: {id, content}}`                          |
+| 写回简历          | resume-parser-service | `POST /users/me/profile` body `{content: "markdown"}` → `profile_storage` 队列落库 → 自动触发重新评分 |
 
 > ⚠️ 收藏列表只返回岗位摘要，**完整 JD 需按 `jobId` 再调一次 `GET /jobs/{jobId}`**。
 
@@ -63,20 +63,20 @@
 
 ### LLM 仅两处被调用（均为一次性、结构化输入输出）
 
-| 步骤 | 输入 | 输出 |
-|---|---|---|
-| **差距分析（gather）** | JD + 简历 markdown + 累积问答历史 | `{next, text}` |
+| 步骤                       | 输入                        | 输出                                              |
+| ------------------------ | ------------------------- | ----------------------------------------------- |
+| **差距分析（gather）**         | JD + 简历 markdown + 累积问答历史 | `{next, text}`                                  |
 | **润色（polish + reflect）** | JD + 简历 markdown + 累积问答历史 | `{revisedContent, changes[], reflectChecklist}` |
 
 ### 控制信号（唯一的结构化字段）
 
 差距分析返回 `{next, text}`：`text` 自由文本直接流给用户，`next` 决定状态跳转（用户永远看不到 JSON）。
 
-| next | 含义 | 状态动作 |
-|---|---|---|
-| `ask_more` | 还需要补充信息 | 保持 gathering，text 作为下一批问题流出 |
-| `ready` | 信息已够 | 转 ready，text 提示「信息够了，要开始改吗？」 |
-| `abandon` | 用户岔开话题/放弃 | 回 idle（本条消息不再走主循环，初版简单处理） |
+| next       | 含义        | 状态动作                         |
+| ---------- | --------- | ---------------------------- |
+| `ask_more` | 还需要补充信息   | 保持 gathering，text 作为下一批问题流出  |
+| `ready`    | 信息已够      | 转 ready，text 提示「信息够了，要开始改吗？」 |
+| `abandon`  | 用户岔开话题/放弃 | 回 idle（本条消息不再走主循环，初版简单处理）    |
 
 **内容和控制分离：内容自由文本，控制一个枚举字段。**
 
@@ -84,13 +84,13 @@
 
 ### 各状态下的消息路由
 
-| 状态 | 含义 | 用户发一条消息，服务端做什么 |
-|---|---|---|
-| `idle` | 普通聊天 | 走现有 `for _ in range(5)` 主 LLM 工具循环，完全不变；仅新增 `start_resume_polish` 工具供主 LLM 调用来进入流程 |
-| `gathering` | 正在问问题 | **不跑主 LLM**。本条消息视为对上一批问题的回答 → append 进 Redis `history` → 调一次差距分析 LLM → 按 `next` 跳转并流式输出 text |
-| `ready` | 信息够用 | 等用户明确确认。用户说「开始/改吧」→ 转 polishing；说「算了」→ 回 idle |
-| `polishing` | 正在生成修订稿 | 调一次 polish LLM → 流式展示修订稿 + changes → 状态 done |
-| `done` | 修订稿已生成 | 用户确认「保存」→ 服务端 `POST /users/me/profile {content}` 写库（自动触发重评分）→ 回 idle；「放弃」→ 回 idle |
+| 状态          | 含义      | 用户发一条消息，服务端做什么                                                                               |
+| ----------- | ------- | -------------------------------------------------------------------------------------------- |
+| `idle`      | 普通聊天    | 走现有 `for _ in range(5)` 主 LLM 工具循环，完全不变；仅新增 `start_resume_polish` 工具供主 LLM 调用来进入流程           |
+| `gathering` | 正在问问题   | **不跑主 LLM**。本条消息视为对上一批问题的回答 → append 进 Redis `history` → 调一次差距分析 LLM → 按 `next` 跳转并流式输出 text |
+| `ready`     | 信息够用    | 等用户明确确认。用户说「开始/改吧」→ 转 polishing；说「算了」→ 回 idle                                                |
+| `polishing` | 正在生成修订稿 | 调一次 polish LLM → 流式展示修订稿 + changes → 状态 done                                                 |
+| `done`      | 修订稿已生成  | 用户确认「保存」→ 服务端 `POST /users/me/profile {content}` 写库（自动触发重评分）→ 回 idle；「放弃」→ 回 idle            |
 
 ### 入口前置条件（双必填 + 缺参先问）
 
@@ -122,14 +122,14 @@
 
 ## 五、实施清单（改动集中在 Python 端）
 
-| 文件 | 改动 |
-|---|---|
-| `app/tools.py` | 新增 `start_resume_polish(job_id, profile_id)`（**双必填**，均从用户消息中抽取，缺参不调用；内部按 profileId 拉简历 + 按 jobId 拉 JD + 首次差距分析 + 设 Redis 状态），注册进 `ALL_TOOLS`。若用户按岗位名/简历标题而非 id 指定，另补 `get_favorite_jobs`（收藏列表）/ `get_profiles`（`/users/me/profile/list`）解析工具 |
-| 新增 `app/services/resume_polish.py` | 核心：`gather(job, resume, history)` 与 `polish(job, resume, history)` 两个一次性 LLM 调用 + 结构化 JSON 解析；内部 HTTP 拉 JD/简历参考 `tools.py` 中 `get_student_profile` 的写法（透传 JWT） |
-| 新增 `app/services/flow.py`（或并入 chat.py） | Redis 状态读写：`get_flow / set_flow / clear_flow`，key `resume_flow:{session_id}`，TTL 30 分钟 |
-| `app/routers/chat.py` | `stream_message` 开头按状态分支：非 `idle` 走润色流程（gathering 接管/ready/polishing/done），`idle` 走现有主循环；主循环内识别 `start_resume_polish` 返回 → 流 text + 短路跳出 |
-| `app/config.py` / `requirements.txt` | 增加 Redis 连接配置与依赖（当前 ai-service-py 未连 Redis，Java Agent 在用） |
-| 前端 | **零改动** |
+| 文件                                     | 改动                                                                                                                                                                                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/tools.py`                         | 新增 `start_resume_polish(job_id, profile_id)`（**双必填**，均从用户消息中抽取，缺参不调用；内部按 profileId 拉简历 + 按 jobId 拉 JD + 首次差距分析 + 设 Redis 状态），注册进 `ALL_TOOLS`。若用户按岗位名/简历标题而非 id 指定，另补 `get_favorite_jobs`（收藏列表）/ `get_profiles`（`/users/me/profile/list`）解析工具 |
+| 新增 `app/services/resume_polish.py`     | 核心：`gather(job, resume, history)` 与 `polish(job, resume, history)` 两个一次性 LLM 调用 + 结构化 JSON 解析；内部 HTTP 拉 JD/简历参考 `tools.py` 中 `get_student_profile` 的写法（透传 JWT）                                                                               |
+| 新增 `app/services/flow.py`（或并入 chat.py） | Redis 状态读写：`get_flow / set_flow / clear_flow`，key `resume_flow:{session_id}`，TTL 30 分钟                                                                                                                                                       |
+| `app/routers/chat.py`                  | `stream_message` 开头按状态分支：非 `idle` 走润色流程（gathering 接管/ready/polishing/done），`idle` 走现有主循环；主循环内识别 `start_resume_polish` 返回 → 流 text + 短路跳出                                                                                                     |
+| `app/config.py` / `requirements.txt`   | 增加 Redis 连接配置与依赖（当前 ai-service-py 未连 Redis，Java Agent 在用）                                                                                                                                                                                    |
+| 前端                                     | **零改动**                                                                                                                                                                                                                                      |
 
 ## 六、关键设计决策
 
