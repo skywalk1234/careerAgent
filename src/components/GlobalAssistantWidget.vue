@@ -91,9 +91,6 @@ const messages = ref<HomeMessage[]>([])
 const draft = ref('')
 const editingUserMessageId = ref('')
 const editingUserMessageDraft = ref('')
-// 简历润色流程选项卡的「补充其他信息」输入状态
-const resumeFlowInputMessageId = ref('')
-const resumeFlowInputDraft = ref('')
 const quickPrompts = ref<string[]>([])
 const eventSourceRef = ref<EventSource | null>(null)
 const chatListRef = ref<HTMLDivElement>()
@@ -1306,7 +1303,6 @@ async function startSseStream(messageId: string, streamUrl: string) {
         actions: message.actions || [],
         agentTrace: message.agentTrace || null,
         taskResultCard: sanitizeTaskResultCard(message.messageId, message.taskResultCard || null, message.actions || [], message.status),
-        resumeFlow: message.resumeFlow || null,
       })
     } else {
       updateAssistantMessage(messageId, { status: 'succeeded' })
@@ -1482,34 +1478,6 @@ function startEditUserMessage(message: HomeMessage) {
 function cancelEditUserMessage() {
   editingUserMessageId.value = ''
   editingUserMessageDraft.value = ''
-}
-
-// ---------- 简历润色流程选项卡 ----------
-function handleResumeFlowOption(item: HomeMessage, opt: { key: string; label: string; send: string }) {
-  if (opt.key === 'supplement') {
-    // 展开输入框，让用户自己补充信息
-    resumeFlowInputMessageId.value = String(item.messageId || '')
-    resumeFlowInputDraft.value = ''
-    return
-  }
-  // 其余选项：把约定的 send 文本作为用户消息发出，由服务端状态机按关键词判定
-  const sendText = String(opt.send || '').trim()
-  if (sendText) void sendMessage(sendText)
-}
-
-function cancelResumeFlowSupplement() {
-  resumeFlowInputMessageId.value = ''
-  resumeFlowInputDraft.value = ''
-}
-
-function submitResumeFlowSupplement() {
-  const text = String(resumeFlowInputDraft.value || '').trim()
-  if (!text) {
-    ElMessage.warning('请输入补充信息')
-    return
-  }
-  cancelResumeFlowSupplement()
-  void sendMessage(text)
 }
 
 async function submitEditUserMessage(messageId: string) {
@@ -2178,36 +2146,6 @@ onBeforeUnmount(() => {
                   <span>{{ action.label }}</span>
                   <el-icon><ArrowRight /></el-icon>
                 </button>
-              </div>
-
-              <div v-if="item.resumeFlow" class="assistant-resume-flow-card">
-                <p class="assistant-resume-flow-title">
-                  {{ item.resumeFlow.state === 'done' ? '请选择保存方式：' : '信息已收集完毕，请选择下一步：' }}
-                </p>
-                <div class="assistant-resume-flow-options">
-                  <button
-                    v-for="opt in item.resumeFlow.options"
-                    :key="opt.key"
-                    type="button"
-                    class="assistant-action-chip"
-                    :disabled="sending"
-                    @click="handleResumeFlowOption(item, opt)"
-                  >
-                    {{ opt.label }}
-                  </button>
-                </div>
-                <div v-if="resumeFlowInputMessageId === item.messageId" class="assistant-resume-flow-input">
-                  <textarea
-                    v-model="resumeFlowInputDraft"
-                    class="assistant-resume-flow-textarea"
-                    placeholder="请输入补充信息（例如：我做过 XX 项目，实现了 XX 效果）"
-                    @keydown.enter.exact.prevent="submitResumeFlowSupplement"
-                  />
-                  <div class="assistant-resume-flow-input-actions">
-                    <button type="button" class="assistant-resume-flow-btn" @click="cancelResumeFlowSupplement">取消</button>
-                    <button type="button" class="assistant-resume-flow-btn assistant-resume-flow-btn--primary" @click="submitResumeFlowSupplement">发送</button>
-                  </div>
-                </div>
               </div>
               <div class="assistant-ai-ops">
                 <button
@@ -3077,72 +3015,6 @@ onBeforeUnmount(() => {
 .assistant-action-chip:active {
   transform: translateY(1px) scale(0.98);
   background: #dbeafe;
-}
-
-.assistant-resume-flow-card {
-  margin-top: 6px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fbfcfe;
-  padding: 8px;
-}
-
-.assistant-resume-flow-title {
-  margin: 0 0 6px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.assistant-resume-flow-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.assistant-resume-flow-input {
-  margin-top: 8px;
-}
-
-.assistant-resume-flow-textarea {
-  width: 100%;
-  min-height: 52px;
-  box-sizing: border-box;
-  resize: vertical;
-  border: 1px solid #dbe3ed;
-  border-radius: 8px;
-  padding: 6px 8px;
-  font-size: 12px;
-  font-family: inherit;
-  color: #1f2937;
-  background: #fff;
-  outline: none;
-}
-
-.assistant-resume-flow-textarea:focus {
-  border-color: #409eff;
-}
-
-.assistant-resume-flow-input-actions {
-  margin-top: 6px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.assistant-resume-flow-btn {
-  border: 1px solid #dbe3ed;
-  background: #fff;
-  color: #475569;
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.assistant-resume-flow-btn--primary {
-  background: #409eff;
-  border-color: #409eff;
-  color: #fff;
 }
 
 .assistant-ai-ops {

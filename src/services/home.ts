@@ -121,11 +121,6 @@ export interface HomeMessage {
     recommendedJobId?: string
   }>
   taskResultCard?: HomeTaskResultCard | null
-  /** 简历润色流程状态机的选项卡：state=ready|done，options 为前端展示的操作项 */
-  resumeFlow?: {
-    state: string
-    options: Array<{ key: string; label: string; send: string }>
-  } | null
 }
 
 export interface HomeTaskResultScoreItem {
