@@ -1,10 +1,10 @@
-"""简历润色核心：差距分析（gather）+ 润色（polish）+ 外部 HTTP 访问。
+"""简历分析 / 润色核心：analyze（诊断）+ polish（润色）+ 外部 HTTP 访问。
 
-LLM 只做两件事，均为一次性、结构化输入输出：
-- gather：JD vs 简历差距分析，输出 {next: ask_more|ready|abandon, text}（控制信号唯一结构化字段）
-- polish：基于简历 + 补充问答 + JD 生成修订稿，输出 {revisedContent, changes[], reflectChecklist}
+两个专家工具均为同步、一次性、结构化输入输出，由主 LLM 编排（无服务端状态机）：
+- analyze：简历（+ 可选 JD）→ {analysis, questions}（文字诊断 + 可选追问）
+- polish：简历 + JD(可选) + 用户补充/修改要求 → {revisedContent, changes[], reflectChecklist[]}（含 reflect 自检）
 
-流程路由由 chat.py 的 Redis 状态机决定，本模块不持有任何状态。
+本模块不持有任何状态。
 """
 import json
 
@@ -13,43 +13,26 @@ import httpx
 from app.config import settings
 from app.services.llm import get_json_llm
 
-# gather 阶段问答轮次上限（chat.py 也用它做硬性截断）
-GATHER_MAX_ROUNDS = 4
-
-GATHER_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。你的任务是：对比用户简历与目标岗位 JD，找出差距，并在必要时向用户追问补充信息。
-
-你需要重点对比：
-- 岗位 JD 的能力要求、岗位描述、技能要求；
-- 用户简历（markdown 原文）中已有的教育背景、项目/实习经历、技能、量化成果。
-
-判断规则：
-1. 找出「JD 明确要求、但简历缺失或证据不足」的关键点（如要求高并发经验但简历未体现、要求量化成果但全是定性描述、要求某技术栈但简历没写）。
-2. 若存在这样的关键缺口，且尚未问过 → 输出 next=ask_more，text 中给出简短差距诊断 + 最多 2~3 个关键追问（自然语言，具体、可回答，不要编号过多）。
-3. 若信息已足够开始润色 → 输出 next=ready，text 为「信息已经比较充分，可以开始修改简历。要现在开始吗？」
-4. 若用户最近的回答与所问问题完全无关（明显岔开话题或拒绝回答）→ 输出 next=abandon，text 为一句自然回应。
+ANALYZE_SYSTEM = """你是"微光职引"求职平台的专业简历分析专家。请对用户简历做专业评估，从以下维度分析：
+1. 语言表达：用词是否准确专业，有无口语化/空话套话；
+2. 结构条理：段落组织、信息层次是否清晰，重点是否突出；
+3. 内容完整性：教育/实习/项目/技能是否完整，有无可量化成果；
+4. JD 契合度（若提供了目标岗位 JD）：与 JD 关键技能/经验的匹配与差距。
 
 硬性约束：
-- 只针对 JD 有要求而简历缺少的点提问；不重复已问过的问题；不编造用户简历中不存在的内容。
-- 追问要具体可回答（如「你在 XX 项目里具体负责什么？有没有可量化的结果？」）。
-- 回复整体控制在 200 字以内。
-- 只输出 JSON：{"next": "ask_more|ready|abandon", "text": "..."}"""
+- 只基于简历实际内容与（可选的）JD 分析，不虚构简历中不存在的经历。
+- analysis 控制在 300 字以内，分维度、可直接展示给用户。
+- 如需向用户追问（如目标岗位、具体项目细节），给出 1~3 个自然语言问题；无需追问则 questions 为空字符串。
 
-REWRITE_SYSTEM = """你是简历编辑助手。请严格按用户的修改要求改写简历，只改动被要求的部分，其余内容原样保留。
-
-硬性约束：
-1. 保留原简历全部事实（经历、时间、数字、项目），不得编造、丢失、篡改。
-2. 只做用户要求范围内的改动（如改标题、补充技能、调整描述），未要求的部分一律不动。
-3. 输出完整 markdown 格式简历。
-
-只输出 JSON：{"content": "完整markdown"}"""
+只输出 JSON：{"analysis": "完整分析文本", "questions": "追问或空字符串"}"""
 
 
-POLISH_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。请基于用户原始简历、用户补充的问答信息与目标岗位 JD，重写简历，使其更匹配目标岗位。
+POLISH_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。请基于用户原始简历、用户补充/修改要求与（可选的）目标岗位 JD，重写简历，使其更匹配目标岗位。
 
 必须遵守的红线：
 1. 只能重组、改写、扩写用户已明确提供的内容；严禁虚构公司、项目、职位、经历、时间或量化数字。
 2. 保留原简历全部已有事实（经历、时间、数字、项目），不得丢失、删改或篡改。
-3. 对齐 JD 的能力要求与关键词，优先突出与岗位匹配的经历与技能，可调整描述顺序与措辞。
+3. 若提供了 JD，对齐 JD 的能力要求与关键词，优先突出与岗位匹配的经历与技能，可调整描述顺序与措辞。
 4. 使用清晰有力的简历语言；量化结果只能用用户提供的数据，用户未提供则保留原表述，绝不自己编数字。
 5. 输出完整 markdown 格式简历。
 
@@ -86,7 +69,7 @@ async def _call_json_llm(system: str, user_content: str) -> dict:
     return _extract_json(resp.content or "")
 
 
-# ---------- gather：差距分析 + 出题 ----------
+# ---------- 工具：analyze（简历分析专家） ----------
 
 def _format_job(job: dict) -> str:
     """把岗位字典整理成易读的 JD 文本（只挑已知字段，缺字段时回退到整段 JSON）"""
@@ -105,59 +88,40 @@ def _format_job(job: dict) -> str:
     return "\n\n".join(lines)
 
 
-def _format_history(history: list) -> str:
-    if not history:
-        return "（暂无）"
-    return "\n".join(f"问：{h.get('question', '')}\n答：{h.get('answer', '')}" for h in history)
+async def analyze(job: dict | None, resume: str) -> dict:
+    """简历分析：语言/结构/内容（+ 可选 JD 契合度）→ 文字诊断 + 可选追问。
 
-
-async def gather(job: dict, resume: str, history: list) -> dict:
-    """差距分析：根据 JD + 简历 + 已收集问答，决定继续追问 / 准备润色 / 放弃。
-
-    返回 {"next": "ask_more|ready|abandon", "text": "..."}。解析失败时安全降级为 abandon。
+    返回 {"analysis", "questions"}。解析失败抛异常由上层兜底。
     """
-    user_content = (
-        f"【目标岗位 JD】\n{_format_job(job)}\n\n"
-        f"【用户简历（markdown 原文）】\n{resume}\n\n"
-        f"【已收集的问答历史】\n{_format_history(history)}\n\n"
-        "请按系统指令输出 JSON。"
-    )
-    try:
-        result = await _call_json_llm(GATHER_SYSTEM, user_content)
-        next_val = result.get("next")
-        if next_val not in ("ask_more", "ready", "abandon"):
-            next_val = "ready"
-        return {"next": next_val, "text": str(result.get("text") or "")}
-    except Exception:
-        return {"next": "abandon", "text": "抱歉，简历分析暂时出了点问题，请稍后再试。"}
+    parts = []
+    if job:
+        parts.append(f"【目标岗位 JD】\n{_format_job(job)}")
+    parts.append(f"【用户简历（markdown 原文）】\n{resume}")
+    parts.append("请按系统指令输出 JSON。")
+    result = await _call_json_llm(ANALYZE_SYSTEM, "\n\n".join(parts))
+    analysis = result.get("analysis")
+    if not analysis:
+        raise ValueError("分析结果缺少 analysis")
+    return {
+        "analysis": str(analysis),
+        "questions": str(result.get("questions") or ""),
+    }
 
 
-async def rewrite_resume(content: str, instruction: str) -> str:
-    """按修改要求改写简历，返回新的完整 markdown（其余内容原样保留）。"""
-    user_content = (
-        f"【用户修改要求】\n{instruction}\n\n"
-        f"【当前简历内容】\n{content}\n\n"
-        "请按系统指令输出 JSON。"
-    )
-    result = await _call_json_llm(REWRITE_SYSTEM, user_content)
-    new_content = result.get("content")
-    if not new_content:
-        raise ValueError("改写结果缺少 content")
-    return str(new_content)
+# ---------- 工具：polish（简历润色专家） ----------
 
-
-async def polish(job: dict, resume: str, history: list) -> dict:
-    """润色：简历 + 补充问答 + JD → 修订稿（含 reflect 自检）。
+async def polish(job: dict | None, resume: str, extra_info: str) -> dict:
+    """润色：JD(可选) + 简历 + 用户补充/修改要求 → 修订稿（含 reflect 自检）。
 
     返回 {"revisedContent", "changes", "reflectChecklist"}。解析失败抛异常由上层兜底。
     """
-    user_content = (
-        f"【目标岗位 JD】\n{_format_job(job)}\n\n"
-        f"【用户原始简历】\n{resume}\n\n"
-        f"【用户补充的问答信息】\n{_format_history(history)}\n\n"
-        "请按系统指令输出 JSON。"
-    )
-    result = await _call_json_llm(POLISH_SYSTEM, user_content)
+    parts = []
+    if job:
+        parts.append(f"【目标岗位 JD】\n{_format_job(job)}")
+    parts.append(f"【用户原始简历】\n{resume}")
+    parts.append(f"【用户补充/修改要求】\n{extra_info or '（无）'}")
+    parts.append("请按系统指令输出 JSON。")
+    result = await _call_json_llm(POLISH_SYSTEM, "\n\n".join(parts))
     revised = result.get("revisedContent")
     if not revised:
         raise ValueError("润色结果缺少 revisedContent")
@@ -220,7 +184,7 @@ async def fetch_latest_profile(token: str) -> dict:
 
 
 async def save_profile(profile_id: str, content: str, token: str) -> None:
-    """写回修订稿：POST /users/me/profile（resume-parser-service 转发 profile_storage 队列落库，自动触发重评分）"""
+    """写回简历：POST /users/me/profile（resume-parser-service 转发 profile_storage 队列落库）"""
     url = f"{settings.profile_service_base_url}/users/me/profile"
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     body = {"content": content, "profileId": profile_id}

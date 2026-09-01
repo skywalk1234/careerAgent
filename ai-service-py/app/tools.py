@@ -6,8 +6,21 @@ from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
-from app.services import flow as flow_service
 from app.services import job_recommend, resume_polish
+
+
+def _strip_prefix(raw: str) -> str:
+    """去掉 jobId: / profileId: 等前缀，只保留纯 ID"""
+    return str(raw or "").strip().split(":", 1)[-1].strip()
+
+
+async def _load_resume(profile_id: Optional[str], token: str) -> str:
+    """按 profile_id 拉取简历 markdown；未指定则取最新一份"""
+    if profile_id and str(profile_id).strip():
+        profile = await resume_polish.fetch_profile(_strip_prefix(str(profile_id)), token)
+        return profile.get("content") if isinstance(profile, dict) else str(profile)
+    latest = await resume_polish.fetch_latest_profile(token)
+    return latest.get("content") or ""
 
 
 @tool
@@ -92,118 +105,82 @@ async def query_job_detail(
 
 
 @tool
-async def start_resume_polish(
-    job_id: str,
-    profile_id: str,
-    session_id: Annotated[str, InjectedToolArg],
+async def analyze_resume(
+    profile_id: Optional[str] = None,
+    job_id: Optional[str] = None,
     token: Annotated[str, InjectedToolArg] = "",
-    request: Annotated[Request, InjectedToolArg] = None,
 ) -> str:
-    """针对目标岗位润色学生的某份简历：对比 JD 找出差距，向用户追问补充信息，最后生成修订稿。
+    """分析学生的某份简历：从语言表达、结构条理、内容完整性（以及可选的目标岗位 JD 契合度）给出专业诊断。
 
-    job_id 与 profile_id 既可从当前这条消息提取，也可从本次对话的**历史记录**中提取
-    （例如用户之前提过某个岗位或选过某份简历，现在说「就针对它润色一下」）。
-    只要两者都能从整个对话中明确确定，就应当调用本工具：
-    - job_id：目标岗位ID（消息中可能带 `jobId:` 前缀，或岗位编号如 JOB2024...，或历史中用户提到的岗位）
-    - profile_id：要润色的简历ID（消息中可能带 `profileId:` 前缀，或历史中用户明确指定的某份简历）
-    仅当某个 ID 在对话中**完全无法确定**时才不要调用，先向用户追问缺少的信息
-    （如让用户从简历列表里选一份）。切勿编造对话中未出现过的 ID。
-    调用后本工具会提出 1~3 个澄清问题，之后由服务端按流程继续追问，直至信息充足后生成修订稿。
+    当用户想「看/分析/评估/诊断」简历，或想了解简历针对某个岗位的差距时调用。只分析，不修改简历。
+    - profile_id：要分析的简历 id（可选）。消息中可能带 `profileId:` 前缀，或用户明确指定了某份简历标题/编号；
+      未指定则默认分析最新一份简历。
+    - job_id：目标岗位 id（可选）。仅当对话中能确定具体岗位（消息中带 `jobId:` 前缀或岗位编号）时才传；
+      用户只泛泛提到岗位名而无 id 时不传，本工具将做通用分析。
+    分析结果可能附带少量追问（如目标岗位、项目细节），请原样转述给用户；用户回答后汇总这些补充信息，
+    在后续需要润色时传给 polish_resume 的 extra_info 参数。
     """
-    # 去掉可能携带的 jobId: / profileId: 前缀，只保留纯 ID
-    raw_job_id = str(job_id or "").strip().split(":", 1)[-1].strip()
-    raw_profile_id = str(profile_id or "").strip().split(":", 1)[-1].strip()
-    if not raw_job_id or not raw_profile_id:
-        return json.dumps(
-            {"error": "缺少 job_id 或 profile_id，请先向用户确认目标岗位与要润色的简历"},
-            ensure_ascii=False,
-        )
-
-    redis_client = getattr(request.app.state, "redis", None) if request is not None else None
-    if redis_client is None:
-        return json.dumps({"error": "简历润色服务暂不可用（状态存储未连接）"}, ensure_ascii=False)
-
-    # 拉取目标岗位 JD + 指定简历
     try:
-        job = await resume_polish.fetch_job_detail(raw_job_id, token)
-        profile = await resume_polish.fetch_profile(raw_profile_id, token)
+        resume_text = await _load_resume(profile_id, token)
+        if not resume_text:
+            return json.dumps({"error": "该简历内容为空，无法分析"}, ensure_ascii=False)
+        job = await resume_polish.fetch_job_detail(_strip_prefix(job_id), token) if job_id else None
     except Exception as e:
-        return json.dumps({"error": f"获取岗位或简历失败: {e}"}, ensure_ascii=False)
+        return json.dumps({"error": f"获取简历或岗位失败: {e}"}, ensure_ascii=False)
 
-    resume_text = profile.get("content") if isinstance(profile, dict) else str(profile)
-    if not resume_text:
-        return json.dumps({"error": "该简历内容为空，无法润色"}, ensure_ascii=False)
+    try:
+        result = await resume_polish.analyze(job, resume_text)
+    except Exception as e:
+        return json.dumps({"error": f"分析简历失败: {e}"}, ensure_ascii=False)
 
-    # 首次差距分析（历史为空）→ 进入流程状态
-    signal = await resume_polish.gather(job, resume_text, [])
-    if signal["next"] == "abandon":
-        # 异常/岔开话题：不写入流程状态，让 chat.py 直接流式输出 text 后回到普通对话
-        return json.dumps(
-            {"flow": "resume_polish", "next": signal["next"], "text": signal["text"]},
-            ensure_ascii=False,
-        )
-    flow = {
-        "state": "gathering" if signal["next"] == "ask_more" else "ready",
-        "jobId": raw_job_id,
-        "profileId": raw_profile_id,
-        "job": job,
-        "resume": resume_text,
-        "history": [],
-        "last_question": signal["text"] if signal["next"] == "ask_more" else None,
-        "revised": None,
-    }
-    await flow_service.set_flow(redis_client, session_id, flow)
-
-    # flow 标记供 chat.py 识别：直接流式输出 text 并短路跳出主循环，不让主 LLM 复述
-    return json.dumps(
-        {"flow": "resume_polish", "next": signal["next"], "text": signal["text"]},
-        ensure_ascii=False,
-    )
+    return json.dumps(result, ensure_ascii=False, default=str)
 
 
 @tool
-async def save_resume_edit(
-    instruction: str,
-    profile_id: str = "",
+async def polish_resume(
+    profile_id: Optional[str] = None,
+    job_id: Optional[str] = None,
+    extra_info: Optional[str] = None,
     token: Annotated[str, InjectedToolArg] = "",
-    request: Annotated[Request, InjectedToolArg] = None,
 ) -> str:
-    """修改并保存一份简历：按用户的修改要求改写简历后写回简历库。
+    """润色学生的某份简历并另存为新简历：按目标岗位（可选）和用户补充信息生成修订稿，直接保存为一份新简历（原简历保留）。
 
-    当用户在对话中要求「修改/更新某份简历」时调用，例如改标题、补充技能、调整描述措辞、
-    标注版本（如「标题加上 AI 修改版」）等。流程：获取简历原文 → 按 instruction 改写 → 保存。
-    - instruction：用户的修改要求（必填），如「把标题改成 AI 修改版」「在技能栏加上 Redis」
-    - profile_id：要修改的简历 id（消息中可能带 `profileId:` 前缀）；为空则修改最新一份简历
-    注意：本工具用于流程结束后的追加修改；针对某个岗位做系统性润色请用 start_resume_polish。
+    当用户要求「修改/润色/优化/改写」简历时调用，尤其是针对某个岗位做定向优化。
+    - profile_id：要润色的简历 id（可选）。消息中可能带 `profileId:` 前缀；未指定则默认最新一份。
+    - job_id：目标岗位 id（可选）。仅当对话中能确定具体岗位（消息中带 `jobId:` 前缀或岗位编号）时才传；
+      没有确定岗位时可省略，此时按用户修改要求做通用改写。
+    - extra_info：用户在对话中补充的相关信息（自由文本，可空）：分析阶段对追问的回答、本次具体的修改要求、
+      目标岗位名称/方向、想强调的经历等。请把对话中用户提供的全部相关补充信息汇总成一段话传入。
+    注意：本工具会直接另存为一份新简历并返回变更摘要，不再询问是否开始润色/是否保存。
     """
-    raw_instruction = str(instruction or "").strip()
-    if not raw_instruction:
-        return json.dumps({"error": "缺少修改要求 instruction，请描述要如何修改简历"}, ensure_ascii=False)
-    # 去掉可能携带的 profileId: 前缀
-    raw_profile_id = str(profile_id or "").strip().split(":", 1)[-1].strip()
+    raw_extra = str(extra_info or "").strip()
+    try:
+        resume_text = await _load_resume(profile_id, token)
+        if not resume_text:
+            return json.dumps({"error": "该简历内容为空，无法润色"}, ensure_ascii=False)
+        job = await resume_polish.fetch_job_detail(_strip_prefix(job_id), token) if job_id else None
+    except Exception as e:
+        return json.dumps({"error": f"获取简历或岗位失败: {e}"}, ensure_ascii=False)
 
     try:
-        if raw_profile_id:
-            profile = await resume_polish.fetch_profile(raw_profile_id, token)
-            content = profile.get("content") if isinstance(profile, dict) else str(profile)
-        else:
-            # 未指定简历 → 修改最新一份（覆盖更新，不新建副本）
-            latest = await resume_polish.fetch_latest_profile(token)
-            raw_profile_id = latest.get("profileId") or ""
-            content = latest.get("content") or ""
-        if not content:
-            return json.dumps({"error": "该简历内容为空，无法修改"}, ensure_ascii=False)
-
-        new_content = await resume_polish.rewrite_resume(content, raw_instruction)
-        await resume_polish.save_profile(raw_profile_id, new_content, token)
+        result = await resume_polish.polish(job, resume_text, raw_extra)
+        await resume_polish.save_profile_as_new(result["revisedContent"], token)
     except Exception as e:
-        return json.dumps({"error": f"修改简历失败: {e}"}, ensure_ascii=False)
+        return json.dumps({"error": f"润色简历失败: {e}"}, ensure_ascii=False)
 
+    changes = result.get("changes") or []
+    lines = ["已按你的要求完成润色，并另存为一份新简历（原简历保留）。主要变更："]
+    for i, c in enumerate(changes, 1):
+        reason = c.get("reason") if isinstance(c, dict) else str(c)
+        lines.append(f"{i}. {reason}")
+    if not changes:
+        lines.append("（无大幅改动）")
     return json.dumps(
         {
             "success": True,
-            "profileId": raw_profile_id,
-            "summary": "已按你的要求修改并保存简历，评分任务已触发",
+            "changes": changes,
+            "reflectChecklist": result.get("reflectChecklist") or [],
+            "summary": "\n".join(lines),
         },
         ensure_ascii=False,
     )
@@ -251,4 +228,4 @@ async def recommend_specific_jobs(
 
 
 # 所有可注册给模型的工具（新增工具只需追加到这里）
-ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, start_resume_polish, save_resume_edit]
+ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, analyze_resume, polish_resume]
