@@ -34,6 +34,16 @@ GATHER_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家�
 - 回复整体控制在 200 字以内。
 - 只输出 JSON：{"next": "ask_more|ready|abandon", "text": "..."}"""
 
+REWRITE_SYSTEM = """你是简历编辑助手。请严格按用户的修改要求改写简历，只改动被要求的部分，其余内容原样保留。
+
+硬性约束：
+1. 保留原简历全部事实（经历、时间、数字、项目），不得编造、丢失、篡改。
+2. 只做用户要求范围内的改动（如改标题、补充技能、调整描述），未要求的部分一律不动。
+3. 输出完整 markdown 格式简历。
+
+只输出 JSON：{"content": "完整markdown"}"""
+
+
 POLISH_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。请基于用户原始简历、用户补充的问答信息与目标岗位 JD，重写简历，使其更匹配目标岗位。
 
 必须遵守的红线：
@@ -122,6 +132,20 @@ async def gather(job: dict, resume: str, history: list) -> dict:
         return {"next": "abandon", "text": "抱歉，简历分析暂时出了点问题，请稍后再试。"}
 
 
+async def rewrite_resume(content: str, instruction: str) -> str:
+    """按修改要求改写简历，返回新的完整 markdown（其余内容原样保留）。"""
+    user_content = (
+        f"【用户修改要求】\n{instruction}\n\n"
+        f"【当前简历内容】\n{content}\n\n"
+        "请按系统指令输出 JSON。"
+    )
+    result = await _call_json_llm(REWRITE_SYSTEM, user_content)
+    new_content = result.get("content")
+    if not new_content:
+        raise ValueError("改写结果缺少 content")
+    return str(new_content)
+
+
 async def polish(job: dict, resume: str, history: list) -> dict:
     """润色：简历 + 补充问答 + JD → 修订稿（含 reflect 自检）。
 
@@ -172,6 +196,27 @@ async def fetch_profile(profile_id: str, token: str) -> dict:
     if not data.get("hasProfile") or data.get("profile") is None:
         raise ValueError("简历不存在")
     return data["profile"]
+
+
+async def fetch_latest_profile(token: str) -> dict:
+    """拉取最新一份简历，返回 {profileId, content}。
+
+    注意：GET /users/me/profile 响应顶层的 profileId 是 userId（不是简历 id），
+    真实简历 id 在 profile.profileId 里，必须从这里取，否则覆盖更新会定位到错误的简历。
+    """
+    url = f"{settings.profile_service_base_url}/users/me/profile"
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(url, headers=headers)
+        resp.raise_for_status()
+        payload = resp.json()
+    data = payload.get("data") or {}
+    profile = data.get("profile")
+    if not data.get("hasProfile") or profile is None:
+        raise ValueError("用户还没有简历")
+    if not isinstance(profile, dict):
+        return {"profileId": "", "content": str(profile)}
+    return {"profileId": profile.get("profileId") or "", "content": profile.get("content") or ""}
 
 
 async def save_profile(profile_id: str, content: str, token: str) -> None:

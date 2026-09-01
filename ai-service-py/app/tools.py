@@ -159,6 +159,54 @@ async def start_resume_polish(
 
 
 @tool
+async def save_resume_edit(
+    instruction: str,
+    profile_id: str = "",
+    token: Annotated[str, InjectedToolArg] = "",
+    request: Annotated[Request, InjectedToolArg] = None,
+) -> str:
+    """修改并保存一份简历：按用户的修改要求改写简历后写回简历库。
+
+    当用户在对话中要求「修改/更新某份简历」时调用，例如改标题、补充技能、调整描述措辞、
+    标注版本（如「标题加上 AI 修改版」）等。流程：获取简历原文 → 按 instruction 改写 → 保存。
+    - instruction：用户的修改要求（必填），如「把标题改成 AI 修改版」「在技能栏加上 Redis」
+    - profile_id：要修改的简历 id（消息中可能带 `profileId:` 前缀）；为空则修改最新一份简历
+    注意：本工具用于流程结束后的追加修改；针对某个岗位做系统性润色请用 start_resume_polish。
+    """
+    raw_instruction = str(instruction or "").strip()
+    if not raw_instruction:
+        return json.dumps({"error": "缺少修改要求 instruction，请描述要如何修改简历"}, ensure_ascii=False)
+    # 去掉可能携带的 profileId: 前缀
+    raw_profile_id = str(profile_id or "").strip().split(":", 1)[-1].strip()
+
+    try:
+        if raw_profile_id:
+            profile = await resume_polish.fetch_profile(raw_profile_id, token)
+            content = profile.get("content") if isinstance(profile, dict) else str(profile)
+        else:
+            # 未指定简历 → 修改最新一份（覆盖更新，不新建副本）
+            latest = await resume_polish.fetch_latest_profile(token)
+            raw_profile_id = latest.get("profileId") or ""
+            content = latest.get("content") or ""
+        if not content:
+            return json.dumps({"error": "该简历内容为空，无法修改"}, ensure_ascii=False)
+
+        new_content = await resume_polish.rewrite_resume(content, raw_instruction)
+        await resume_polish.save_profile(raw_profile_id, new_content, token)
+    except Exception as e:
+        return json.dumps({"error": f"修改简历失败: {e}"}, ensure_ascii=False)
+
+    return json.dumps(
+        {
+            "success": True,
+            "profileId": raw_profile_id,
+            "summary": "已按你的要求修改并保存简历，评分任务已触发",
+        },
+        ensure_ascii=False,
+    )
+
+
+@tool
 async def recommend_specific_jobs(
     job_intention: str,
     city: Optional[str] = None,
@@ -200,4 +248,4 @@ async def recommend_specific_jobs(
 
 
 # 所有可注册给模型的工具（新增工具只需追加到这里）
-ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, start_resume_polish]
+ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, start_resume_polish, save_resume_edit]
