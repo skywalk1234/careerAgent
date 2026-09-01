@@ -7,6 +7,7 @@
 本模块不持有任何状态。
 """
 import json
+import time
 
 import httpx
 
@@ -65,7 +66,14 @@ async def _call_json_llm(system: str, user_content: str) -> dict:
         {"role": "system", "content": system},
         {"role": "user", "content": user_content},
     ]
+    t0 = time.perf_counter()
     resp = await get_json_llm().ainvoke(messages)
+    elapsed = time.perf_counter() - t0
+    print(
+        f"[resume-tool] LLM调用完成: {elapsed:.2f}s, 输入len={len(user_content)}, "
+        f"输出len={len(resp.content or '')}, system={system[:20]!r}",
+        flush=True,
+    )
     return _extract_json(resp.content or "")
 
 

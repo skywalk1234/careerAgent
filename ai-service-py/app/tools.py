@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Annotated, Optional
 
 import httpx
@@ -120,19 +121,39 @@ async def analyze_resume(
     分析结果可能附带少量追问（如目标岗位、项目细节），请原样转述给用户；用户回答后汇总这些补充信息，
     在后续需要润色时传给 polish_resume 的 extra_info 参数。
     """
+    t0 = time.perf_counter()
+    print(f"[resume-tool] analyze_resume 调用: profile_id={profile_id!r}, job_id={job_id!r}", flush=True)
     try:
         resume_text = await _load_resume(profile_id, token)
         if not resume_text:
             return json.dumps({"error": "该简历内容为空，无法分析"}, ensure_ascii=False)
-        job = await resume_polish.fetch_job_detail(_strip_prefix(job_id), token) if job_id else None
+        print(
+            f"[resume-tool] analyze_resume 拉简历完成: {time.perf_counter() - t0:.2f}s, content_len={len(resume_text)}",
+            flush=True,
+        )
+        job = None
+        if job_id:
+            job = await resume_polish.fetch_job_detail(_strip_prefix(job_id), token)
+            print(
+                f"[resume-tool] analyze_resume 拉JD完成: {time.perf_counter() - t0:.2f}s, job_id={_strip_prefix(job_id)!r}",
+                flush=True,
+            )
     except Exception as e:
+        print(f"[resume-tool] analyze_resume 获取简历/岗位失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"获取简历或岗位失败: {e}"}, ensure_ascii=False)
 
     try:
         result = await resume_polish.analyze(job, resume_text)
+        print(
+            f"[resume-tool] analyze_resume LLM分析完成: {time.perf_counter() - t0:.2f}s, "
+            f"analysis_len={len(result.get('analysis') or '')}, has_questions={bool(result.get('questions'))}",
+            flush=True,
+        )
     except Exception as e:
+        print(f"[resume-tool] analyze_resume LLM分析失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"分析简历失败: {e}"}, ensure_ascii=False)
 
+    print(f"[resume-tool] analyze_resume 总耗时: {time.perf_counter() - t0:.2f}s", flush=True)
     return json.dumps(result, ensure_ascii=False, default=str)
 
 
@@ -154,18 +175,41 @@ async def polish_resume(
     注意：本工具会直接另存为一份新简历并返回变更摘要，不再询问是否开始润色/是否保存。
     """
     raw_extra = str(extra_info or "").strip()
+    t0 = time.perf_counter()
+    print(
+        f"[resume-tool] polish_resume 调用: profile_id={profile_id!r}, job_id={job_id!r}, extra_len={len(raw_extra)}",
+        flush=True,
+    )
     try:
         resume_text = await _load_resume(profile_id, token)
         if not resume_text:
             return json.dumps({"error": "该简历内容为空，无法润色"}, ensure_ascii=False)
-        job = await resume_polish.fetch_job_detail(_strip_prefix(job_id), token) if job_id else None
+        print(
+            f"[resume-tool] polish_resume 拉简历完成: {time.perf_counter() - t0:.2f}s, content_len={len(resume_text)}",
+            flush=True,
+        )
+        job = None
+        if job_id:
+            job = await resume_polish.fetch_job_detail(_strip_prefix(job_id), token)
+            print(
+                f"[resume-tool] polish_resume 拉JD完成: {time.perf_counter() - t0:.2f}s, job_id={_strip_prefix(job_id)!r}",
+                flush=True,
+            )
     except Exception as e:
+        print(f"[resume-tool] polish_resume 获取简历/岗位失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"获取简历或岗位失败: {e}"}, ensure_ascii=False)
 
     try:
         result = await resume_polish.polish(job, resume_text, raw_extra)
+        print(
+            f"[resume-tool] polish_resume LLM润色完成: {time.perf_counter() - t0:.2f}s, "
+            f"revised_len={len(result.get('revisedContent') or '')}, changes={len(result.get('changes') or [])}",
+            flush=True,
+        )
         await resume_polish.save_profile_as_new(result["revisedContent"], token)
+        print(f"[resume-tool] polish_resume 另存新简历完成: {time.perf_counter() - t0:.2f}s", flush=True)
     except Exception as e:
+        print(f"[resume-tool] polish_resume 润色/保存失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"润色简历失败: {e}"}, ensure_ascii=False)
 
     changes = result.get("changes") or []
@@ -175,6 +219,7 @@ async def polish_resume(
         lines.append(f"{i}. {reason}")
     if not changes:
         lines.append("（无大幅改动）")
+    print(f"[resume-tool] polish_resume 总耗时: {time.perf_counter() - t0:.2f}s", flush=True)
     return json.dumps(
         {
             "success": True,
