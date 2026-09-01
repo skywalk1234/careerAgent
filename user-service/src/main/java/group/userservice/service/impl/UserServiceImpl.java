@@ -39,7 +39,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User_> implements I
         Long id = user.getUserId();
         System.out.println("user-id: "+ id);
         JwtTool jwtTool = new JwtTool(keyPair);
-        String token = jwtTool.createToken(id, Duration.ofMinutes(10));
+        String token = jwtTool.createToken(id, Duration.ofDays(1));
 
         UserInfo userInfo = new UserInfo();
         userInfo.setUserId(id.toString());

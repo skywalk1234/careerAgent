@@ -67,22 +67,21 @@ def _match_confirm(text: str) -> str | None:
     return None
 
 
-async def _sse_chunks(text: str):
-    """把一段文本按 ~30ms 时间片切块，产出 (delta, 累计content)，避免高频 DOM 渲染卡顿"""
-    loop = asyncio.get_event_loop()
-    frame_start = loop.time()
-    pending = ""
+async def _sse_chunks(text: str, chunk_size: int = 12, delay_seconds: float = 0.015):
+    """把一段文本按固定长度 + 间隔时间切片，产出 (delta, 累计content)。
+
+    用于「AI 已一次性生成完整文本、需要回放成流式」的场景（如简历润色流程）：
+    逐块 yield 并在块间真正 sleep，让前端逐块增量渲染出打字机效果。
+    注意不能像旧实现那样按墙钟切块——CPU 遍历几千字符是微秒级，撑不到阈值就会整段吐出。
+    """
+    text = text or ""
     accumulated = ""
-    for ch in text:
-        pending += ch
-        accumulated += ch
-        now = loop.time()
-        if now - frame_start >= 0.03:
-            yield pending, accumulated
-            pending = ""
-            frame_start = now
-    if pending:
-        yield pending, accumulated
+    for i in range(0, len(text), chunk_size):
+        delta = text[i:i + chunk_size]
+        accumulated += delta
+        yield delta, accumulated
+        if i + chunk_size < len(text):
+            await asyncio.sleep(delay_seconds)
 
 
 def _format_polish_result(result: dict) -> str:
