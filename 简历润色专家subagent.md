@@ -1,23 +1,21 @@
-# 简历润色专家 Subagent 方案
+# 简历分析专家 / 简历润色专家 Subagent 方案
 
 > 状态：方案设计（待实施）
-> 更新：2026-08-28（v3：改为「服务端状态机 + 自由文本问答」，去掉结构化提问卡；问题/答案均为自由文本，前端零改动）
+> 更新：2026-09-01（v4：**取消服务端状态机**，改为「两个同步工具暴露给主 LLM，由主 LLM 编排」）
 > 落点：`fc2026/ai-service-py`（Python AI 服务，前端主 agent 当前使用）
 
 ## 一、背景与目标
 
-简历已由「结构化字段」改为「markdown 原文」存储（`StudentProfile = {id, content}`），恰好成为简历润色最理想的输入。本方案新增一个**简历润色专家流程**：
+简历已由「结构化字段」改为「markdown 原文」存储（`StudentProfile = {id, content}`），恰好成为简历分析与润色最理想的输入。本方案新增两个**同步专家工具**暴露给主 LLM：
 
-- 读取用户目标岗位的完整信息（JD）
-- 依据岗位要求向用户提出少量关键澄清问题（**自由文本，用户手动输入回答**）
-- 根据用户答复修改用户当前的简历（markdown 原文）
-- 修改后执行 **reflect 自检**，确保不丢事实、不产生幻觉、对齐岗位关键词
+- **简历分析专家 `analyze_resume`**：从语言表达、结构条理、内容完整性、（有目标岗位 JD 时）JD 契合度给出专业诊断，可附带对用户的追问（如目标岗位），追问**不是强制的**——没有就算了。
+- **简历润色专家 `polish_resume`**：按目标岗位 JD / 用户修改要求润色简历，**一律另存为一份新简历**（原简历保留），不再询问「是否开始润色」「是否保存」。
 
-**v2 → v3 演进说明**：v2 采用「subagent 出题 + 主 agent 传话」，问题以结构化卡片呈现、主 agent 负责转述与重组答案，存在 schema 漂移、进度难追踪的麻烦。v3 改为**服务端状态机 + 自由文本问答**：
+**v3 → v4 演进说明**：v3 采用「服务端状态机 + 自由文本问答」（`start_resume_polish` 入口工具 + Redis 存进度 + `chat.py` 按状态路由），LLM 只吐内容、流程由服务端决定。该方案流程刻板、状态转换僵硬，且多轮问答期间主 LLM 完全不参与。v4 改为**取消状态机**，把两个专家做成**同步工具**直接暴露给主 LLM：
 
-- 流程路由由 FastAPI 服务端决定（进度存 Redis），**LLM 不再当调度员**，只做两件事：① 差距分析出题、② polish + reflect；
-- 问题/答案均为自由文本，通过现有 SSE `delta` 事件普通文字呈现，**不新增事件、不新增前端组件**；
-- 每轮只调 1 次 LLM，主 LLM 在流程进行中完全不参与。
+- 主 LLM 判断用户意图（分析 or 润色），自主决定调用哪个工具、带哪些参数；
+- 多轮澄清问答由主 LLM 通过对话历史记忆（消息存 MySQL `chat_history`），在调用润色工具时以 `extra_info` 自由文本汇总传入；
+- 工具是"一次调用、一次返回"，无跨消息的隐藏状态，服务端零状态（Redis 不再需要）。
 
 ## 二、数据基础（均已存在）
 
@@ -26,152 +24,128 @@
 | 收藏岗位列表        | career-service        | `GET /users/me/favorite-jobs` → `FavoriteRes{total, list:[{jobId, jobName, city, ...}]}`  |
 | 完整岗位 JD       | career-service        | `GET /jobs/{jobId}` → `JobDocument`（含 `jobDescription`、`abilityRequirements`）             |
 | 当前简历 markdown | profile-service       | `GET /users/me/profile` → `{hasProfile, profile: {id, content}}`                          |
-| 写回简历          | resume-parser-service | `POST /users/me/profile` body `{content: "markdown"}` → `profile_storage` 队列落库 → 自动触发重新评分 |
+| 指定简历          | profile-service       | `GET /users/me/profile/{profileId}`（多简历场景定位用）                                        |
+| 简历列表          | profile-service       | `GET /users/me/profile/list`（让用户选哪一份简历）                                              |
+| 写回简历          | resume-parser-service | `POST /users/me/profile` body `{content, profileId}` → `profile_storage` 队列落库              |
 
 > ⚠️ 收藏列表只返回岗位摘要，**完整 JD 需按 `jobId` 再调一次 `GET /jobs/{jobId}`**。
+> ⚠️ `GET /users/me/profile` 顶层 `profileId` 是 userId，真实简历 id 在 `profile.profileId` 里。
+> ⚠️ **写回后不会自动触发评分**（Java `FileController.saveProfile` 只发 `profile_storage` 不发 `eval_storage`），文案中不得声称「评分任务已触发」。
 
-## 三、总体架构：服务端状态机 + 自由文本问答
+## 三、总体架构：两个同步工具 + 主 LLM 编排
 
-核心思路：**「接下来干嘛」由服务端决定，LLM 只负责吐内容。** 对话内容全部走现有 SSE 协议（`delta` 事件普通文字），进度存 Redis，不依赖 LLM 记忆（工具结果不落库，主 LLM 下一条消息对上一轮一无所知）。
-
-### 会话状态机（Redis 存储）
+核心思路：**「干什么、带什么参数、怎么跟用户多轮对话」全由主 LLM 决定**，服务端不做任何流程路由。两个专家工具都是「拉数据 → 一次 LLM 调用 → 返回结构化 JSON」，走现有通用工具路径（工具结果回填 `tool` 消息 → 主 LLM 组织语言流式输出），不新增 SSE 事件、不新增前端组件。
 
 ```
-       用户要求改简历               答完本批问题          用户确认
- idle ──────────────► gathering ──────────────► ready ──────────► polishing ──► done ──► idle
-   ▲                     │ 岔开话题/放弃               │保存/放弃          │
-   └─────────────────────┴───────────────────────────┴──────────────────┘
+用户：「帮我看下我的简历」
+  → 主 LLM 判断意图 = 分析 → 调 analyze_resume(profile_id?)
+  → 工具拉简历(+可选 JD) → 一次 LLM 诊断 → 返回 {analysis, questions}
+  → 主 LLM 把 analysis 转述给用户，questions 作为追问（有就附带）
+
+用户：回答追问 / 直接说「针对这个岗位[jobId:xxx]帮我优化」
+  → 主 LLM 判断意图 = 润色 → 调 polish_resume(profile_id?, job_id?, extra_info=汇总的追问答案+修改要求)
+  → 工具拉简历(+可选 JD) → 一次 LLM 润色（含 reflect 自检）→ save_profile_as_new 落库
+  → 返回 {success, changes[], reflectChecklist[], summary}
+  → 主 LLM 转述变更摘要 + 「已另存为新简历（原简历保留）」
 ```
 
-**状态存储**：Redis，key `resume_flow:{session_id}`，值 JSON，TTL 30 分钟（活动时刷新）：
+### 两个工具签名（`app/tools.py`）
 
-```json
-{
-  "state": "gathering",              // idle | gathering | ready | polishing | done
-  "jobId": 42,
-  "profileId": "uuid-xxx",           // 目标简历 id，写回时定位用
-  "history": [
-    {"question": "① 实习里做过并发/性能优化相关的事吗？", "answer": "做过，帮公司接口压测优化"}
-  ],
-  "revised": null                    // polish 完成后暂存修订稿，等用户确认写库
-}
+```python
+@tool
+async def analyze_resume(
+    profile_id: Optional[str] = None,   # 未指定默认最新一份
+    job_id: Optional[str] = None,       # 可选：仅在对话中能确定 jobId 时才带
+    token: Annotated[str, InjectedToolArg] = "",
+) -> str:                               # 返回 {"analysis", "questions"}
+
+@tool
+async def polish_resume(
+    profile_id: Optional[str] = None,
+    job_id: Optional[str] = None,
+    extra_info: Optional[str] = None,   # 主 LLM 汇总的用户补充/修改要求（自由文本）
+    token: Annotated[str, InjectedToolArg] = "",
+) -> str:                               # 返回 {"success", "changes", "reflectChecklist", "summary"}
 ```
 
-> 进度不放在 LLM 对话里，放在 Redis 里——即使主 LLM 对之前对话无记忆，服务端也知道这个会话问到哪了。这是"不会丢进度/跑偏"的保证。
+### LLM 两处被调用（均为一次性、结构化输出，用 `get_json_llm`）
 
-> **入口工具只被调用一次，不是嵌套循环。** `start_resume_polish` 是同步工具调用，在当前 SSE 流内执行完就返回（返回首批问题文本），**工具里没有"循环等用户回答"的通道**——工具调用期间拿不到用户下一条消息。v3 的"循环"是**跨用户消息**的：每一条新消息都是一次新的请求，服务端在 `stream_message` 入口按 Redis 状态路由到对应分支。整个流程里入口工具只出现一次，之后到 `done` 回 `idle`，主 LLM 工具循环才重新接管。
+| 工具            | 输入                          | 输出                                             |
+| ------------- | --------------------------- | ---------------------------------------------- |
+| **analyze_resume** | 简历 markdown（+ 可选 JD）         | `{analysis, questions}`                         |
+| **polish_resume**  | JD（可选）+ 简历 markdown + extra_info | `{revisedContent, changes[], reflectChecklist}`（内部用，不回传完整稿） |
 
-### LLM 仅两处被调用（均为一次性、结构化输入输出）
+## 四、工具行为详解
 
-| 步骤                       | 输入                        | 输出                                              |
-| ------------------------ | ------------------------- | ----------------------------------------------- |
-| **差距分析（gather）**         | JD + 简历 markdown + 累积问答历史 | `{next, text}`                                  |
-| **润色（polish + reflect）** | JD + 简历 markdown + 累积问答历史 | `{revisedContent, changes[], reflectChecklist}` |
+### analyze_resume：简历分析专家
 
-### 控制信号（唯一的结构化字段）
+- 拉简历：指定 `profile_id` → `GET /users/me/profile/{profileId}`；未指定 → `GET /users/me/profile`（最新一份）。
+- 有 `job_id` → 再拉 JD（`GET /jobs/{jobId}`），分析增加「JD 契合度」维度。
+- 一次 LLM 诊断，从 4 个维度给文字评估：
+  1. **语言表达**：用词是否准确专业，有无口语化/空话套话；
+  2. **结构条理**：段落组织、信息层次是否清晰，重点是否突出；
+  3. **内容完整性**：教育/实习/项目/技能是否完整，有无可量化成果；
+  4. **JD 契合度**（有 JD 时）：与 JD 关键技能/经验的匹配与差距。
+- 返回 `{"analysis": "...", "questions": "..."}`：`analysis` 为可直接展示的诊断文本（≤300 字）；`questions` 为 1~3 个对用户的追问（如「你希望针对什么岗位优化？」），**无需追问则为空字符串**。
+- 触发时机由工具 docstring 约束：用户表达「看简历 / 分析简历 / 评估简历」等意图时调用；**不**修改简历。
 
-差距分析返回 `{next, text}`：`text` 自由文本直接流给用户，`next` 决定状态跳转（用户永远看不到 JSON）。
+### polish_resume：简历润色专家
 
-| next       | 含义        | 状态动作                         |
-| ---------- | --------- | ---------------------------- |
-| `ask_more` | 还需要补充信息   | 保持 gathering，text 作为下一批问题流出  |
-| `ready`    | 信息已够      | 转 ready，text 提示「信息够了，要开始改吗？」 |
-| `abandon`  | 用户岔开话题/放弃 | 回 idle（本条消息不再走主循环，初版简单处理）    |
+- 拉简历（同上）；有 `job_id` → 拉 JD。
+- 一次 LLM 润色：`POLISH_SYSTEM`（保留 v3 的防幻觉红线 + reflect 自检）+ 输入 `JD(可选) + 简历 + extra_info`。
+- **直接 `save_profile_as_new(revisedContent)` 另存为新简历**（profileId 传空，Java 落库时生成新 UUID），不询问「是否开始 / 是否保存」。
+- 返回 `{"success": true, "changes": [{"reason": "..."}...], "reflectChecklist": [...], "summary": "已另存为一份新简历（原简历保留），主要变更：1…2…3…"}`——**对话里只展示变更摘要 + 提示**，不回传完整 markdown（避免主 LLM 用 max_tokens=2048 流式输出超长简历被截断）。
+- `extra_info`：主 LLM 汇总的「分析阶段用户对追问的回答 + 本次修改要求」自由文本，可为空（仅按 JD 润色）。
+- ⚠️ `save_profile_as_new` 的响应拿不到新简历 UUID（Java 端回显 userId），工具响应中不声明返回新 profileId。
 
-**内容和控制分离：内容自由文本，控制一个枚举字段。**
+## 五、实施清单
 
-## 四、状态流详解
-
-### 各状态下的消息路由
-
-| 状态          | 含义      | 用户发一条消息，服务端做什么                                                                               |
-| ----------- | ------- | -------------------------------------------------------------------------------------------- |
-| `idle`      | 普通聊天    | 走现有 `for _ in range(5)` 主 LLM 工具循环，完全不变；仅新增 `start_resume_polish` 工具供主 LLM 调用来进入流程           |
-| `gathering` | 正在问问题   | **不跑主 LLM**。本条消息视为对上一批问题的回答 → append 进 Redis `history` → 调一次差距分析 LLM → 按 `next` 跳转并流式输出 text |
-| `ready`     | 信息够用    | 等用户明确确认。用户说「开始/改吧」→ 转 polishing；说「算了」→ 回 idle                                                |
-| `polishing` | 正在生成修订稿 | 调一次 polish LLM → 流式展示修订稿 + changes → 状态 done                                                 |
-| `done`      | 修订稿已生成  | 用户确认「保存」→ 服务端 `POST /users/me/profile {content}` 写库（自动触发重评分）→ 回 idle；「放弃」→ 回 idle            |
-
-### 入口前置条件（双必填 + 缺参先问）
-
-`start_resume_polish(job_id, profile_id)` **两个参数均为必填**，且必须从用户消息中确定（沿用 `query_job_detail` / `get_student_profile` 的抽取约定：消息中带 `jobId:xxx`、`profileId:xxx` 标记，或岗位名 / 简历标题明确指向）。**两者缺一时，主 LLM 不得调用该工具**，而是先追问一轮（普通对话，流程不进入 gathering），待用户给出后再进入。
-
-> ⚠️ 此规则**比 `get_student_profile` 更严**：`get_student_profile` 允许"未指定则默认最新一份"，但 `start_resume_polish` **不采用该宽松约定**——简历必须被明确指认（`profileId:` 标记 / 简历标题 / 编号）。用户只泛泛说"我的简历"而不指明哪一份，即视为 `profile_id` 缺失，需追问让用户选择（可先调 `/users/me/profile/list` 列出简历供其确认）。`job_id` 同理，泛泛说"这个岗位"视为缺失。
-
-### 全链路走一遍
-
-**第 1 条消息**：「帮我把简历[profileId:abc]针对岗位[jobId:42]优化」
-
-- `idle` → 主 LLM 工具循环（现有逻辑）。主 LLM 识别意图，从消息中抽取 `jobId` 与 `profile_id`，两者齐全才调 `start_resume_polish(job_id, profile_id)`；缺任一 → 先追问，不进入流程。
-- 工具内部：按 profileId 拉简历（`GET /users/me/profile/{profileId}`）+ 按 jobId 拉 JD（`GET /jobs/{jobId}`）→ 设 Redis `gathering`、存 jobId/profileId → 调一次差距分析 LLM（历史为空）→ 返回 `{next:"ask_more", text:"我对比了你的简历和这个 JD，主要差距：①……②……补充几个问题：① ……② ……"}`。
-- chat.py 识别到该工具返回 → 把 `text` 当普通 `delta` 流给用户 → **短路跳出主循环**，不让主 LLM 复述。
-
-**第 2 条消息**（用户的自由回答，如「实习做过接口压测优化」）：
-
-- `gathering` → 不跑主 LLM。把上一条问题文本 + 本条回答原文 append 进 `history` → 调差距分析 LLM（JD + 简历 + history）→
-  - `next:"ask_more"` → 继续流文本再问一轮；
-  - `next:"ready"` → 状态转 ready，流「信息够了，要开始改吗？」。
-
-**第 3 条消息**：「开始改」→ `ready` → 转 `polishing` → 调 polish LLM（JD + 简历 + history）→ 流式展示修订稿 + 变更点 → `done`。
-
-**第 4 条消息**：「保存」→ `done` → 服务端 `POST /users/me/profile {content: 修订稿}` → 回 `idle`。写库后现有 `profile_storage → eval_storage` 队列自动重新评分。
-
-### gathering 轮次上限
-
-服务端强制上限（如 4 轮）：超过后不再问，直接 `ready`，防止无限追问。每轮只有 1 次 LLM 调用，整条流程 3~5 次调用，成本可控。
-
-## 五、实施清单（改动集中在 Python 端）
-
-| 文件                                     | 改动                                                                                                                                                                                                                                           |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/tools.py`                         | 新增 `start_resume_polish(job_id, profile_id)`（**双必填**，均从用户消息中抽取，缺参不调用；内部按 profileId 拉简历 + 按 jobId 拉 JD + 首次差距分析 + 设 Redis 状态），注册进 `ALL_TOOLS`。若用户按岗位名/简历标题而非 id 指定，另补 `get_favorite_jobs`（收藏列表）/ `get_profiles`（`/users/me/profile/list`）解析工具 |
-| 新增 `app/services/resume_polish.py`     | 核心：`gather(job, resume, history)` 与 `polish(job, resume, history)` 两个一次性 LLM 调用 + 结构化 JSON 解析；内部 HTTP 拉 JD/简历参考 `tools.py` 中 `get_student_profile` 的写法（透传 JWT）                                                                               |
-| 新增 `app/services/flow.py`（或并入 chat.py） | Redis 状态读写：`get_flow / set_flow / clear_flow`，key `resume_flow:{session_id}`，TTL 30 分钟                                                                                                                                                       |
-| `app/routers/chat.py`                  | `stream_message` 开头按状态分支：非 `idle` 走润色流程（gathering 接管/ready/polishing/done），`idle` 走现有主循环；主循环内识别 `start_resume_polish` 返回 → 流 text + 短路跳出                                                                                                     |
-| `app/config.py` / `requirements.txt`   | 增加 Redis 连接配置与依赖（当前 ai-service-py 未连 Redis，Java Agent 在用）                                                                                                                                                                                    |
-| 前端                                     | **零改动**                                                                                                                                                                                                                                      |
+| 文件                                     | 改动                                                                                                                                                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/tools.py`                         | 删除 `start_resume_polish`、`save_resume_edit`；新增 `analyze_resume`、`polish_resume`（docstring 即工具描述，写明触发时机与 `profileId:` 抽取约定）；`ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, analyze_resume, polish_resume]`；移除 flow 导入 |
+| `app/services/resume_polish.py`        | 删除 `gather()`/`rewrite_resume()` 及 `GATHER_SYSTEM`/`REWRITE_SYSTEM`/`GATHER_MAX_ROUNDS`；新增 `ANALYZE_SYSTEM` + `analyze(job, resume)`；`polish(job, resume, history)` → `polish(job, resume, extra_info)`（JD 段可选）；保留全部 HTTP helper |
+| `app/routers/chat.py`                  | 删除 `_run_polish_flow`、`_FLOW_OPTIONS`、关键词判定、`_format_polish_result`、`_sse_chunks`；删除 `stream_message` 内 Redis 状态分支、`start_resume_polish` 特殊分支、`resumeFlow` 字段；工具循环回归通用路径 |
+| `app/services/flow.py`                 | **整文件删除**（状态机作废）                                                                                                                                                                        |
+| `app/main.py` / `config.py` / `requirements.txt` | 移除 Redis 连接与 `redis_url` 配置、`redis>=5` 依赖（ai-service-py 中 Redis 仅服务于状态机）                                                                                                                                         |
+| 前端 `GlobalAssistantWidget.vue` / `home.ts` | 删除 `resumeFlow` 选项卡卡片、`handleResumeFlowOption`/`submitResumeFlowSupplement`/`cancelResumeFlowSupplement` 及相关 CSS、`resumeFlow` 类型定义 |
+| `简历润色专家subagent.md`                | 本文档（v4）                                                                                                                                                                                                                                   |
 
 ## 六、关键设计决策
 
-1. **流程控制归服务端**：LLM 只吐内容，状态跳转由 Redis 状态机决定——规避"主 LLM 每轮必须记得再调工具并带上历史"的脆弱性，这是 v2 方案最麻烦的部分。
-2. **入口交给 LLM，流程交给服务端**：主 LLM 只做三件事——判断是否润色请求、从用户消息确定 `job_id` + `profile_id`、调用入口工具，做完交棒。参数缺一时先追问（普通对话）而不是硬调工具。它理解自然语言灵活，服务端流程可靠。
-3. **自由文本问答，无结构化卡片**：问题/答案均自由文本，前端零改动、用户自由度最高。唯一结构化的是控制信号 `next`（`ask_more | ready | abandon`）。
-4. **一次最多 2~3 个问题**：避免审问式体验；gathering 设轮次上限（4 轮）防止无限追问。
-5. **Reflect 兜底幻觉**：polish 输出必须带 `reflectChecklist`；自检不通过则模型自行再修，是对抗 LLM 重写简历产生幻觉的核心防线。
-6. **防幻觉红线**：polish prompt 硬性要求「只能重组、扩写用户明确承认的内容，不得虚构公司、项目、量化数字」。
-7. **覆盖保护**：修订稿先展示、用户确认后才写库，不直接覆盖原简历。
-8. **评分联动**：写回后复用现有队列链路自动重新评分，无需新逻辑。
+1. **主 LLM 是唯一的调度员**：判断意图、抽取参数、跨多轮记忆澄清答案、决定调用哪个工具。服务端不存任何流程状态——比 v3 简单，代价是可靠性依赖主 LLM（详见风险 1）。
+2. **同步工具、一次调用一次返回**：不新增 SSE 事件、不改前端、无跨消息隐藏状态。
+3. **分析可附带追问、但不强制**：`questions` 为空也正常。主 LLM 可以自己决定要不要追问（无 JD 时建议追一句目标岗位）。
+4. **润色一律另存为新简历**：原简历永不覆盖；不再问「开始吗 / 保存吗」。
+5. **对话只展示变更摘要**：润色工具的返回不含完整 markdown，规避主 LLM 流式输出超长简历被 `max_tokens=2048` 截断。
+6. **Reflect 兜底幻觉**：润色 prompt 沿用 v3 的防幻觉红线 + reflect 自检（只能重组、扩写用户明确提供的内容，不虚构公司/项目/量化数字）。
+7. **jobId 仅从对话抽取**：不加岗位解析工具（MVP）。用户只说岗位名而没有 `jobId:xxx` 时，分析/润色做通用处理（无 JD 段）。
 
 ## 七、风险与取舍
 
-1. **幻觉风险（最高优先级）**：LLM 重写简历易凭空补经历/数字。prompt 红线 + reflect 自检 + 用户确认三道防线。
-2. **gathering 阶段用户岔开话题**：差距分析返回 `abandon` 直接回 idle。初版不重放该条消息（简单）；后续可优化为「abandon 时将该条消息重新投递到主循环」。
-3. **Redis 引入**：ai-service-py 当前未连 Redis，需新增依赖与连接；可用同一套 `192.168.118.130:6379` 实例。若不想引入 Redis，也可退化为内存 dict（进程重启丢失，仅适合单机调试）。
-4. **历史累积成本**：`history` 线性增长，但单次流程仅 2~3 轮、每轮一问一答，token 可控。
-5. **入口参数必须齐全**：`job_id` 与 `profile_id` 都需从用户消息确定，缺任一，主 LLM 追问一轮而非调用工具（避免带半截参数进入流程）。若用户按岗位名/简历标题而非 id 指定，需补 `get_favorite_jobs` / `get_profiles` 解析工具让主 LLM 把名称解析成 id。
+1. **上下文传递依赖主 LLM（相比 v3 的主要退让）**：分析阶段用户回答的澄清问题，需要主 LLM 在调润色工具时汇总进 `extra_info`。若主 LLM 漏带，润色退化为「仅按简历+JD 改写」——这是可接受的降级，不会坏数据。缓解：工具 docstring 明确要求「汇总对话中用户提供的全部相关补充信息」。
+2. **幻觉风险**：LLM 重写简历易凭空补经历/数字。prompt 红线 + reflect 自检两道防线（v3 的「用户确认后写库」防线取消，改为另存新简历隔离风险——即使有误，原简历仍在）。
+3. **超长简历被截断**：润色 LLM 用 `get_json_llm`（max_tokens=4096），极端超长简历可能输出不完整；工具校验 `revisedContent` 非空，落库前对长度做防御性检查（可选）。
+4. **「另存新简历」产生副本堆积**：每次润色都新增一份简历，长期可能产生多份副本；用户可手动清理，或后续加「覆盖原简历」的显式选项。
 
 ## 八、V2 展望：优秀简历 RAG 参考
 
-当前向量库仅有 `job_category_vector` / `job_detail_vector` 两张岗位表，**无简历语料**。后续可引入：
-
-1. 采集优秀简历样本（脱敏的历史高分简历 / 人工整理样本）；
-2. 向量化存入新增表（如 `resume_example_vector`）；
-3. polish 阶段检索「相关优秀简历」作为**表达参考**。
-
-> ⚠️ 定位必须为「表达参考」而非「内容来源」：只借鉴句式、结构、量化方式，**不得借用样本中的经历与数字**，否则突破防幻觉红线。
+（沿用 v3，未变）当前向量库仅有 `job_category_vector` / `job_detail_vector` 两张岗位表，无简历语料。后续可引入优秀简历样本向量化，润色阶段作为**表达参考**——只借鉴句式/结构/量化方式，不借用样本经历与数字（防幻觉红线）。
 
 ## 九、验证路径
 
 本地启动 ai-service-py 后走通：
 
 ```
-主对话："帮我把简历[profileId:abc]针对岗位[jobId:42]优化"
-  → 主 LLM 从消息抽 jobId + profileId → 调 start_resume_polish → 流式输出首轮问题（普通文字）
-  → 用户自由回答 → 服务端调差距分析 → 再问一轮 / 「信息够了，要开始改吗？」
-  → 用户说"开始改" → polish 输出修订稿 + 变更点 → 用户确认
-  → 保存 → 写库 → 轮询评分完成 → 回普通聊天
+主对话：「帮我看下我的简历」
+  → 主 LLM 调 analyze_resume → 流式转述分析文本（可能附带 1~3 个追问）
+
+用户：「目标岗位是 Java 后端开发，实习做过接口压测优化，帮我针对这个岗位优化简历[jobId:42]」
+  → 主 LLM 调 polish_resume(profile_id?, job_id="42", extra_info="目标岗位Java后端；实习做过接口压测优化")
+  → 工具润色并另存为新简历 → 返回变更摘要 + 「已另存为一份新简历（原简历保留）」
+  → GET /users/me/profile/list 确认新简历已落库、原简历保留
+
+另验证：
+- 只分析不改：用户只说「分析一下简历」，主 LLM 不调 polish_resume、简历不变；
+- 无 jobId：用户说「帮我优化简历」但无岗位，润色做通用改写（无 JD 段）；
+- 回归：普通问答、「推荐岗位」仍走通；对话中不再出现 resumeFlow 选项卡卡片。
 ```
-
-另验证入口缺参：消息只带 jobId 没带 profileId（或反之）→ 主 LLM 追问一轮，**不**调用工具、不进入流程。
-
-另验证：gathering 阶段用户岔开话题（abandon → 回 idle）、连续回答多轮不重复提问、修订稿不丢原有经历/数字。
