@@ -5,26 +5,25 @@
 
 ## 模块概览
 
-| 项    | 说明                                                                                 |
-| ---- | ---------------------------------------------------------------------------------- |
-| 服务名  | `profile-service`（在 Nacos 中注册，经网关 `lb://profile-service` 访问）                       |
-| 技术栈  | Java 17 + Spring Boot + MyBatis-Plus + RabbitMQ                                    |
-| 数据库  | MySQL `user_profile` 库（`192.168.118.130`，JDBC 配置取自 Nacos `shared-jdbc.yaml`）       |
+| 项 | 说明 |
+|---|---|
+| 服务名 | `profile-service`（在 Nacos 中注册，经网关 `lb://profile-service` 访问） |
+| 技术栈 | Java 17 + Spring Boot + MyBatis-Plus + RabbitMQ |
+| 数据库 | MySQL `user_profile` 库（`192.168.118.130`，JDBC 配置取自 Nacos `shared-jdbc.yaml`） |
 | 消息队列 | RabbitMQ `192.168.118.130:5672`（itheima/123），消费队列：`profile_storage`、`eval_storage` |
-| 职责   | 学生画像 / 简历数据的**存储与查询**、GitHub 开源加分、评分数据的存取                                          |
-| 对外访问 | 前端一律通过网关 `http://localhost:8080`（JWT 校验），网关按 Path 路由到本服务                           |
+| 职责 | 学生画像 / 简历数据的**存储与查询**、GitHub 开源加分、评分数据的存取 |
+| 对外访问 | 前端一律通过网关 `http://localhost:8080`（JWT 校验），网关按 Path 路由到本服务 |
 
 ### 网关路由到本服务的路径
 
 网关 `gateway-service/application.yaml` 中与本服务相关的路由（order 敏感，改路由需注意顺序）：
 
-| order | 路由 id                | Path                                                                                   | 目标                    |
-| ----- | -------------------- | -------------------------------------------------------------------------------------- | --------------------- |
-| 0     | `resume-parser-user` | `/users/me/profile/parse-jobs`（精确）、`/users/me/profile/parse-image`、`/users/me/home/**` | resume-parser-service |
-| 1     | `profile`            | `/users/me/profile/**`、`/users/me/profile/delete`                                      | **profile-service**   |
+| order | 路由 id | Path | 目标 |
+|---|---|---|---|
+| 0 | `resume-parser-user` | `/users/me/profile/parse-jobs`（精确）、`/users/me/profile/parse-image`、`/users/me/home/**` | resume-parser-service |
+| 1 | `profile` | `/users/me/profile/**`、`/users/me/profile/delete` | **profile-service** |
 
 > ⚠️ **注意**：
-> 
 > 1. `GET /users/me/profile/parse-jobs/{parseJobId}`（查询解析结果）不命中 order 0 的**精确匹配** `/users/me/profile/parse-jobs`，会被 order 1 的 `/users/me/profile/**` 路由到 **profile-service**；而 `POST /users/me/profile/parse-jobs`（上传简历）会精确命中 order 0 路由到 **resume-parser-service**。两者是不同服务的接口。
 > 2. `/users/me/open-source/**`（GitHub 加分接口）的 Controller 实现在本服务，但网关当前**没有**为它单独配置路由，`/users/me/**` 会命中 career-service 的 `career-user` 路由（order 3）。如需让这些接口正确到达 profile-service，需在网关补充 `/users/me/open-source/**` 路由。
 
@@ -49,28 +48,28 @@
 
 ### A. 学生画像 / 简历（ProfileController）
 
-| 方法  | 路径                                              | 说明                  |
-| --- | ----------------------------------------------- | ------------------- |
-| GET | `/users/me/profile`                             | 获取学生画像（含评分、证据、改进建议） |
-| GET | `/users/me/profile/parse-jobs/{parseJobId}`     | 查询简历解析任务是否完成        |
-| GET | `/users/me/profile/analyze-jobs/{analyzeJobId}` | 查询画像分析（评分）状态        |
-| GET | `/users/me/profile/delete`                      | 删除旧简历和旧评分（重新上传前调用）  |
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/users/me/profile` | 获取学生画像（含评分、证据、改进建议） |
+| GET | `/users/me/profile/parse-jobs/{parseJobId}` | 查询简历解析任务是否完成 |
+| GET | `/users/me/profile/analyze-jobs/{analyzeJobId}` | 查询画像分析（评分）状态 |
+| GET | `/users/me/profile/delete` | 删除旧简历和旧评分（重新上传前调用） |
 
 ### B. GitHub 开源加分（GithubController，前缀 `/users/me/open-source`）
 
-| 方法   | 路径                               | 说明               |
-| ---- | -------------------------------- | ---------------- |
-| GET  | `/users/me/open-source/auth-url` | 获取 GitHub 授权跳转地址 |
-| GET  | `/users/me/open-source/callback` | 授权回调，换取统计结果并落库   |
-| GET  | `/users/me/open-source/summary`  | 获取开源统计与加分摘要      |
-| POST | `/users/me/open-source/unbind`   | 解绑 GitHub 授权     |
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/users/me/open-source/auth-url` | 获取 GitHub 授权跳转地址 |
+| GET | `/users/me/open-source/callback` | 授权回调，换取统计结果并落库 |
+| GET | `/users/me/open-source/summary` | 获取开源统计与加分摘要 |
+| POST | `/users/me/open-source/unbind` | 解绑 GitHub 授权 |
 
 ### C. 内部消息队列消费者（非 HTTP 接口）
 
-| 队列                | 说明                                  |
-| ----------------- | ----------------------------------- |
+| 队列 | 说明 |
+|---|---|
 | `profile_storage` | 接收简历解析结果 JSON，保存/更新 `resume_full` 表 |
-| `eval_storage`    | 接收评分结果 JSON，保存/更新 `ability_score` 表 |
+| `eval_storage` | 接收评分结果 JSON，保存/更新 `ability_score` 表 |
 
 ---
 
@@ -139,22 +138,22 @@
 - **功能**：查询当前登录用户的完整画像（简历）、评分结果、证据与改进建议。
 - **请求参数**：
 
-| 参数     | 位置    | 必填  | 说明                                                  |
-| ------ | ----- | --- | --------------------------------------------------- |
-| userId | query | 否   | 指定用户 id；缺省时取 `UserContext`（JWT）中的用户 id，仍为空则默认 `111` |
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| userId | query | 否 | 指定用户 id；缺省时取 `UserContext`（JWT）中的用户 id，仍为空则默认 `111` |
 
 - **响应 data**（`GetProfileResponse`）：
 
-| 字段                     | 类型                                  | 说明                                                        |
-| ---------------------- | ----------------------------------- | --------------------------------------------------------- |
-| hasProfile             | boolean                             | 是否已存在画像                                                   |
-| profileId              | string                              | 用户 id                                                     |
-| profile                | StudentProfile \| null              | 画像数据（`{id, content}`，content 为 markdown 简历文本）；无画像时为 null  |
-| scores                 | Scores \| null                      | 评分（完整度、竞争力、12 维能力、各维度加分）；无评分为 null                        |
-| evidence               | map<string, list\<string\>> \| null | 评分证据                                                      |
-| improvementSuggestions | list\<Suggestion\> \| null          | 改进建议（dimension / priority / advice）                       |
-| openSourceBonus        | object \| null                      | 开源加分（当前实现恒为 `new OpenSourceBonus()`，各字段为 null，**该功能待开发**） |
-| updatedAt              | string                              | 更新时间（ISO 格式，`LocalDateTime.now().toString()`）             |
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| hasProfile | boolean | 是否已存在画像 |
+| profileId | string | 用户 id |
+| profile | StudentProfile \| null | 画像数据（`{id, content}`，content 为 markdown 简历文本）；无画像时为 null |
+| scores | Scores \| null | 评分（完整度、竞争力、12 维能力、各维度加分）；无评分为 null |
+| evidence | map<string, list\<string\>> \| null | 评分证据 |
+| improvementSuggestions | list\<Suggestion\> \| null | 改进建议（dimension / priority / advice） |
+| openSourceBonus | object \| null | 开源加分（当前实现恒为 `new OpenSourceBonus()`，各字段为 null，**该功能待开发**） |
+| updatedAt | string | 更新时间（ISO 格式，`LocalDateTime.now().toString()`） |
 
 - **示例**：
 
@@ -185,9 +184,9 @@
 - **功能**：简历上传后前端轮询本接口，判断解析是否完成。`parseJobId` 语义上即**用户 id**（本服务按 `user_id` 查询 `resume_full` 表）。
 - **请求参数**：
 
-| 参数         | 位置   | 必填  | 说明              |
-| ---------- | ---- | --- | --------------- |
-| parseJobId | path | 是   | 解析任务 id（即用户 id） |
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| parseJobId | path | 是 | 解析任务 id（即用户 id） |
 
 - **响应 data**（两种形态）：
 
@@ -213,11 +212,11 @@
 
 `result` 字段说明：
 
-| 字段            | 类型             | 说明                                                                   |
-| ------------- | -------------- | -------------------------------------------------------------------- |
-| parsedProfile | StudentProfile | 解析出的画像（`{id, content}`，content 为 markdown 简历文本）                      |
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| parsedProfile | StudentProfile | 解析出的画像（`{id, content}`，content 为 markdown 简历文本） |
 | missingFields | list\<string\> | 缺失检测：简历内容（content）为空时返回 `["content"]`，否则为空数组 `[]`（原字段级缺失检测已随结构化字段废弃） |
-| sourceMeta    | map            | 来源文件信息：`fileName`、`fileType`                                         |
+| sourceMeta | map | 来源文件信息：`fileName`、`fileType` |
 
 ---
 
@@ -227,9 +226,9 @@
 - **功能**：保存简历后前端轮询本接口，判断 AI 评分是否完成。`analyzeJobId` 语义上即**用户 id**（按 `user_id` 查 `ability_score` 表最新记录）。
 - **请求参数**：
 
-| 参数           | 位置   | 必填  | 说明              |
-| ------------ | ---- | --- | --------------- |
-| analyzeJobId | path | 是   | 分析任务 id（即用户 id） |
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| analyzeJobId | path | 是 | 分析任务 id（即用户 id） |
 
 - **响应 data**（两种形态）：
 
@@ -255,9 +254,9 @@
 - **功能**：删除指定用户的画像（`resume_full`）和评分（`ability_score`）记录。在**重新上传/保存简历之前**先调用本接口，避免旧数据残留。
 - **请求参数**：
 
-| 参数     | 位置    | 必填  | 说明    |
-| ------ | ----- | --- | ----- |
-| userId | query | 是   | 用户 id |
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| userId | query | 是 | 用户 id |
 
 - **响应 data**：`null`
 
@@ -275,10 +274,10 @@
 - **功能**：生成 GitHub OAuth 授权跳转链接（scope=`user,repo`），返回给前端引导用户跳转。
 - **请求头/参数**：
 
-| 参数        | 位置     | 必填  | 说明                                     |
-| --------- | ------ | --- | -------------------------------------- |
-| provider  | query  | 是   | 提供商，目前仅支持 `github`（`gitee` 不支持，返回 400） |
-| X-User-Id | header | 否   | 用户 id，缺省默认 `111`                       |
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| provider | query | 是 | 提供商，目前仅支持 `github`（`gitee` 不支持，返回 400） |
+| X-User-Id | header | 否 | 用户 id，缺省默认 `111` |
 
 - **响应 data**（`GithubAuthUrlResponse`）：
 
@@ -302,12 +301,12 @@
   2. 将各维度加分累加写入 `ability_score.scores_data.bonusByDimension`。
 - **请求头/参数**：
 
-| 参数        | 位置     | 必填  | 说明                        |
-| --------- | ------ | --- | ------------------------- |
-| provider  | query  | 是   | 提供商，仅支持 `github`          |
-| state     | query  | 是   | 授权态参数（与 `auth-url` 返回的一致） |
-| code      | query  | 是   | 平台回调授权码                   |
-| X-User-Id | header | 否   | 用户 id，缺省默认 `111`          |
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| provider | query | 是 | 提供商，仅支持 `github` |
+| state | query | 是 | 授权态参数（与 `auth-url` 返回的一致） |
+| code | query | 是 | 平台回调授权码 |
+| X-User-Id | header | 否 | 用户 id，缺省默认 `111` |
 
 - **响应 data**（`GithubCallbackResponse`）：
 
@@ -439,11 +438,11 @@ FileListener 监听 file_tran
 
 ## 六、存储表说明
 
-| 表名              | 关键字段                                                                                                                                                                       | 说明          |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `resume_full`   | `id`、`user_id`（唯一）、`resume_data`(JSON，存 `{id, content}`，content 为 markdown 简历文本)、`file_name`、`file_type`、`created_at`、`updated_at`                                         | 学生画像/简历     |
-| `ability_score` | `id`、`user_id`、`scores_data`(JSON)、`created_at`、`updated_at`                                                                                                               | 评分结果        |
-| `github_auth`   | `user_id`、`account_name`、`profile_url`、`access_token`、`contribution_heatmap`(JSON)、`language_stats`(JSON)、`bonus_details`(JSON)、`total_bonus`、`authorized_at`、`created_at` | GitHub 授权记录 |
+| 表名 | 关键字段 | 说明 |
+|---|---|---|
+| `resume_full` | `id`、`user_id`（唯一）、`resume_data`(JSON，存 `{id, content}`，content 为 markdown 简历文本)、`file_name`、`file_type`、`created_at`、`updated_at` | 学生画像/简历 |
+| `ability_score` | `id`、`user_id`、`scores_data`(JSON)、`created_at`、`updated_at` | 评分结果 |
+| `github_auth` | `user_id`、`account_name`、`profile_url`、`access_token`、`contribution_heatmap`(JSON)、`language_stats`(JSON)、`bonus_details`(JSON)、`total_bonus`、`authorized_at`、`created_at` | GitHub 授权记录 |
 
 ---
 
