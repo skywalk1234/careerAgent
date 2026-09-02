@@ -7,9 +7,11 @@ from pgvector.asyncpg import register_vector
 from app.config import settings
 
 
-# 仅允许这两张内部常量表，杜绝 SQL 注入
+# 仅允许这些内部常量表，杜绝 SQL 注入
 TABLE_JOB_CATEGORY = "job_category_vector"
 TABLE_JOB_DETAIL = "job_detail_vector"
+# 简历样例库（简历片段 + 专家点评 few-shot），设计见 fc2026/简历RAG方案.md
+TABLE_RESUME_EXAMPLE = "resume_example_vector"
 
 
 @dataclass
@@ -41,9 +43,9 @@ async def similarity_search(
     """cosine 相似度检索，语义对齐 Spring AI PgVectorStore
     （COSINE_DISTANCE: distance <= 1 - threshold，即 similarity >= threshold）。
 
-    表名仅限内部常量 TABLE_JOB_CATEGORY / TABLE_JOB_DETAIL。
+    表名仅限内部常量 TABLE_JOB_CATEGORY / TABLE_JOB_DETAIL / TABLE_RESUME_EXAMPLE。
     """
-    if table not in (TABLE_JOB_CATEGORY, TABLE_JOB_DETAIL):
+    if table not in (TABLE_JOB_CATEGORY, TABLE_JOB_DETAIL, TABLE_RESUME_EXAMPLE):
         raise ValueError(f"非法向量表名: {table}")
 
     sql = (

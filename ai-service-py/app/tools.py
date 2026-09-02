@@ -7,7 +7,7 @@ from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
-from app.services import job_recommend, resume_polish
+from app.services import job_recommend, resume_example, resume_polish
 
 
 def _strip_prefix(raw: str) -> str:
@@ -110,6 +110,7 @@ async def analyze_resume(
     profile_id: Optional[str] = None,
     job_id: Optional[str] = None,
     token: Annotated[str, InjectedToolArg] = "",
+    request: Annotated[Request, InjectedToolArg] = None,
 ) -> str:
     """分析学生的某份简历：从语言表达、结构条理、内容完整性（以及可选的目标岗位 JD 契合度）给出专业诊断。
 
@@ -152,6 +153,22 @@ async def analyze_resume(
     except Exception as e:
         print(f"[resume-tool] analyze_resume LLM分析失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"分析简历失败: {e}"}, ensure_ascii=False)
+
+    # 样例库 RAG：按节检索相似简历样例作 few-shot 参考，附加到返回结果供后续润色取用。
+    # 只增强、不阻塞：无连接池 / 检索失败 / 无命中均不影响原分析结果。
+    try:
+        pool = getattr(request.app.state, "pg_pool", None) if request is not None else None
+        if pool is not None:
+            result["referenceChunks"] = await resume_example.retrieve_resume_examples(pool, resume_text)
+            print(
+                f"[resume-tool] analyze_resume 样例检索完成({time.perf_counter() - t0:.2f}s): "
+                f"referenceChunks={len(result.get('referenceChunks') or [])}",
+                flush=True,
+            )
+        else:
+            print("[resume-tool] analyze_resume 跳过样例检索（无向量库连接池）", flush=True)
+    except Exception as e:
+        print(f"[resume-tool] analyze_resume 样例检索失败(忽略): {e}", flush=True)
 
     print(f"[resume-tool] analyze_resume 总耗时: {time.perf_counter() - t0:.2f}s", flush=True)
     return json.dumps(result, ensure_ascii=False, default=str)

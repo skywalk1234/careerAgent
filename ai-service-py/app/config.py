@@ -38,7 +38,8 @@ class Settings(BaseSettings):
     career_service_base_url: str = "http://127.0.0.1:8080"
 
     # ---------- pgvector 向量库配置 ----------
-    # 存 job_category_vector / job_detail_vector 两张 Spring AI PgVectorStore 表。
+    # job_category_vector / job_detail_vector 为岗位表（Spring AI PgVectorStore），
+    # resume_example_vector 为简历样例库表（简历片段+点评 few-shot，见 fc2026/简历RAG方案.md）。
     # 真实库在 8.147.71.59:40086（见 a_fuchuang_2026/test_script/testing 的 application.yml），
     # 密码中的 @ 已 URL 编码为 %40
     vector_database_url: str = "postgresql://postgres:Mm85619562%40@8.147.71.59:40086/ai-vector"
@@ -56,6 +57,12 @@ class Settings(BaseSettings):
     recommend_top_k: int = 5
     recommend_category_threshold: float = 0.3
     recommend_specific_threshold: float = 0.2
+
+    # ---------- 简历样例库 RAG 参数（resume_example_vector，独立调优）----------
+    resume_example_top_k: int = 5
+    # 样例片段间的相似度天然低于岗位匹配，阈值放得更宽（低于岗位推荐 0.2），
+    # 靠 metadata 的 jobCategory 过滤兜底，不纯靠相似度卡
+    resume_example_threshold: float = 0.15
 
 
 settings = Settings()
