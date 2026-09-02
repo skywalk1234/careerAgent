@@ -1,7 +1,7 @@
 """简历分析 / 润色核心：analyze（诊断）+ polish（润色）+ 外部 HTTP 访问。
 
 两个专家工具均为同步、一次性、结构化输入输出，由主 LLM 编排（无服务端状态机）：
-- analyze：简历（+ 可选 JD）→ {analysis, questions}（文字诊断 + 可选追问）
+- analyze：简历 + JD(可选) + 相似简历历史点评参考(可选) → {analysis, questions}（文字诊断 + 可选追问）
 - polish：简历 + JD(可选) + 用户补充/修改要求 → {revisedContent, changes[]}（reflect 自检仅作内部约束，不序列化输出）
 
 本模块不持有任何状态。
@@ -25,6 +25,7 @@ ANALYZE_SYSTEM = """你是"微光职引"求职平台的专业简历分析专家�
 - 只基于简历实际内容与（可选的）JD 分析，不虚构简历中不存在的经历。
 - analysis 控制在 300 字以内，分维度、可直接展示给用户。
 - 如需向用户追问（如目标岗位、具体项目细节），给出 1~3 个自然语言问题；无需追问则 questions 为空字符串。
+- 若提供了【相似简历历史点评参考】：结合其中专家的评判标准，判断当前简历是否存在同类问题与差距；参考仅供判断与表达借鉴，点评中提到的具体项目/经历/特性不得写入诊断，更不得当作当前简历内容。
 
 只输出 JSON：{"analysis": "完整分析文本", "questions": "追问或空字符串"}"""
 
@@ -109,14 +110,32 @@ def _format_job(job: dict) -> str:
     return "\n\n".join(lines)
 
 
-async def analyze(job: dict | None, resume: str) -> dict:
-    """简历分析：语言/结构/内容（+ 可选 JD 契合度）→ 文字诊断 + 可选追问。
+def _format_references(references: list) -> str:
+    """把检索到的相似简历样例整理成 few-shot 参考段（样例结构见 resume_example.retrieve_resume_examples）"""
+    lines = []
+    for i, ref in enumerate(references, 1):
+        category = ref.get("jobCategory")
+        head = f"【历史案例 {i}】" + (f"（岗位方向：{category}）" if category else "")
+        lines.append(
+            f"{head}\n相似简历片段：\n{ref.get('resumeSnippet', '')}\n专家点评：\n{ref.get('comment', '')}"
+        )
+    lines.append(
+        "说明：以上点评仅作判断标准参考；点评针对的缺陷若当前简历不具备，请忽略该案例；"
+        "严禁把点评中提到的具体项目/经历/特性安插进当前简历。"
+    )
+    return "\n\n".join(lines)
+
+
+async def analyze(job: dict | None, resume: str, references: list | None = None) -> dict:
+    """简历分析：语言/结构/内容（+ 可选 JD 契合度 + 可选历史点评参考）→ 文字诊断 + 可选追问。
 
     返回 {"analysis", "questions"}。解析失败抛异常由上层兜底。
     """
     parts = []
     if job:
         parts.append(f"【目标岗位 JD】\n{_format_job(job)}")
+    if references:
+        parts.append(f"【相似简历历史点评参考】\n{_format_references(references)}")
     parts.append(f"【用户简历（markdown 原文）】\n{resume}")
     parts.append("请按系统指令输出 JSON。")
     result = await _call_json_llm(ANALYZE_SYSTEM, "\n\n".join(parts))

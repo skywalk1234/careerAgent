@@ -143,8 +143,25 @@ async def analyze_resume(
         print(f"[resume-tool] analyze_resume 获取简历/岗位失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"获取简历或岗位失败: {e}"}, ensure_ascii=False)
 
+    # 样例库 RAG：先检索相似简历样例与点评，作为分析专家 LLM 的 few-shot 参考输入。
+    # 只增强、不阻塞：无连接池 / 检索失败 / 无命中都继续走分析。
+    refs: list = []
     try:
-        result = await resume_polish.analyze(job, resume_text)
+        pool = getattr(request.app.state, "pg_pool", None) if request is not None else None
+        if pool is not None:
+            refs = await resume_example.retrieve_resume_examples(pool, resume_text)
+            print(
+                f"[resume-tool] analyze_resume 样例检索完成({time.perf_counter() - t0:.2f}s): "
+                f"命中 {len(refs)} 条，将作为历史点评参考输入分析专家",
+                flush=True,
+            )
+        else:
+            print("[resume-tool] analyze_resume 跳过样例检索（无向量库连接池）", flush=True)
+    except Exception as e:
+        print(f"[resume-tool] analyze_resume 样例检索失败(忽略): {e}", flush=True)
+
+    try:
+        result = await resume_polish.analyze(job, resume_text, references=refs or None)
         print(
             f"[resume-tool] analyze_resume LLM分析完成: {time.perf_counter() - t0:.2f}s, "
             f"analysis_len={len(result.get('analysis') or '')}, has_questions={bool(result.get('questions'))}",
@@ -154,21 +171,9 @@ async def analyze_resume(
         print(f"[resume-tool] analyze_resume LLM分析失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"分析简历失败: {e}"}, ensure_ascii=False)
 
-    # 样例库 RAG：按节检索相似简历样例作 few-shot 参考，附加到返回结果供后续润色取用。
-    # 只增强、不阻塞：无连接池 / 检索失败 / 无命中均不影响原分析结果。
-    try:
-        pool = getattr(request.app.state, "pg_pool", None) if request is not None else None
-        if pool is not None:
-            result["referenceChunks"] = await resume_example.retrieve_resume_examples(pool, resume_text)
-            print(
-                f"[resume-tool] analyze_resume 样例检索完成({time.perf_counter() - t0:.2f}s): "
-                f"referenceChunks={len(result.get('referenceChunks') or [])}",
-                flush=True,
-            )
-        else:
-            print("[resume-tool] analyze_resume 跳过样例检索（无向量库连接池）", flush=True)
-    except Exception as e:
-        print(f"[resume-tool] analyze_resume 样例检索失败(忽略): {e}", flush=True)
+    # 命中样例随结果一并返回，供后续润色阶段取用（polish 的消费方式待定）
+    if refs:
+        result["referenceChunks"] = refs
 
     print(f"[resume-tool] analyze_resume 总耗时: {time.perf_counter() - t0:.2f}s", flush=True)
     return json.dumps(result, ensure_ascii=False, default=str)
