@@ -64,5 +64,9 @@ class Settings(BaseSettings):
     # 靠 metadata 的 jobCategory 过滤兜底，不纯靠相似度卡
     resume_example_threshold: float = 0.15
 
+    # ---------- 长期记忆抽取参数（app/services/memory.py）----------
+    memory_max_transcript_messages: int = 5  # 每次抽取读会话最近 N 条消息（滑动窗口）
+    memory_max_reference_episodes: int = 5   # 注入作去重/supersede 参照的活跃 episode 上限
+
 
 settings = Settings()

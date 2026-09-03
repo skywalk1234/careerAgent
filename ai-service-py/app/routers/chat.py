@@ -22,11 +22,23 @@ from app.schemas import (
     StreamConfigOut,
 )
 from app.security import extract_token, get_current_user_id
-from app.services import chat_service
+from app.services import chat_service, memory
 from app.services.llm import get_llm, get_llm_with_tools
 from app.tools import ALL_TOOLS
 
 router = APIRouter(prefix="/users/me/home/assistant")
+
+# 长期记忆后台抽取任务：保持强引用避免被 GC，任务结束后自动移除
+_memory_tasks: set[asyncio.Task] = set()
+
+
+def _spawn_memory_extraction(user_id: int, session_id: str, pg_pool) -> None:
+    """一轮问答落库后，后台抽取长期记忆（不阻塞 SSE）。"""
+    task = asyncio.create_task(
+        memory.extract_session_memory_async(user_id, session_id, pg_pool)
+    )
+    _memory_tasks.add(task)
+    task.add_done_callback(_memory_tasks.discard)
 
 
 def _sse(name: str, data: dict) -> str:
@@ -379,6 +391,8 @@ async def stream_message(
             yield emit_trace(status="succeeded", finished_at=finished_at)
 
             await chat_service.save_assistant_message(db, session_id, full)
+            # 后台抽取长期记忆（不阻塞 SSE；内部自开会话与 pg 连接，失败只记日志）
+            _spawn_memory_extraction(user_id, session_id, request.app.state.pg_pool)
             done_message = {
                 "messageId": message_id,
                 "role": "assistant",
