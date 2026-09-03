@@ -68,5 +68,8 @@ class Settings(BaseSettings):
     memory_max_transcript_messages: int = 5  # 每次抽取读会话最近 N 条消息（滑动窗口）
     memory_max_reference_episodes: int = 5   # 注入作去重/supersede 参照的活跃 episode 上限
 
+    # ---------- 简历润色 Reflection 参数（app/services/resume_polish.py）----------
+    polish_max_refine_rounds: int = 1  # 「生成→评审→修正」循环中最多修正轮数（0=只生成不评审修正）
+
 
 settings = Settings()

@@ -2,7 +2,9 @@
 
 两个专家工具均为同步、一次性、结构化输入输出，由主 LLM 编排（无服务端状态机）：
 - analyze：简历 + JD(可选) + 相似简历历史点评参考(可选) → {analysis, questions}（文字诊断 + 可选追问）
-- polish：简历 + JD(可选) + 用户补充/修改要求 → {revisedContent, changes[]}（reflect 自检仅作内部约束，不序列化输出）
+- polish：简历 + JD(可选) + 用户补充/修改要求 → {revisedContent, changes[]}
+  **三阶段 Reflection**：EXEC 生成 → REVIEW 独立评审（专职拦截「只学过却写成项目已使用」等越界/虚构）→
+  不通过则 REFINE 修正 → 再评审，直到通过或达 polish_max_refine_rounds 轮。
 
 本模块不持有任何状态。
 """
@@ -32,24 +34,53 @@ ANALYZE_SYSTEM = """你是"微光职引"求职平台的专业简历分析专家�
 只输出 JSON：{"analysis": "完整分析文本", "questions": "追问或空字符串"}"""
 
 
-POLISH_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。请基于用户原始简历、用户补充/修改要求与（可选的）目标岗位 JD，重写简历，使其更匹配目标岗位。
+# ---------- 润色专家三阶段（Reflection）：生成 → 评审 → 修正 ----------
+# 每阶段一个模型、各司其职，避免把「写 + 自我审查 + 多项红线」压给同一个 prompt：
+# - EXEC 只负责写一版草稿；
+# - REVIEW 专职批判（拿到完整源材料，重点抓「只学过却被写成项目已使用」等越界）；
+# - REFINE 只负责按评审反馈改稿。
+# 评审不通过 → 修正 → 再评审，直到通过或达到最大轮数。
 
-必须遵守的红线：
-1. 只能重组、改写、扩写用户已明确提供的内容；严禁虚构公司、项目、职位、经历、时间或量化数字。
-2. 保留原简历全部已有事实（经历、时间、数字、项目），不得丢失、删改或篡改。
-3. 若提供了 JD，对齐 JD 的能力要求与关键词，优先突出与岗位匹配的经历与技能，可调整描述顺序与措辞。
-4. 使用清晰有力的简历语言；量化结果只能用用户提供的数据，用户未提供则保留原表述，绝不自己编数字。
-5. 输出完整 markdown 格式简历。
+POLISH_EXEC_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。请基于【用户原始简历】与【用户补充/修改要求】（含可选的目标岗位 JD），输出一版润色后的完整简历 markdown，使其更匹配目标岗位。
 
-输出前必须自检（reflect），逐项核对并在不通过时自行修正后再输出，但不要输出自检过程本身：
-- 是否保留原简历全部事实？
-- 是否编造了经历或量化数字？
-- 是否命中 JD 的关键词与能力要求？
-- 是否遗漏原简历内容？
+写作红线：
+1. 内容只能来自【用户原始简历】原文，以及【用户补充/修改要求】里用户明确说明过的内容；严禁虚构公司、项目、职位、经历、时间或量化数字。
+2. 不得丢失、删改或篡改原始简历里已有的任何事实。
+3. 用户只说「学过 / 了解 / 正在学」的技术，一律不得写成某项目/经历「已使用 / 应用了」。
+4. 量化结果只能用用户提供的数据；未提供则保留原表述，绝不编数字。
+5. 语言简洁有力，突出与岗位 JD 匹配的经历与技能（无 JD 则优化表达、保持原有结构）。
 
 只输出 JSON：{"revisedContent": "完整markdown", "changes": ["简要改动说明1", "简要改动说明2"]}
+changes 是相对【用户原始简历】的简短改动说明（每条 ≤30 字，说明改了什么、为什么），只列实际改动。"""
 
-changes 是简短的改动说明列表（每条 30 字以内，说明改了什么、为什么），只列出实际发生的改动，不要逐段复制原文。"""
+
+POLISH_REVIEW_SYSTEM = """你是一位极其严格的简历评审专家。你的任务是审查一份「润色后的简历」，找出其中**必须修正**的问题并给出可操作反馈。你只评审、不重写。
+
+请对照下列来源审查【待评审的修订稿】：
+- 【目标岗位 JD】(可选)：判断是否命中岗位关键词/能力要求。
+- 【用户原始简历】：事实基线，修订稿不得增删改其事实。
+- 【用户补充/修改要求】：区分「用户明确说已实际用于某项目的技术」与「用户只是学过 / 了解 / 正在学的技术」。
+
+必须核查（每条问题都要能具体指向修订稿的某个片段，只报告真实存在的问题，不吹毛求疵）：
+1. 事实越界（最高优先级）：修订稿是否出现【用户原始简历】中不存在、用户也未明确说明「已用于某项目」的公司 / 项目 / 职位 / 经历 / 技术 / 量化数字？
+   特别注意：用户只是「学过 / 了解」某项技术 ≠ 该项目用到了它——若修订稿把这类技术写进「项目 / 实习做了什么」，必须标为 must-fix。
+2. 完整性：原始简历的已有事实 / 经历 / 项目 / 技能是否被丢失、删改、篡改？
+3. 语言：是否有口语化、空话套话、含糊表述（空洞的「负责 / 参与」、无信息量的堆砌）？
+4. JD 契合度（若有 JD）：是否突出与岗位匹配的技能与成果；明显该强调而未强调的算 must-fix。
+5. 结构与重点：段落层次是否清晰、与 JD 相关的经历是否被放在显眼位置。
+
+只输出 JSON：{"passed": true/false, "mustFix": [{"detail": "具体问题（引用修订稿片段）", "fixHint": "怎么改"}]}
+- mustFix 只列「不改会出问题」的项；passed 为 true 时 mustFix 必须为空数组。"""
+
+
+POLISH_REFINE_SYSTEM = """你是"微光职引"求职平台的专业简历润色专家。你的上一版润色稿被评审专家指出了必须修正的问题，请据此改进并输出**完整**的简历 markdown（不是片段）。
+
+修正时结合【目标岗位 JD】(可选)、【用户原始简历】与【用户补充/修改要求】，针对评审的每条 must-fix 逐一处理，且不得在修正中引入新错误：
+- 不得虚构公司 / 项目 / 职位 / 经历 / 时间 / 量化数字；
+- 不得把用户「只是学过 / 了解」的技术写成项目「已使用」；
+- 不得丢失原始简历已有事实；保留上一稿中正确的改进。
+
+只输出 JSON：{"revisedContent": "完整markdown", "changes": ["相对【用户原始简历】的简短改动说明，每条 ≤30 字"]}"""
 
 
 # ---------- LLM 调用 ----------
@@ -158,29 +189,104 @@ async def analyze(job: dict | None, resume: str, references: list | None = None)
     }
 
 
-# ---------- 工具：polish（简历润色专家） ----------
+# ---------- 工具：polish（简历润色专家 · 三阶段 Reflection） ----------
 
-async def polish(job: dict | None, resume: str, extra_info: str) -> dict:
-    """润色：JD(可选) + 简历 + 用户补充/修改要求 → 修订稿。
-
-    reflect 自检只作为系统指令约束模型行为（不通过则自行修正），不要求序列化输出，
-    避免模型把自检过程写进 JSON 徒增输出 token。返回 {"revisedContent", "changes"}。
-    解析失败抛异常由上层兜底。
-    """
+def _source_parts(job: dict | None, resume: str, extra_info: str) -> list[str]:
+    """三阶段共用的源材料段（JD 可选），统一拼接避免各阶段口径漂移"""
     parts = []
     if job:
         parts.append(f"【目标岗位 JD】\n{_format_job(job)}")
     parts.append(f"【用户原始简历】\n{resume}")
     parts.append(f"【用户补充/修改要求】\n{extra_info or '（无）'}")
-    parts.append("请按系统指令输出 JSON。")
-    result = await _call_json_llm(POLISH_SYSTEM, "\n\n".join(parts))
-    revised = result.get("revisedContent")
-    if not revised:
+    return parts
+
+
+def _review_prompt(job: dict | None, resume: str, extra_info: str, draft: str) -> str:
+    parts = _source_parts(job, resume, extra_info)
+    parts.append(f"【待评审的修订稿】\n{draft}")
+    parts.append("请按系统指令输出评审 JSON。")
+    return "\n\n".join(parts)
+
+
+def _refine_prompt(job: dict | None, resume: str, extra_info: str, draft: str, feedback: str) -> str:
+    parts = _source_parts(job, resume, extra_info)
+    parts.append(f"【上一次修订稿】\n{draft}")
+    parts.append(f"【评审反馈】\n{feedback}")
+    parts.append("请按系统指令输出修正后的完整 JSON。")
+    return "\n\n".join(parts)
+
+
+def _format_feedback(review: dict) -> str:
+    """把评审 mustFix 列表整理成可读的反馈文本，供 REFINE 使用"""
+    must_fix = review.get("mustFix") or []
+    lines = []
+    for i, item in enumerate(must_fix, 1):
+        detail = item.get("detail") if isinstance(item, dict) else str(item)
+        hint = item.get("fixHint") if isinstance(item, dict) else ""
+        lines.append(f"{i}. {detail}" + (f"\n   修复建议：{hint}" if hint else ""))
+    return "\n".join(lines) if lines else "（无）"
+
+
+async def polish(job: dict | None, resume: str, extra_info: str) -> dict:
+    """润色（三阶段 Reflection）：JD(可选) + 简历 + 用户补充/修改要求 → 修订稿。
+
+    流程：EXEC 生成一版 → REVIEW 评审 → 不通过则 REFINE 修正 → 再评审，
+    直到评审通过或达到 polish_max_refine_rounds 轮。评审职责独立于写作，
+    专职拦截「把只是学过/了解的技术写成项目已使用」等越界与虚构。
+    返回 {"revisedContent", "changes"}（changes 相对【用户原始简历】）。
+    解析失败抛异常由上层兜底。
+    """
+    t_start = time.perf_counter()
+
+    # 阶段 1：生成草稿
+    result = await _call_json_llm(POLISH_EXEC_SYSTEM, "\n\n".join(_source_parts(job, resume, extra_info)))
+    draft = str(result.get("revisedContent") or "").strip()
+    if not draft:
         raise ValueError("润色结果缺少 revisedContent")
-    return {
-        "revisedContent": str(revised),
-        "changes": result.get("changes") or [],
-    }
+    changes = result.get("changes") or []
+    print(
+        f"[resume-tool] polish ①生成完成 {time.perf_counter() - t_start:.2f}s, "
+        f"revised_len={len(draft)}",
+        flush=True,
+    )
+
+    # 阶段 2+3：评审 → 修正循环（最多 polish_max_refine_rounds 轮修正）
+    max_rounds = max(0, int(settings.polish_max_refine_rounds))
+    for attempt in range(max_rounds + 1):
+        t1 = time.perf_counter()
+        review = await _call_json_llm(
+            POLISH_REVIEW_SYSTEM, _review_prompt(job, resume, extra_info, draft)
+        )
+        passed = bool(review.get("passed"))
+        n_fix = len(review.get("mustFix") or [])
+        print(
+            f"[resume-tool] polish ②评审#{attempt} 通过={passed} mustFix={n_fix} "
+            f"耗时 {time.perf_counter() - t1:.2f}s",
+            flush=True,
+        )
+        if passed or attempt == max_rounds:
+            break
+
+        feedback = _format_feedback(review)
+        t2 = time.perf_counter()
+        refined = await _call_json_llm(
+            POLISH_REFINE_SYSTEM, _refine_prompt(job, resume, extra_info, draft, feedback)
+        )
+        new_draft = str(refined.get("revisedContent") or "").strip()
+        if not new_draft:
+            print("[resume-tool] polish ③修正返回空稿，保留上一版", flush=True)
+            break
+        draft = new_draft
+        if refined.get("changes"):
+            changes = refined["changes"]
+        print(
+            f"[resume-tool] polish ③修正#{attempt} 完成 {time.perf_counter() - t2:.2f}s, "
+            f"revised_len={len(draft)}",
+            flush=True,
+        )
+
+    print(f"[resume-tool] polish 总耗时 {time.perf_counter() - t_start:.2f}s", flush=True)
+    return {"revisedContent": draft, "changes": changes}
 
 
 # ---------- 外部 HTTP 访问（透传 JWT 走网关） ----------

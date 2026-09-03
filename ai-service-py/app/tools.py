@@ -203,7 +203,9 @@ async def polish_resume(
         3. 用户明确的修改指令、想保留或想强调的经历、目标岗位名称/方向等。
       汇总原则：宁多勿漏，前文提到过的修改方向都要带进来，但不要把无关闲聊塞入。若本条消息只是补材料、没有新的修改要求，
       把前文已有的建议汇总传入即可，不要因此再向用户反复追问。
-    注意：本工具会直接另存为一份新简历并返回变更摘要，不再询问是否开始润色/是否保存。
+      注意：本工具会直接另存为一份新简历并返回变更摘要，不再询问是否开始润色/是否保存。
+      本工具内部会做「生成 → 评审 → 修正」自检，自动剔除简历中用户只学过却未实际使用、却可能被写进项目的技术。
+      extra_info 只需如实汇总对话内容即可，无需额外逐条交代「哪些技术没用过」。
     """
     raw_extra = str(extra_info or "").strip()
     t0 = time.perf_counter()
@@ -243,7 +245,7 @@ async def polish_resume(
         print(f"[resume-tool] polish_resume 润色/保存失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
         return json.dumps({"error": f"润色简历失败: {e}"}, ensure_ascii=False)
 
-    # changes 现在是简短字符串列表（POLISH_SYSTEM 精简输出 schema 后的约定），
+    # changes 是简短字符串列表（resume_polish 三阶段润色的输出约定），
     # 兼容旧 dict 结构：{"reason": ...} 取 reason，字符串直接用。
     changes = result.get("changes") or []
     lines = ["已按你的要求完成润色，并另存为一份新简历（原简历保留）。主要变更："]
