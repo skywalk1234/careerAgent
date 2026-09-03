@@ -25,7 +25,9 @@ ANALYZE_SYSTEM = """你是"微光职引"求职平台的专业简历分析专家�
 - 只基于简历实际内容与（可选的）JD 分析，不虚构简历中不存在的经历。
 - analysis 控制在 300 字以内，分维度、可直接展示给用户。
 - 如需向用户追问（如目标岗位、具体项目细节），给出 1~3 个自然语言问题；无需追问则 questions 为空字符串。
-- 若提供了【相似简历历史点评参考】：结合其中专家的评判标准，判断当前简历是否存在同类问题与差距；参考仅供判断与表达借鉴，点评中提到的具体项目/经历/特性不得写入诊断，更不得当作当前简历内容。
+- 若提供了【相似简历历史点评参考】：该段中的「相似简历片段」属于**他人的历史简历**，其中的公司、项目、经历、技能、数字均与当前用户无关，只是点评对象；它既不是当前简历的一部分，也不得写入诊断。
+- 参考段仅用于提炼专家点评的**评判标准与改写思路**，判断当前简历是否存在同类问题；点评针对的缺陷若当前简历不具备，忽略该案例。
+- 输出前核对：analysis 中出现的公司/项目/经历/量化数字必须全部出自【用户简历】原文，参考段内容混入即视为输出错误。
 
 只输出 JSON：{"analysis": "完整分析文本", "questions": "追问或空字符串"}"""
 
@@ -111,19 +113,27 @@ def _format_job(job: dict) -> str:
 
 
 def _format_references(references: list) -> str:
-    """把检索到的相似简历样例整理成 few-shot 参考段（样例结构见 resume_example.retrieve_resume_examples）"""
-    lines = []
+    """把检索到的相似简历样例整理成 few-shot 参考段。
+
+    每个案例都显式标注为「他人简历 + 点评」并加分隔框隔离，首尾各放一句提醒，
+    防止分析专家把样例片段误当成当前用户简历内容（上下文污染）。
+    """
+    lines = ["以下为平台沉淀的「历史他人简历 + 专家点评」样例，均与当前用户无关，仅用于提炼评判标准：", ""]
     for i, ref in enumerate(references, 1):
         category = ref.get("jobCategory")
-        head = f"【历史案例 {i}】" + (f"（岗位方向：{category}）" if category else "")
-        lines.append(
-            f"{head}\n相似简历片段：\n{ref.get('resumeSnippet', '')}\n专家点评：\n{ref.get('comment', '')}"
-        )
+        head = f"案例 {i}" + (f"（岗位方向：{category}）" if category else "")
+        lines.append(f"━━━ {head} ━━━")
+        lines.append("[他人简历片段]（非当前用户）")
+        lines.append(ref.get("resumeSnippet", ""))
+        lines.append("[专家当时的点评]")
+        lines.append(ref.get("comment", ""))
+        lines.append("")
     lines.append(
-        "说明：以上点评仅作判断标准参考；点评针对的缺陷若当前简历不具备，请忽略该案例；"
-        "严禁把点评中提到的具体项目/经历/特性安插进当前简历。"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "以上案例中的片段与点评均属他人，不是当前用户的简历内容，仅供借鉴评判标准；\n"
+        "诊断必须只基于下方【用户简历】部分，不得混入以上任何案例内容。"
     )
-    return "\n\n".join(lines)
+    return "\n".join(lines)
 
 
 async def analyze(job: dict | None, resume: str, references: list | None = None) -> dict:
@@ -136,7 +146,7 @@ async def analyze(job: dict | None, resume: str, references: list | None = None)
         parts.append(f"【目标岗位 JD】\n{_format_job(job)}")
     if references:
         parts.append(f"【相似简历历史点评参考】\n{_format_references(references)}")
-    parts.append(f"【用户简历（markdown 原文）】\n{resume}")
+    parts.append(f"【用户简历（唯一事实来源，诊断只能基于此部分）】\n{resume}")
     parts.append("请按系统指令输出 JSON。")
     result = await _call_json_llm(ANALYZE_SYSTEM, "\n\n".join(parts))
     analysis = result.get("analysis")
