@@ -244,8 +244,42 @@ async def load_current_view(pool, user_id: int) -> list[dict]:
     ]
 
 
+async def load_timeline_view(pool, user_id: int, per_category: int = 3, categories=None) -> list[dict]:
+    """timeline-view 投影：跨核心类别取「近期轨迹」，供职业规划专家判断进步速度 / 卡点演变 / 目标漂移。
+
+    与 current-view（每类只留最新一条活跃）不同，本视图要的是「来路」，两点关键差异：
+    - **含被 supersede 的旧行**：旧进展（如更早的「刚开始学 Redis 集群」）正是轨迹的一部分，
+      不是需要跳过的噪音（对齐长期记忆方案 §3.3：被取代的旧行 timeline-view 可查）；
+    - **每类各取最近 per_category 条、类内按时间升序**返回，保留「刚开始 → 已学完」的演进顺序。
+
+    SQL：ROW_NUMBER() OVER (PARTITION BY category ORDER BY created_at DESC, id DESC) 做「每类 top-N」，
+    外层再按 (category, rn) 升序排回时间线。纯按 category + 时间轴，不需要向量。
+    """
+    if not categories:
+        categories = CORE_CATEGORIES
+    per = max(1, int(per_category))
+    sql = (
+        f"SELECT category, content, created_at FROM ("
+        f"  SELECT category, content, created_at, "
+        f"    ROW_NUMBER() OVER (PARTITION BY category ORDER BY created_at DESC, id DESC) AS rn "
+        f"  FROM {MEMORY_TABLE} "
+        f"  WHERE user_id = $1 AND category = ANY($2::text[])"
+        f") t WHERE rn <= $3 ORDER BY category ASC, rn ASC"
+    )
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(sql, user_id, list(categories), per)
+    return [
+        {
+            "category": r["category"],
+            "content": r["content"],
+            "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+        }
+        for r in rows
+    ]
+
+
 def format_core_rows(rows: list[dict]) -> str:
-    """把 current-view 行格式化成可注入 system 的文本块（无结果时调用方传 None 即可）"""
+    """把 current-view / timeline-view 行格式化成可注入的文本块（无结果时调用方传 None 即可）"""
     lines = []
     for r in rows:
         label = _CORE_LABELS.get(r["category"], r["category"])

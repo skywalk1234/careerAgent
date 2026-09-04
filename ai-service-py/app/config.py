@@ -73,5 +73,9 @@ class Settings(BaseSettings):
     # ---------- 简历润色 Reflection 参数（app/services/resume_polish.py）----------
     polish_max_refine_rounds: int = 1  # 「生成→评审→修正」循环中最多修正轮数（0=只生成不评审修正）
 
+    # ---------- 职业规划专家参数（app/services/plan.py，设计见 fc2026/职业规划专家方案.md）----------
+    plan_recent_messages: int = 8    # 补读本会话最近 N 条原文作「即时速览」（刚说完可能还没沉淀进记忆）
+    plan_timeline_rows: int = 12     # timeline-view 预算条数（≈ 均分到各核心类别取最近，含被取代的旧进展）
+
 
 settings = Settings()

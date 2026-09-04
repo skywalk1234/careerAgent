@@ -61,6 +61,9 @@ def _summarize_tool_result(result: str) -> str:
     if isinstance(data, dict):
         if data.get("error"):
             return f"工具返回错误：{str(data['error'])[:60]}"
+        if data.get("planId"):
+            title = str(data.get("title") or "").strip()
+            return f"已生成行动方案：{title[:30] or '（未命名）'}"
         if isinstance(data.get("episodes"), list):
             return f"已召回 {len(data['episodes'])} 条长期记忆"
         if data.get("analysis"):

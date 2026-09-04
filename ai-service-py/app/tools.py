@@ -7,7 +7,7 @@ from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
-from app.services import job_recommend, memory, resume_example, resume_polish
+from app.services import job_recommend, memory, plan, resume_example, resume_polish
 from app.services.embedding import embed_text, truncate_for_embedding
 
 
@@ -356,6 +356,56 @@ async def recall_memory(
     return json.dumps({"episodes": episodes, "query": q}, ensure_ascii=False, default=str)
 
 
+@tool
+async def create_career_plan(
+    target: Optional[str] = None,
+    profile_id: Optional[str] = None,
+    focus: Optional[str] = None,
+    token: Annotated[str, InjectedToolArg] = "",
+    session_id: Annotated[str, InjectedToolArg] = "",
+    user_id: Annotated[int, InjectedToolArg] = 0,
+    request: Annotated[Request, InjectedToolArg] = None,
+) -> str:
+    """生成一份「职业规划行动方案」并保存：结合学生简历画像、长期记忆（当前状态 + 近期成长轨迹）、目标岗位 JD，产出分阶段、带目标与检查点的行动方案，自动落库供「我的方案」回看，再次规划会覆盖旧的激活方案。
+
+    触发时机——用户需要**结合长期轨迹做中长期、分阶段安排**时调用（要**从整段对话综合判断主意图**，不只依据措辞）：
+    - 「给我做个规划 / 接下来几个月怎么安排 / 想朝 XX 岗位怎么一步步准备 / 秋招前时间怎么分配 / 最近感觉没方向，帮我理一理」；
+    - 上一轮分析（如 analyze_resume 诊断 / 岗位推荐）后用户表示「那就按这个给我排个计划」；
+    - 用户再次规划（执行一段时间后回来要新一版计划）：会直接产出新方案并归档旧版。
+    单个具体知识问题（如某语法怎么用、某岗位薪资）不需要规划，不要调用。
+    - target：目标岗位 / 方向（可选）。对话消息里带 `jobId:`/`jobID:` 前缀的岗位编号时填进去（可带前缀），
+      或用户明确的目标方向（如「Java 后端开发」「算法工程师」「考研还是就业想清楚了，冲后端」）。
+    - profile_id：用哪份简历（可选）。消息带 `profileId:` 前缀或用户指定了某份简历时填入（可去前缀只传纯ID）；
+      未指定则用最新一份简历。
+    - focus：可选约束（如「重点补算法」「秋招前要完成」「每阶段不超过两周」），没有则省略。
+    本工具内部自动取简历、长期记忆与 JD，一次生成方案并保存，无需主模型先取材料。
+    """
+    t0 = time.perf_counter()
+    print(
+        f"[plan-tool] create_career_plan 调用: user_id={user_id}, target={target!r}, "
+        f"profile_id={profile_id!r}, focus={focus!r}",
+        flush=True,
+    )
+    pool = getattr(request.app.state, "pg_pool", None) if request is not None else None
+    if pool is None:
+        print("[plan-tool] 向量库未连接，跳过长期记忆（仅凭简历+对话生成）", flush=True)
+    try:
+        result = await plan.create_plan(
+            user_id=user_id,
+            token=token,
+            session_id=session_id,
+            target=target,
+            profile_id=profile_id,
+            focus=focus,
+            pool=pool,
+        )
+        print(f"[plan-tool] create_career_plan 成功: {time.perf_counter() - t0:.2f}s, planId={result.get('planId')}", flush=True)
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except Exception as e:
+        print(f"[plan-tool] create_career_plan 失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
+        return json.dumps({"error": f"生成行动方案失败: {e}"}, ensure_ascii=False)
+
+
 # 所有可注册给模型的工具（新增工具只需追加到这里）
 ALL_TOOLS = [
     get_student_profile,
@@ -364,4 +414,5 @@ ALL_TOOLS = [
     analyze_resume,
     polish_resume,
     recall_memory,
+    create_career_plan,
 ]
