@@ -64,9 +64,11 @@ class Settings(BaseSettings):
     # 靠 metadata 的 jobCategory 过滤兜底，不纯靠相似度卡
     resume_example_threshold: float = 0.15
 
-    # ---------- 长期记忆抽取参数（app/services/memory.py）----------
+    # ---------- 长期记忆参数（app/services/memory.py）----------
     memory_max_transcript_messages: int = 5  # 每次抽取读会话最近 N 条消息（滑动窗口）
     memory_max_reference_episodes: int = 5   # 注入作去重/supersede 参照的活跃 episode 上限
+    memory_recall_top_k: int = 5             # recall_memory 语义召回条数
+    memory_recall_threshold: float = 0.2     # 语义相关阈值；命中不足时工具回退到最近活跃
 
     # ---------- 简历润色 Reflection 参数（app/services/resume_polish.py）----------
     polish_max_refine_rounds: int = 1  # 「生成→评审→修正」循环中最多修正轮数（0=只生成不评审修正）

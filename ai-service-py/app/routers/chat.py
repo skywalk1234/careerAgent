@@ -61,6 +61,8 @@ def _summarize_tool_result(result: str) -> str:
     if isinstance(data, dict):
         if data.get("error"):
             return f"工具返回错误：{str(data['error'])[:60]}"
+        if isinstance(data.get("episodes"), list):
+            return f"已召回 {len(data['episodes'])} 条长期记忆"
         if data.get("analysis"):
             return f"已生成简历分析（{str(data['analysis'])[:30]}...）"
         if data.get("success"):
@@ -219,7 +221,21 @@ async def stream_message(
         raise HTTPException(status_code=404, detail="消息不存在")
 
     history = [m for m in await chat_service.list_messages(db, session_id) if m.message_id != message_id]
-    messages = chat_service.build_llm_messages(history, user_msg.content)
+
+    # 长期记忆 · 常驻核心（current-view）：每轮建 prompt 时取最新活跃集，注入 system 分区。
+    # 取数放在流式建 prompt 这一刻（而非发送时刻），让上一轮异步抽取完成的记忆能赶上下一条回复。
+    # 注入失败 / 无向量库连接均跳过，不影响主链路。
+    memory_block: str | None = None
+    try:
+        pg_pool = getattr(request.app.state, "pg_pool", None)
+        if pg_pool is not None:
+            core_rows = await memory.load_current_view(pg_pool, user_id)
+            if core_rows:
+                memory_block = memory.format_core_rows(core_rows)
+    except Exception as e:
+        print(f"[memory] 核心记忆注入失败(忽略): {e}", flush=True)
+
+    messages = chat_service.build_llm_messages(history, user_msg.content, memory_block=memory_block)
 
     # 绑定工具后的模型实例 + 工具查找表
     llm_with_tools = get_llm_with_tools(ALL_TOOLS)

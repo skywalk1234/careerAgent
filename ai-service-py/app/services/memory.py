@@ -204,3 +204,90 @@ async def extract_session_memory_async(user_id: int, session_id: str, pool) -> N
         print(f"[memory] 抽取 LLM 超时（>{_LLM_TIMEOUT}s）user={user_id}, session={session_id}", flush=True)
     except Exception as e:
         print(f"[memory] 抽取失败(忽略): {e}", flush=True)
+
+
+# ===================== 读侧：常驻核心 + 按需召回 =====================
+
+# 常驻核心注入只取这几类「信号类别」，general 噪声不无脑注入
+CORE_CATEGORIES = ("learning_progress", "project", "goal", "self_assessment")
+
+_CORE_LABELS = {
+    "goal": "目标",
+    "learning_progress": "学习进展",
+    "project": "项目进展",
+    "self_assessment": "自评/短板",
+    "general": "其他",
+}
+
+
+async def load_current_view(pool, user_id: int) -> list[dict]:
+    """current-view 投影：核心信号类别各取最新一条活跃 episode（供注入 system）。
+
+    DISTINCT ON (category) + ORDER BY category, created_at DESC 正好走 idx_mem_user_cat_time。
+    已知取舍：同一类别下若有多条活跃事实（如同时「在学 Redis」「在学 Kafka」），
+    只保留最新一条，其余靠 recall_memory 工具按需召回。
+    """
+    sql = (
+        f"SELECT DISTINCT ON (category) category, content, created_at FROM {MEMORY_TABLE} "
+        "WHERE user_id = $1 AND superseded_by_id IS NULL AND category = ANY($2::text[]) "
+        "ORDER BY category, created_at DESC"
+    )
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(sql, user_id, list(CORE_CATEGORIES))
+    return [
+        {
+            "category": r["category"],
+            "content": r["content"],
+            "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+        }
+        for r in rows
+    ]
+
+
+def format_core_rows(rows: list[dict]) -> str:
+    """把 current-view 行格式化成可注入 system 的文本块（无结果时调用方传 None 即可）"""
+    lines = []
+    for r in rows:
+        label = _CORE_LABELS.get(r["category"], r["category"])
+        created = str(r.get("created_at") or "")[:10]  # 只要日期
+        date = f"（{created}）" if created else ""
+        lines.append(f"- {label}{date}：{r['content']}")
+    return "\n".join(lines)
+
+
+async def load_recent_active(pool, user_id: int, limit: int) -> list[dict]:
+    """取该用户最近 N 条活跃 episode（recall_memory 语义无命中时的按时间回退）"""
+    return await _load_active_episodes(pool, user_id, limit)
+
+
+async def search_episodes(
+    pool,
+    user_id: int,
+    query_embedding: list[float],
+    top_k: int,
+    threshold: float,
+) -> list[dict]:
+    """语义召回该用户活跃 episodes（视图 C / recall_memory 工具用）。
+
+    cosine 相似度，与 vector_store.similarity_search 同款语义，但强制 user_id 隔离
+    且跳过被取代行（superseded_by_id IS NULL），不能直接复用不带用户过滤的现有函数。
+    """
+    sql = (
+        f"SELECT category, content, created_at, "
+        "1 - (embedding <=> $2::vector) AS similarity "
+        f"FROM {MEMORY_TABLE} "
+        "WHERE user_id = $1 AND superseded_by_id IS NULL AND embedding IS NOT NULL "
+        "AND 1 - (embedding <=> $2::vector) >= $3 "
+        "ORDER BY embedding <=> $2::vector LIMIT $4"
+    )
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(sql, user_id, query_embedding, threshold, top_k)
+    return [
+        {
+            "category": r["category"],
+            "content": r["content"],
+            "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+            "similarity": round(r["similarity"], 3),
+        }
+        for r in rows
+    ]

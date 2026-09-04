@@ -7,7 +7,8 @@ from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
-from app.services import job_recommend, resume_example, resume_polish
+from app.services import job_recommend, memory, resume_example, resume_polish
+from app.services.embedding import embed_text, truncate_for_embedding
 
 
 def _strip_prefix(raw: str) -> str:
@@ -306,5 +307,61 @@ async def recommend_specific_jobs(
     return await job_recommend.recommend_specific_job(pool, query_text)
 
 
+@tool
+async def recall_memory(
+    query: str,
+    user_id: Annotated[int, InjectedToolArg],
+    request: Annotated[Request, InjectedToolArg] = None,
+) -> str:
+    """检索该学生沉淀的长期记忆（学习进展/项目进展/目标/自评短板等，跨会话保存）。
+
+    长期记忆用于回答「需要回顾用户历史/跨会话信息」的问题。典型调用时机：
+    - 用户问及过去做过/说过的事，且本会话对话历史中已找不到（如「上次你说在做 xx，进展如何」、
+      「我之前提到过哪些和数据库/存储相关的」、「我之前定过什么目标」）；
+    - 当前对话语境不足，需要结合用户的长期学习轨迹/目标来给出贴合的判断或规划。
+    query：一句话描述想回顾的内容（用什么措辞都可以，内部做语义检索）。
+    检索会命中「最相关的若干条记忆」；若语义无命中，回退返回最近沉淀的几条。
+    """
+    t0 = time.perf_counter()
+    q = str(query or "").strip()
+    if not q:
+        return json.dumps({"error": "缺少检索内容，请描述想回顾什么后重试"}, ensure_ascii=False)
+    pool = getattr(request.app.state, "pg_pool", None) if request is not None else None
+    if pool is None:
+        return json.dumps({"error": "长期记忆服务暂不可用（向量库未连接）"}, ensure_ascii=False)
+    print(f"[memory-tool] recall_memory 调用: user_id={user_id}, query={q[:50]!r}", flush=True)
+
+    try:
+        embedding = await embed_text(truncate_for_embedding(q))
+        episodes = await memory.search_episodes(
+            pool,
+            user_id,
+            embedding,
+            settings.memory_recall_top_k,
+            settings.memory_recall_threshold,
+        )
+    except Exception as e:
+        print(f"[memory-tool] recall_memory 语义检索失败(忽略): {e}", flush=True)
+        episodes = []
+
+    if not episodes:
+        # 语义无命中（如泛化的「上次我们聊到哪」）：按时间回退最近活跃，避免空手而归
+        try:
+            episodes = await memory.load_recent_active(pool, user_id, settings.memory_recall_top_k)
+        except Exception as e:
+            print(f"[memory-tool] recall_memory 回退检索失败(忽略): {e}", flush=True)
+            episodes = []
+
+    print(f"[memory-tool] recall_memory 完成: {time.perf_counter() - t0:.2f}s, 命中 {len(episodes)} 条", flush=True)
+    return json.dumps({"episodes": episodes, "query": q}, ensure_ascii=False, default=str)
+
+
 # 所有可注册给模型的工具（新增工具只需追加到这里）
-ALL_TOOLS = [get_student_profile, recommend_specific_jobs, query_job_detail, analyze_resume, polish_resume]
+ALL_TOOLS = [
+    get_student_profile,
+    recommend_specific_jobs,
+    query_job_detail,
+    analyze_resume,
+    polish_resume,
+    recall_memory,
+]

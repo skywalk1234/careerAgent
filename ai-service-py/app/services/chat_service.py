@@ -89,18 +89,30 @@ async def save_assistant_message(db: AsyncSession, session_id: str, content: str
     return msg.message_id
 
 
-def build_llm_messages(history: list[ChatMessage], current_content: str) -> list[dict]:
-    """构造发给 LLM 的上下文：system + 历史对话 + 当前用户消息"""
-    messages: list[dict] = [
-        {
-            "role": "system",
-            "content": (
-                "你是微光职引智能求职系统中的求职助手。\n"
-                "1. 回答必须基于工具返回的真实数据，逐条给出具体、可执行的分析与建议；\n"
-                "2. 如果工具返回错误或没有获取到数据（例如认证失败、暂无简历画像），要如实告知用户原因，严禁编造分析结论或谎称已完成分析。"
-            ),
-        }
-    ]
+def build_llm_messages(
+    history: list[ChatMessage],
+    current_content: str,
+    memory_block: str | None = None,
+) -> list[dict]:
+    """构造发给 LLM 的上下文：system + 长期记忆分区 + 历史对话 + 当前用户消息
+
+    memory_block：该用户 current-view 的格式化文本（见 memory.load_current_view /
+    format_core_rows）。以独立分区注入，避免模型把它当作对话内容；并明确其只是背景，
+    涉及简历/岗位等事实仍须以工具返回的真实数据为准。
+    """
+    system_content = (
+        "你是微光职引智能求职系统中的求职助手。\n"
+        "1. 回答必须基于工具返回的真实数据，逐条给出具体、可执行的分析与建议；\n"
+        "2. 如果工具返回错误或没有获取到数据（例如认证失败、暂无简历画像），要如实告知用户原因，严禁编造分析结论或谎称已完成分析。"
+    )
+    if memory_block:
+        system_content += (
+            "\n\n以下是你对该用户的【长期记忆】（学习进展/项目/目标/自评），用于理解其当前状况"
+            "与成长背景；它只作背景参考，涉及简历/岗位等事实仍以工具返回的真实数据为准：\n"
+            + memory_block
+        )
+
+    messages: list[dict] = [{"role": "system", "content": system_content}]
     for m in history:
         if m.role in ("user", "assistant"):
             messages.append({"role": m.role, "content": m.content})
