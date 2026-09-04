@@ -191,9 +191,9 @@ const staticModules = [
   },
   {
     key: 'careerReport',
-    title: '生涯报告',
+    title: '计划与行动方案',
     route: '/report',
-    desc: '整合关键分析结论，润色导出计划报告',
+    desc: '回看 AI 职业规划专家生成的分阶段行动方案',
   },
 ]
 
@@ -237,7 +237,7 @@ const metricCardRouteMap: Record<string, string> = {
 const metricCardTitleMap: Record<string, string> = {
   usersServed: '前往能力评估',
   pathsGenerated: '前往职业规划',
-  reportsCompleted: '前往生涯报告',
+  reportsCompleted: '前往计划与行动方案',
   helpMatched: '前往职业规划',
 }
 

@@ -39,7 +39,7 @@ const navItems = [
   { to: '/jobs', label: '岗位探索', icon: Collection },
   { to: '/student', label: '能力评估', icon: UserFilled },
   { to: '/match', label: '职业规划', icon: DataAnalysis },
-  { to: '/report', label: '生涯报告', icon: Document },
+  { to: '/report', label: '计划与行动方案', icon: Document },
 ]
 
 watch(() => route.path, () => {
