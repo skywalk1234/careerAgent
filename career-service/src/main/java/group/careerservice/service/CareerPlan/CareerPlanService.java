@@ -76,4 +76,83 @@ public class CareerPlanService {
         wrapper.eq("id", planId).eq("user_id", userId);
         return careerPlanMapper.selectOne(wrapper);
     }
+
+    /**
+     * 修改方案正文（markdown 全文）；仅归属当前用户可改，未命中返回 null。
+     * title 同步取正文首个 markdown 标题（# 级标题的第一行），保证编辑后列表标题与正文一致；
+     * 若正文没有标题则保留原标题。
+     */
+    public CareerPlan updateContent(Long userId, Long planId, String content) {
+        CareerPlan plan = getDetail(userId, planId);
+        if (plan == null) {
+            return null;
+        }
+
+        CareerPlan patch = new CareerPlan();
+        patch.setId(planId);
+        patch.setContent(content);
+        String newTitle = extractTitleFromContent(content);
+        if (newTitle != null) {
+            patch.setTitle(newTitle);
+            plan.setTitle(newTitle);
+        }
+        careerPlanMapper.updateById(patch);
+
+        plan.setContent(content);
+        log.info("修改行动方案成功 userId={}, planId={}", userId, planId);
+        return plan;
+    }
+
+    /**
+     * 删除方案（物理删除）；仅归属当前用户可删，未命中返回 false。
+     * 若删除的是当前 active，则把该用户剩余最新一条 archived 提升为 active，
+     * 维持「同 user 最新一条 active = 当前方案」不变式；历史链 supersedes_plan_id 不做清理（仅溯源用）。
+     */
+    @Transactional
+    public boolean deletePlan(Long userId, Long planId) {
+        CareerPlan plan = getDetail(userId, planId);
+        if (plan == null) {
+            return false;
+        }
+        boolean wasActive = "active".equals(plan.getStatus());
+
+        careerPlanMapper.deleteById(planId);
+
+        if (wasActive) {
+            QueryWrapper<CareerPlan> wrapper = new QueryWrapper<>();
+            wrapper.eq("user_id", userId)
+                    .eq("status", "archived")
+                    .orderByDesc("created_at")
+                    .orderByDesc("id")
+                    .last("LIMIT 1");
+            CareerPlan latestArchived = careerPlanMapper.selectOne(wrapper);
+            if (latestArchived != null) {
+                CareerPlan patch = new CareerPlan();
+                patch.setId(latestArchived.getId());
+                patch.setStatus("active");
+                careerPlanMapper.updateById(patch);
+                log.info("删除当前方案后，方案 planId={} 提升为 active", latestArchived.getId());
+            }
+        }
+
+        log.info("删除行动方案成功 userId={}, planId={}", userId, planId);
+        return true;
+    }
+
+    /** 取 markdown 正文首个标题行（如 "## 目标" → "目标"）；无标题返回 null */
+    private String extractTitleFromContent(String content) {
+        if (content == null) {
+            return null;
+        }
+        for (String rawLine : content.split("\n")) {
+            String line = rawLine == null ? "" : rawLine.trim();
+            if (line.startsWith("#")) {
+                String title = line.replaceFirst("^#{1,6}\\s*", "").trim();
+                if (!title.isEmpty()) {
+                    return title.length() <= 200 ? title : title.substring(0, 200);
+                }
+            }
+        }
+        return null;
+    }
 }
