@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     # ---------- 职业规划专家参数（app/services/plan.py，设计见 fc2026/职业规划专家方案.md）----------
     plan_recent_messages: int = 8    # 补读本会话最近 N 条原文作「即时速览」（刚说完可能还没沉淀进记忆）
     plan_timeline_rows: int = 12     # timeline-view 预算条数（≈ 均分到各核心类别取最近，含被取代的旧进展）
+    plan_recall_queries: int = 3     # 「先思考」阶段最多产出多少条召回主题（信息缺口分析）
+    plan_recall_top_k: int = 3       # 每条召回主题取回多少条补充记忆（去重后并入，总量≈queries×topk）
 
 
 settings = Settings()

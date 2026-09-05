@@ -3,7 +3,9 @@
 设计见 fc2026/职业规划专家方案.md：与 analyze/polish 同款——同步、一次性、结构化 I/O，
 由主 LLM 编排（无服务端状态机）：
   取数（简历 + 长期记忆 current/timeline-view + 可选目标岗位 JD + 本会话最近几条原文）
-  → 单次 LLM 生成方案 JSON（一遍过，无 REVIEW/REFINE 评审修正，红线写进生成 prompt）
+  →「先思考」信息缺口分析（轻量 LLM：从已取信息判断还想深挖用户哪些主题）
+  → 语义召回补证据（memory.search_episodes，命中后去重并入）
+  → 单次 LLM 生成方案 JSON（方案本身一遍过，无 REVIEW/REFINE 评审修正，红线写进生成 prompt）
   → 渲染成整份 content markdown
   → 经网关 POST /users/me/plans 落库（career-service，user_career_plans 表，透传 JWT）
   → 返回 {planId, title, goal, summary, markdown}
@@ -23,6 +25,7 @@ from app.config import settings
 from app.database import async_session
 from app.models import ChatMessage
 from app.services import memory, resume_polish
+from app.services.embedding import embed_text, truncate_for_embedding
 from app.services.llm import get_json_llm
 
 # 落库接口（career-service）：CareerPlanController，经网关 career-user 路由（order 3）已覆盖
@@ -30,6 +33,8 @@ _PLANS_URL = "/users/me/plans"
 
 # 单次生成 LLM 硬超时。get_json_llm 本身 timeout=150，这里再加 wait_for 兜底（对齐 memory/resume_polish 做法）
 _LLM_TIMEOUT = 150
+# 「先思考」信息缺口分析是轻量前置步骤，超时给短些，避免拖长整次规划
+_THINK_TIMEOUT = 60
 
 # 目标岗位 id 可能在 target 里以 jobId:xxx / jobID：xxx / job_id:xxx 形式出现，从里抽出纯 id
 _JOB_ID_RE = re.compile(r"(?:jobId|jobID|job_id)\s*[:：]\s*([A-Za-z0-9_\-]+)", re.I)
@@ -42,6 +47,7 @@ PLAN_SYSTEM = """你是一名资深「大学生求职 / 职业规划顾问」，
 - 【长期记忆 · 近期轨迹】：同一维度随时间的变化（可能含已被更新的旧进展，如更早有「刚开始学X」、后来「已学完X」），用于判断进步速度、卡点演变、目标是否漂移。
 - 【目标岗位 JD】（可选）：用户想投的方向，用于反推差距与动作优先级。
 - 【本会话最近消息】（可选、低优先）：用户刚说完可能还没沉淀进记忆，仅作即时参考，不得当权威事实。
+- 【补充召回 · 语义检索】（可选）：按本次判断的主题从用户长期记忆里补回的细节，用来填上面窗口没覆盖到的主题；优先级低于简历与上方两条明确视图，若与上方冲突以上方为准。
 - 【用户本次诉求】（可选）：用户明确给的方向或约束。
 
 【生成要求】
@@ -66,6 +72,19 @@ PLAN_SYSTEM = """你是一名资深「大学生求职 / 职业规划顾问」，
   "summary": "一句可读摘要（供前端 trace 展示）",
   "notice": "给用户的说明（可选，如缺简历/缺记忆时提醒补什么）"
 }"""
+
+
+# 「先思考」阶段：在生成方案前，从已取到的记忆概览里判断还想深挖哪些用户主题。
+# 召回对象是长期记忆本身（pgvector user_episodic_memory），不是简历/JD——后两者已直接提供。
+RECALL_PLAN_SYSTEM = """你是职业规划专家生成方案的「前置信息缺口分析」。你会拿到用户这次已取到的长期记忆概览（当前状态 + 近期轨迹）与本次规划诉求。请判断：为产出一份靠谱的分阶段行动方案，还值得**对用户长期记忆里的哪些主题做一次语义召回**来补细节。
+
+规则：
+1. 只针对「长期记忆」里可能存在的用户情况出主题；简历硬技能、岗位 JD 已直接提供，不在召回范围。
+2. 只在现有材料说得太含糊、或明显与规划方向相关却信息不足时才出主题；已很清楚的方向不要重复挖；没有明显缺口就返回空数组 queries。
+3. 每条 query 用一句自然的陈述描述想挖的主题（如「用户近期在纠结考研还是就业的最新想法」「和 Java 后端目标相关的项目进展细节」），中性表述、不预设结论、不要用问句。
+4. 最多 {n} 条，宁缺毋滥。
+
+只输出 JSON：{{"queries": ["主题1", "主题2"], "reason": "为什么挖这些（一句，可为空字符串）"}}"""
 
 
 # ---------- LLM 调用 ----------
@@ -184,9 +203,95 @@ async def _load_memory_rows(pool, user_id: int) -> tuple[list[dict], list[dict]]
     return cur_rows, tl_rows
 
 
+async def _decide_recall_queries(cur_rows, tl_rows, target_text, focus_text) -> list[str]:
+    """「先思考」：基于已取到的记忆概览判断「还想进一步了解用户哪些主题」→ 召回 query 列表。
+
+    独立轻量 LLM 调用（RECALL_PLAN_SYSTEM，关闭思考模式、结构化 JSON）。
+    任何失败 / 无缺口返回空列表，由调用方降级处理，不阻塞方案生成。
+    """
+    parts = []
+    parts.append(
+        "【长期记忆 · 当前状态】\n" + (memory.format_core_rows(cur_rows) if cur_rows else "（暂无）")
+    )
+    tl_block = memory.format_core_rows(tl_rows) if tl_rows else ""
+    if tl_block:
+        parts.append("【长期记忆 · 近期轨迹】\n" + tl_block)
+    intent = []
+    if target_text:
+        intent.append(f"目标 / 方向：{target_text}")
+    if focus_text:
+        intent.append(f"侧重 / 约束：{focus_text}")
+    if intent:
+        parts.append(f"【本次规划诉求】\n{'；'.join(intent)}")
+    parts.append("请按系统指令只输出 JSON。")
+
+    messages = [
+        {"role": "system", "content": RECALL_PLAN_SYSTEM.format(n=settings.plan_recall_queries)},
+        {"role": "user", "content": "\n\n".join(parts)},
+    ]
+    t0 = time.perf_counter()
+    resp = await asyncio.wait_for(get_json_llm().ainvoke(messages), timeout=_THINK_TIMEOUT)
+    content = resp.content
+    if isinstance(content, list):  # 防御：个别 provider 返回 block 列表
+        content = "".join(b.get("text", "") for b in content if isinstance(b, dict))
+    result = _extract_json(content or "")
+    queries = [str(q).strip() for q in (result.get("queries") or []) if str(q).strip()]
+    print(
+        f"[plan] 信息缺口分析完成({time.perf_counter() - t0:.2f}s): 召回主题 {queries}",
+        flush=True,
+    )
+    return queries[: max(1, int(settings.plan_recall_queries))]
+
+
+async def _recall_supplement(pool, user_id: int, cur_rows, tl_rows, target_text, focus_text) -> list[dict]:
+    """前置补证据：先思考缺什么 → 对每条主题做一次语义召回 → 去重后返回补充行。
+
+    - 召回走 memory.search_episodes（只命中该用户未被取代的活跃记忆），**不是**模型工具 loop；
+    - 与已见的 current/timeline 行按 content 去重，避免同一事实重复灌；
+    - 任何一步失败 / 池不可用 / 无记忆概览都降级为空列表，绝不阻塞方案生成。
+    """
+    if pool is None or (not cur_rows and not tl_rows):
+        return []  # 连记忆概览都没有，语义召回也没有可挖的锚点
+    try:
+        queries = await _decide_recall_queries(cur_rows, tl_rows, target_text, focus_text)
+    except Exception as e:
+        print(f"[plan] 信息缺口分析失败(跳过召回): {e}", flush=True)
+        return []
+    if not queries:
+        return []
+
+    known = {str(r.get("content") or "").strip() for r in list(cur_rows) + list(tl_rows)}
+    rows: list[dict] = []
+
+    async def _one(query: str) -> list[dict]:
+        emb = await embed_text(truncate_for_embedding(query))
+        return await memory.search_episodes(
+            pool, user_id, emb, settings.plan_recall_top_k, settings.memory_recall_threshold
+        )
+
+    try:
+        results = await asyncio.gather(*[_one(q) for q in queries])
+        for res in results:
+            for r in res:
+                content = str(r.get("content") or "").strip()
+                if not content or content in known:
+                    continue
+                known.add(content)
+                rows.append(r)
+        rows.sort(key=lambda r: r.get("similarity") or 0, reverse=True)
+        rows = rows[: settings.plan_recall_queries * settings.plan_recall_top_k]
+    except Exception as e:
+        print(f"[plan] 补充召回失败(降级为空): {e}", flush=True)
+        return []
+    print(f"[plan] 补充召回完成: 新增 {len(rows)} 条，将并入生成素材", flush=True)
+    return rows
+
+
 # ---------- 生成 → 渲染 → 落库 ----------
 
-def _build_prompt(resume: str, cur_rows, tl_rows, job, recent, target_text, focus) -> str:
+def _build_prompt(
+    resume: str, cur_rows, tl_rows, job, recent, target_text, focus, recall_rows=None
+) -> str:
     """把取到的素材按固定分区拼给生成 LLM，分区标签即事实源边界，防止素材互相污染"""
     parts = []
     if job:
@@ -196,6 +301,12 @@ def _build_prompt(resume: str, cur_rows, tl_rows, job, recent, target_text, focu
     tl_block = memory.format_core_rows(tl_rows) if tl_rows else ""
     if tl_block:
         parts.append(f"【长期记忆 · 近期轨迹（含可能已被更新的旧进展，看进步速度/卡点演变）】\n{tl_block}")
+    recall_block = memory.format_core_rows(recall_rows) if recall_rows else ""
+    if recall_block:
+        parts.append(
+            "【补充召回 · 语义检索（按相似度从长期记忆补回，可能主题漂移或时间稍旧，"
+            "仅作补充证据、勿据此过度推断）】\n" + recall_block
+        )
     if recent:
         lines = [f"{'用户' if m['role'] == 'user' else '助手'}: {m['content']}" for m in recent]
         parts.append("【本会话最近消息（低优先，可能未沉淀进记忆，仅作即时参考）】\n" + "\n\n".join(lines))
@@ -323,9 +434,15 @@ async def create_plan(
     if not resume_text and not cur_rows and not tl_rows:
         raise ValueError("还缺少简历画像与长期记忆，暂时无法生成靠谱的行动方案；请先完善简历或先聊一聊你的近况")
 
+    # 「先思考」→ 语义召回补证据：判断还想深挖的用户主题，从长期记忆召回细节并入生成素材
+    recall_rows = await _recall_supplement(pool, user_id, cur_rows, tl_rows, target_text, focus_text)
+
     # 单次生成（一遍过，无 REVIEW/REFINE）
     raw = await _call_plan_llm(
-        _build_prompt(resume_text, cur_rows, tl_rows, job, recent_msgs, target_text, focus_text)
+        _build_prompt(
+            resume_text, cur_rows, tl_rows, job, recent_msgs, target_text, focus_text,
+            recall_rows=recall_rows,
+        )
     )
 
     # 关键字段校验：缺 phases 说明生成质量不合格，直接失败不落库
