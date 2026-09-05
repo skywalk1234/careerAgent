@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, EditPen, Plus, Refresh, Upload } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
+import { htmlToMarkdown } from '../utils/htmlToMarkdown'
 import {
   createParseProfileJob,
   getStudentProfile,
@@ -44,6 +45,10 @@ const resumeList = ref<ResumeListItem[]>([])
 const activeResumeId = ref('')
 let isPageActive = true
 const fileInputRef = ref<HTMLInputElement>()
+// WYSIWYG 编辑（直接在渲染后的 markdown 上改）：resumeEditorRef 为 contenteditable，
+// resumeEditorDirty 标记是否真正输入过，避免“进入编辑未改动”被误判为有未保存修改
+const resumeEditorRef = ref<HTMLElement | null>(null)
+const resumeEditorDirty = ref(false)
 
 const profile = reactive<ProfileFormData>(createDefaultProfile())
 
@@ -55,6 +60,8 @@ markdownRenderer.renderer.rules.table_close = () => '</table></div>'
 const resumeHtml = computed(() => DOMPurify.sanitize(markdownRenderer.render(profile.content || '')))
 
 const hasUnsavedChanges = computed(() => {
+  // 编辑态：以编辑器是否真正输入过为准（未输入过时，HTML→markdown 归一化差异不算改动）
+  if (isEditing.value) return resumeEditorDirty.value
   return JSON.stringify(normalizeProfile(profile)) !== savedSnapshot.value
 })
 
@@ -326,6 +333,7 @@ async function selectResume(item: ResumeListItem) {
   }
   applyProfileContent(item)
   isEditing.value = false
+  resumeEditorDirty.value = false
 }
 
 async function createNewResume() {
@@ -343,7 +351,7 @@ async function createNewResume() {
   const blank: ResumeListItem = { profileId: genResumeId(), title: '未命名简历', content: '' }
   resumeList.value = [...resumeList.value, blank]
   applyProfileContent(blank)
-  isEditing.value = true
+  enterEditing()
 }
 
 // 保存成功后，用当前 profile 的内容刷新对应列表项的标题/内容
@@ -416,6 +424,7 @@ async function loadProfile() {
     const payload = await appStore.ensureProfileSnapshot(true)
     updatedAt.value = payload?.updatedAt ?? ''
     isEditing.value = false
+    resumeEditorDirty.value = false
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
   } catch {
     ElMessage.error('获取学生画像失败')
@@ -448,6 +457,7 @@ async function saveProfile() {
     }
     updatedAt.value = payload?.updatedAt ?? ''
     isEditing.value = false
+    resumeEditorDirty.value = false
     refreshResumeListTab()
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
 
@@ -471,15 +481,64 @@ async function saveProfile() {
   }
 }
 
+// ---------- WYSIWYG 修改模式（直接在渲染后的 markdown 上编辑） ----------
+/** 进入修改模式：把渲染后的简历 HTML 灌进 contenteditable，用户直接改成品效果 */
+function enterEditing() {
+  isEditing.value = true
+  resumeEditorDirty.value = false
+  nextTick(() => {
+    const el = resumeEditorRef.value
+    if (!el) return
+    el.innerHTML = DOMPurify.sanitize(markdownRenderer.render(profile.content || ''))
+    el.focus()
+    // 光标放到末尾，方便直接续写
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  })
+}
+
+/** 编辑区每次 input：标记已改动，并把当前 HTML 转回 markdown 同步到 profile.content（供变更判断/保存） */
+function onEditorInput() {
+  resumeEditorDirty.value = true
+  const el = resumeEditorRef.value
+  if (el) profile.content = htmlToMarkdown(el.innerHTML).trim()
+}
+
+/** 保存前：取编辑器最新 HTML，清洗后转回 markdown 覆盖 content（正文以 markdown 落库） */
+function flushEditorContent() {
+  const el = resumeEditorRef.value
+  if (el) profile.content = htmlToMarkdown(DOMPurify.sanitize(el.innerHTML)).trim()
+}
+
+/** 工具栏命令：先聚焦编辑区再执行，避免点击工具栏把焦点/选区弄丢 */
+function runResumeExecCommand(command: string, value?: string) {
+  resumeEditorRef.value?.focus()
+  document.execCommand(command, false, value || undefined)
+}
+
 async function handlePrimaryAction() {
   if (!isEditing.value) {
-    isEditing.value = true
+    enterEditing()
     return
   }
 
+  // 没真正输入过：直接退出，不做 HTML→markdown 回写（避免归一化差异污染 content）
   if (!hasUnsavedChanges.value) {
+    resumeEditorDirty.value = false
     isEditing.value = false
     ElMessage.info('未检测到内容变更，已取消编辑')
+    return
+  }
+
+  // 编辑内容(HTML) → markdown，供保存使用
+  flushEditorContent()
+
+  if (!profile.content?.trim()) {
+    ElMessage.warning('请填写简历内容')
     return
   }
 
@@ -495,6 +554,7 @@ function cancelEditing() {
   }
   replaceProfileData(fallback)
   isEditing.value = false
+  resumeEditorDirty.value = false
   ElMessage.info('已取消编辑并恢复到上次保存内容')
 }
 
@@ -548,6 +608,7 @@ async function handleRefreshData() {
     const snapshot = await appStore.ensureProfileSnapshot(true)
     updatedAt.value = snapshot?.updatedAt ?? ''
     isEditing.value = false
+    resumeEditorDirty.value = false
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
     ElMessage.success('已刷新简历数据')
   } catch {
@@ -628,16 +689,36 @@ onBeforeUnmount(() => {
             </div>
           </header>
 
-          <el-input
-            v-if="isEditing"
-            v-model="profile.content"
-            type="textarea"
-            :rows="20"
-            class="resume-editor"
-            placeholder="请输入简历内容（支持 Markdown 语法）"
-          />
+          <div v-if="isEditing">
+            <div class="mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 select-none">
+              <button type="button" class="resume-tool-btn font-semibold" @mousedown.prevent="runResumeExecCommand('bold')">加粗</button>
+              <button type="button" class="resume-tool-btn italic" @mousedown.prevent="runResumeExecCommand('italic')">斜体</button>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('strikeThrough')">删除线</button>
+              <span class="mx-1 h-4 w-px bg-slate-200"></span>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('formatBlock', 'h2')">标题2</button>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('formatBlock', 'h3')">标题3</button>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('formatBlock', 'p')">正文</button>
+              <span class="mx-1 h-4 w-px bg-slate-200"></span>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('insertUnorderedList')">无序列表</button>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('insertOrderedList')">有序列表</button>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('formatBlock', 'blockquote')">引用</button>
+              <span class="mx-1 h-4 w-px bg-slate-200"></span>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('undo')">撤销</button>
+              <button type="button" class="resume-tool-btn" @mousedown.prevent="runResumeExecCommand('redo')">重做</button>
+            </div>
+
+            <div
+              ref="resumeEditorRef"
+              class="resume-editor-content resume-markdown"
+              contenteditable="true"
+              spellcheck="false"
+              data-placeholder="点此开始输入简历正文…"
+              @input="onEditorInput"
+            ></div>
+            <p class="mt-2 text-xs text-slate-400">直接在简历渲染效果上修改；保存后按 Markdown 排版存入并重新分析，请尽量保留标题层级与列表结构。</p>
+          </div>
           <div v-else-if="profile.content" class="resume-markdown" v-html="resumeHtml"></div>
-          <el-empty v-else description="还没有简历，点「手动编辑」用 Markdown 填写，或上传简历自动解析" :image-size="80" />
+          <el-empty v-else description="还没有简历，点「手动编辑」直接填写，或上传简历自动解析" :image-size="80" />
         </div>
       </el-card>
 
@@ -845,11 +926,6 @@ onBeforeUnmount(() => {
   text-decoration: underline;
 }
 
-.resume-editor {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  line-height: 1.7;
-}
-
 .resume-list-scroll {
   max-height: calc(100vh - 220px);
   overflow-y: auto;
@@ -859,5 +935,52 @@ onBeforeUnmount(() => {
 
 .resume-list-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* ---- WYSIWYG 编辑区（复用 .resume-markdown 的排版，以下为其补充样式） ---- */
+.resume-editor-content {
+  min-height: 320px;
+  padding: 8px 12px;
+  border: 1px dashed #93c5fd;
+  border-radius: 10px;
+  background: #fff;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.resume-editor-content:focus {
+  border-color: #3b82f6;
+  border-style: solid;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.resume-editor-content:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* 编辑态段落给一点呼吸感（预览态 .resume-markdown 的 p 是 margin:0，这里覆盖。
+   注意必须写在 .resume-markdown :deep(p) 规则之后才能覆盖到） */
+.resume-editor-content :deep(p) {
+  margin: 0.25em 0;
+}
+
+.resume-tool-btn {
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #334155;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+.resume-tool-btn:hover {
+  background-color: #e2e8f0;
+}
+
+.resume-tool-btn:active {
+  background-color: #cbd5e1;
 }
 </style>
