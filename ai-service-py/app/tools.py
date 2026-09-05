@@ -7,7 +7,7 @@ from fastapi import Request
 from langchain_core.tools import InjectedToolArg, tool
 
 from app.config import settings
-from app.services import job_recommend, memory, plan, resume_example, resume_polish
+from app.services import interview, job_recommend, memory, plan, resume_example, resume_polish
 from app.services.embedding import embed_text, truncate_for_embedding
 
 
@@ -406,6 +406,46 @@ async def create_career_plan(
         return json.dumps({"error": f"生成行动方案失败: {e}"}, ensure_ascii=False)
 
 
+@tool
+async def submit_mock_interview_report(
+    user_id: Annotated[int, InjectedToolArg] = 0,
+    token: Annotated[str, InjectedToolArg] = "",
+    session_id: Annotated[str, InjectedToolArg] = "",
+    request: Annotated[Request, InjectedToolArg] = None,
+) -> str:
+    """结束当前模拟面试并生成「面试总结报告」保存（本工具不需要任何参数）。
+
+    你是模拟面试官时使用本工具结束面试。触发时机（用户明确结束 / 已问满提问上限时**必须**调用）：
+    - 用户表示「结束面试 / 出报告 / 就到这里 / 不面了 / 帮我总结」等；
+    - 本场提问已达上限（材料里提示的提问上限）。
+
+    工具内部会读取本场全部问答原文与开场时拉取的简历/JD 材料，调用独立报告模型生成
+    {title, content}（含总体评价 / 亮点 / 薄弱项 / 逐题简评 / 补强建议），并自动保存到
+    用户的面试记录（careers 库），本场面试随之结束。调用成功后请向用户转述报告标题与核心结论，
+    并提示已保存，可在「面试记录」中回看；之后不要再提问。
+    """
+    t0 = time.perf_counter()
+    print(
+        f"[interview-tool] submit_mock_interview_report 调用: user_id={user_id}, session_id={session_id!r}",
+        flush=True,
+    )
+    if not session_id:
+        return json.dumps({"error": "缺少面试会话 id，无法生成报告"}, ensure_ascii=False)
+    try:
+        result = await interview.generate_and_save_report(
+            session_id=session_id, user_id=int(user_id), token=token or ""
+        )
+        print(
+            f"[interview-tool] submit_mock_interview_report 成功: "
+            f"{time.perf_counter() - t0:.2f}s, reportId={result.get('reportId')}",
+            flush=True,
+        )
+        return json.dumps(result, ensure_ascii=False, default=str)
+    except Exception as e:
+        print(f"[interview-tool] submit_mock_interview_report 失败({time.perf_counter() - t0:.2f}s): {e}", flush=True)
+        return json.dumps({"error": f"生成面试报告失败: {e}"}, ensure_ascii=False)
+
+
 # 所有可注册给模型的工具（新增工具只需追加到这里）
 ALL_TOOLS = [
     get_student_profile,
@@ -415,4 +455,11 @@ ALL_TOOLS = [
     polish_resume,
     recall_memory,
     create_career_plan,
+]
+
+# 模拟面试专家 · 面试官主 LLM 专属工具集（不进 ALL_TOOLS，避免混入主对话助理；见 fc2026/模拟面试专家方案.md）
+INTERVIEW_TOOLS = [
+    get_student_profile,
+    query_job_detail,
+    submit_mock_interview_report,
 ]

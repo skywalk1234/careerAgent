@@ -79,5 +79,9 @@ class Settings(BaseSettings):
     plan_recall_queries: int = 3     # 「先思考」阶段最多产出多少条召回主题（信息缺口分析）
     plan_recall_top_k: int = 3       # 每条召回主题取回多少条补充记忆（去重后并入，总量≈queries×topk）
 
+    # ---------- 模拟面试专家参数（app/services/interview.py，设计见 fc2026/模拟面试专家方案.md）----------
+    interview_max_questions: int = 8    # 提示性提问上限；到后 prompt 引导收尾出报告（服务端硬上限兜底）
+    interview_report_recent_messages: int = 0  # 预留：是否补读主对话上下文（本期不读，见方案风险/取舍）
+
 
 settings = Settings()

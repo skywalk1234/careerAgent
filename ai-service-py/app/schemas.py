@@ -100,3 +100,74 @@ class SendMessageResponse(BaseModel):
     userMessage: HomeMessage
     assistantMessage: HomeMessage
     stream: StreamConfigOut
+
+
+# ===================== 模拟面试（面试官 agent，独立会话，见 fc2026/模拟面试专家方案.md） =====================
+
+INTERVIEW_TYPES = ("technical", "behavior", "mixed")
+
+
+class InterviewCreateRequest(BaseModel):
+    """开场建会话：jobId / profileId 由用户在开场时提供（页面带入或对话里给），可不全，缺哪个开场由面试官索取"""
+
+    jobId: str | None = None
+    profileId: str | None = None
+    type: str = "mixed"  # technical / behavior / mixed
+
+
+class InterviewSessionItem(BaseModel):
+    """面试会话列表项（alias 输出驼峰）"""
+
+    session_id: str = Field(alias="sessionId")
+    type: str
+    status: str
+    job_id: str | None = Field(default=None, alias="jobId")
+    job_title: str | None = Field(default=None, alias="jobTitle")
+    company_name: str | None = Field(default=None, alias="companyName")
+    profile_id: str | None = Field(default=None, alias="profileId")
+    report_id: int | None = Field(default=None, alias="reportId")
+    created_at: datetime = Field(alias="createdAt")
+    ended_at: datetime | None = Field(default=None, alias="endedAt")
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class InterviewSessionListResponse(BaseModel):
+    total: int
+    list: list[InterviewSessionItem]
+
+
+class InterviewCreateResponse(BaseModel):
+    sessionId: str
+    type: str
+    status: str
+    createdAt: datetime
+    stream: StreamConfigOut
+
+
+class InterviewSendRequest(BaseModel):
+    content: str = Field(..., min_length=1, description="用户本轮回答")
+
+
+class InterviewMessageItem(BaseModel):
+    """面试问答消息（alias 输出驼峰）"""
+
+    message_id: str = Field(alias="messageId")
+    role: str
+    content: str
+    status: str
+    created_at: datetime = Field(alias="createdAt")
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class InterviewMessageListResponse(BaseModel):
+    sessionId: str
+    total: int
+    list: list[InterviewMessageItem]
+
+
+class InterviewSendResponse(BaseModel):
+    sessionId: str
+    userMessage: InterviewMessageItem
+    stream: StreamConfigOut

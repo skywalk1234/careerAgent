@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import init_db
-from app.routers import chat, job_recommend
+from app.routers import chat, interview, job_recommend
 from app.services import vector_store
 
 
@@ -51,6 +51,7 @@ app.add_middleware(
 
 app.include_router(chat.router, tags=["chat"])
 app.include_router(job_recommend.router, tags=["job-recommend"])
+app.include_router(interview.router, tags=["mock-interview"])
 
 
 @app.get("/health")
