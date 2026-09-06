@@ -7,6 +7,7 @@ import { renderMarkdown } from '../utils/markdown'
 import { getToken } from '../utils/auth'
 import { isSuccessCode } from '../services/http'
 import { getStudentProfileList, type ResumeListItem } from '../services/studentProfile'
+import { getFavoriteJobs, type FavoriteJobsResult } from '../services/jobGraph'
 import {
   createInterviewSession,
   getInterviewSessionList,
@@ -417,6 +418,9 @@ const resumesLoading = ref(false)
 const draftType = ref<InterviewType>(DEFAULT_TYPE)
 const draftProfileId = ref('')
 const draftJobId = ref('')
+const favoriteJobs = ref<FavoriteJobsResult['list']>([])
+const favoriteJobsLoading = ref(false)
+const selectedFavorite = computed(() => favoriteJobs.value.find(job => String(job.jobId) === draftJobId.value))
 
 function resumeOptionTitle(item: ResumeListItem): string {
   const content = String(item.content ?? '')
@@ -424,6 +428,13 @@ function resumeOptionTitle(item: ResumeListItem): string {
   const title = line.replace(/^[#>*_\-\s]+/, '').trim()
   const text = title || line || '未命名简历'
   return text.length > 16 ? `${text.slice(0, 16)}…` : text
+}
+
+/** 收藏岗位的薪资展示：薪资面议 → “面议”，否则用归一化字符串；异常/缺失返回空串 */
+function favoriteSalaryText(job: { salaryNormalized?: string; salaryNegotiable?: boolean }) {
+  if (job.salaryNegotiable) return '面议'
+  const normalized = String(job.salaryNormalized ?? '').trim()
+  return normalized && !/unknown/i.test(normalized) ? normalized : ''
 }
 
 async function loadResumeOptions() {
@@ -441,6 +452,21 @@ async function loadResumeOptions() {
   }
 }
 
+async function loadFavoriteJobs() {
+  favoriteJobsLoading.value = true
+  try {
+    const response = await getFavoriteJobs()
+    const result = response.data as ApiResponse<FavoriteJobsResult>
+    if (!isSuccessCode(Number(result.code))) return
+    const payload = ((result as unknown as { payload?: FavoriteJobsResult }).payload ?? result.data) as FavoriteJobsResult
+    favoriteJobs.value = payload?.list && Array.isArray(payload.list) ? payload.list : []
+  } catch {
+    favoriteJobs.value = []
+  } finally {
+    favoriteJobsLoading.value = false
+  }
+}
+
 function openCreateDialog() {
   const queryType = String(route.query.type || '').toLowerCase()
   draftType.value = TYPE_META.some(item => item.type === queryType) ? (queryType as InterviewType) : DEFAULT_TYPE
@@ -448,6 +474,7 @@ function openCreateDialog() {
   draftProfileId.value = resumeOptions.value.some(item => String(item.profileId) === queryProfileId) ? queryProfileId : ''
   draftJobId.value = String(route.query.jobId || '').trim()
   showCreateDialog.value = true
+  loadFavoriteJobs()
 }
 
 async function submitCreateSession() {
@@ -797,12 +824,54 @@ onBeforeUnmount(() => {
 
         <div>
           <p class="mb-2 text-sm font-medium text-slate-700">
-            目标岗位 <span class="ml-1 font-normal text-slate-400">可选 —— 从岗位探索页跳转会带过来</span>
+            目标岗位 <span class="ml-1 font-normal text-slate-400">可选 —— 从下方收藏岗位中一键选择，也可手动填写</span>
           </p>
-          <el-input v-model="draftJobId" placeholder="粘贴岗位 ID（从岗位探索页复制）" clearable>
+          <el-input v-model="draftJobId" placeholder="选择收藏岗位后会自动填入岗位 ID，也可直接粘贴" clearable>
             <template #prepend>岗位 ID</template>
           </el-input>
-          <p class="mt-1.5 text-xs text-slate-400">留空也可以：面试官会围绕简历做通用提问；面试中报出“jobId:xxx”即可随时补充岗位。</p>
+
+          <div class="mt-2.5">
+            <div class="mb-1.5 flex items-center justify-between">
+              <span class="text-xs font-medium text-slate-500">我的收藏岗位</span>
+              <el-button text size="small" :icon="Refresh" :loading="favoriteJobsLoading" @click="loadFavoriteJobs">刷新</el-button>
+            </div>
+
+            <div class="fav-job-list">
+              <div
+                v-if="favoriteJobsLoading"
+                class="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-xs text-slate-400"
+              >
+                正在加载收藏岗位…
+              </div>
+              <template v-else-if="favoriteJobs.length">
+                <button
+                  v-for="job in favoriteJobs"
+                  :key="job.jobId"
+                  type="button"
+                  class="fav-job-item"
+                  :class="selectedFavorite?.jobId === job.jobId ? 'fav-job-item-on' : ''"
+                  @click="draftJobId = job.jobId"
+                >
+                  <span class="min-w-0 flex-1 text-left">
+                    <span class="block truncate text-sm font-medium text-slate-800">{{ job.jobName }}</span>
+                    <span class="mt-0.5 block truncate text-xs text-slate-500">
+                      {{ job.companyName || '公司未知' }}<template v-if="job.city"> · {{ job.city }}</template
+                      ><template v-if="favoriteSalaryText(job)"> · {{ favoriteSalaryText(job) }}</template>
+                    </span>
+                  </span>
+                  <span v-if="selectedFavorite?.jobId === job.jobId" class="shrink-0 text-xs font-medium text-blue-600">已选 ✓</span>
+                </button>
+              </template>
+
+              <div v-else class="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">
+                还没有收藏岗位。到
+                <button type="button" class="text-blue-600 hover:underline" @click="router.push('/jobs')">岗位探索</button>
+                页收藏心仪岗位后，可在这里一键带入岗位 ID。
+              </div>
+            </div>
+          </div>
+
+          <p class="mt-2 text-xs text-slate-400">留空也可以：面试官会围绕简历做通用提问；面试中报出“jobId:xxx”即可随时补充岗位。</p>
         </div>
       </div>
       <template #footer>
@@ -941,5 +1010,44 @@ onBeforeUnmount(() => {
 /* 面试官气泡轻微浮起 */
 .chat-bubble-in {
   transition: box-shadow 150ms ease;
+}
+
+/* 弹窗：收藏岗位选择列表 */
+.fav-job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 216px;
+  min-height: 44px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.fav-job-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.fav-job-item:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.fav-job-item-on {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
 }
 </style>
