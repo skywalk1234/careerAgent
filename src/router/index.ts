@@ -11,6 +11,8 @@ const loadJobGraphView = () => import('../views/JobGraphView.vue')
 const loadStudentProfileView = () => import('../views/StudentProfileView.vue')
 const loadMatchAnalysisView = () => import('../views/MatchAnalysisView.vue')
 const loadCareerPlanView = () => import('../views/CareerPlanView.vue')
+const loadMockInterviewView = () => import('../views/MockInterviewView.vue')
+const loadInterviewReportsView = () => import('../views/InterviewReportsView.vue')
 
 const routePrefetchLoaders: Record<string, () => Promise<unknown>> = {
   '/': loadHomeView,
@@ -18,6 +20,8 @@ const routePrefetchLoaders: Record<string, () => Promise<unknown>> = {
   '/student': loadStudentProfileView,
   '/match': loadMatchAnalysisView,
   '/report': loadCareerPlanView,
+  '/interview': loadMockInterviewView,
+  '/interview/reports': loadInterviewReportsView,
 }
 
 let hasScheduledRoutePrefetch = false
@@ -169,6 +173,26 @@ const router = createRouter({
       component: loadCareerPlanView,
       meta: {
         title: '计划与行动方案',
+        requiresAuth: true,
+        transition: 'page-slide',
+      },
+    },
+    {
+      path: '/interview',
+      name: 'interview',
+      component: loadMockInterviewView,
+      meta: {
+        title: '模拟面试',
+        requiresAuth: true,
+        transition: 'page-slide',
+      },
+    },
+    {
+      path: '/interview/reports',
+      name: 'interview-reports',
+      component: loadInterviewReportsView,
+      meta: {
+        title: '面试记录',
         requiresAuth: true,
         transition: 'page-slide',
       },
