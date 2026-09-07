@@ -8,7 +8,8 @@
   → 单次 LLM 生成方案 JSON（方案本身一遍过，无 REVIEW/REFINE 评审修正，红线写进生成 prompt）
   → 渲染成整份 content markdown
   → 经网关 POST /users/me/plans 落库（career-service，user_career_plans 表，透传 JWT）
-  → 返回 {planId, title, goal, summary, markdown}
+  → 返回 {planId, title, goal, summary, notice, guide}（完整正文只落库供「计划与行动方案」页查看，
+    不回传主模型，guide 指引主模型用 summary 简要转述即可，避免其基于全文复述一大段）
 
 本模块不持有任何状态；pg 连接池由调用方（tools.py，取自 request.app.state）传入，
 MySQL chat_history 直连自身 async_session（只读本会话最近几条原文）。
@@ -402,7 +403,9 @@ async def create_plan(
     """职业规划专家主流程（一次调用内完成取数 → 生成 → 落库 → 返回）。
 
     任何关键步骤失败抛异常，由 tools.py 包成 error JSON 返回主模型，不产生半成品 / 假成功。
-    返回 {"planId", "title", "goal", "summary", "markdown", "notice"?""}
+    返回 {"planId", "title", "goal", "summary", "notice"?"", "guide"}；
+    guide 是给主模型的最终回复指引：完整正文已落库，只在「计划与行动方案」页展示，
+    不回传 markdown 原文，主模型按 summary 简要转述即可。
     """
     t0 = time.perf_counter()
 
@@ -468,6 +471,13 @@ async def create_plan(
         "title": title,
         "goal": goal,
         "summary": summary,
-        "markdown": content,
         "notice": str(raw.get("notice") or "").strip() or None,
+        # 只给主模型"展示指引"，不回传正文：全文已落库到「计划与行动方案」页，
+        # 避免主模型基于整份 markdown 又复述一大段方案（也省 token / 上下文）。
+        "guide": (
+            "最新职业规划行动方案已生成并保存。完整分阶段正文已可在「计划与行动方案」页面查看，"
+            "不要复述或展开整份方案的每个阶段细节，也不要原样输出本 JSON。回复用户只需三步："
+            "1) 告知最新方案已生成并已保存；2) 结合 title 和上面 summary 用一两句话概括方案要点；"
+            "3) 提示可前往「计划与行动方案」页面查看完整内容。若 notice 非空，把它作为补充提醒一并转达。"
+        ),
     }
