@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models import ChatMessage, ChatSession
 
 
@@ -100,6 +101,53 @@ async def save_assistant_message(
     return msg.message_id
 
 
+def build_tool_history_block(history: list[ChatMessage]) -> str | None:
+    """把剩余原文区间里各 assistant 消息 agent_trace 中的工具执行，按 toolName 去重后拼成 system 文本分区。
+
+    设计见 fc2026/上下文压缩方案.md §八：
+    - 数据只来自已有的 messages.agent_trace（每步带 toolName + 完整 result），纯内存、不落库、不改 trace；
+    - 同一 toolName 多次出现时，只保留最近一次的真实 result（最新一轮的结果对当前最相关）；
+    - 更早的同名执行不删除，但其 result 替换为占位文本，避免模型误判该工具从未调用过。
+    无可注入的工具步骤时返回 None（调用方据此不加分区）。
+    """
+    if not history:
+        return None
+    execs: list[tuple[str, str]] = []  # (toolName, result 原文；result 为空串表示没有记录)
+    for m in history:
+        if m.role != "assistant":
+            continue
+        trace = m.agent_trace if isinstance(m.agent_trace, dict) else {}
+        steps = trace.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for s in steps:
+            if not isinstance(s, dict) or s.get("type") != "tool":
+                continue
+            name = str(s.get("toolName") or "").strip()
+            if not name:
+                continue
+            result = s.get("result")
+            execs.append((name, result if isinstance(result, str) else ""))
+    if not execs:
+        return None
+
+    # 每个 toolName 最后一次出现的下标（按时间顺序靠后的胜出）
+    last_idx: dict[str, int] = {}
+    for i, (name, _) in enumerate(execs):
+        last_idx[name] = i
+
+    lines = [
+        "以下是你此前在本会话中调用工具执行过的记录（同一工具只保留最近一次的真实返回，更早返回"
+        "已清理；仅作背景参考，事实以本次工具调用返回或用户提供为准）："
+    ]
+    for i, (name, result) in enumerate(execs):
+        is_last = last_idx[name] == i
+        tag = "（最近）" if is_last else "（更早）"
+        body = result if (is_last and result) else "Old tool result content cleared"
+        lines.append(f"- {name}{tag} → 返回：{body}")
+    return "\n".join(lines)
+
+
 def build_llm_messages(
     history: list[ChatMessage],
     current_content: str,
@@ -107,7 +155,7 @@ def build_llm_messages(
     context_summary: str | None = None,
     compressed_count: int = 0,
 ) -> list[dict]:
-    """构造发给 LLM 的上下文：system + 历史对话摘要 + 长期记忆分区 + 历史对话 + 当前用户消息
+    """构造发给 LLM 的上下文：system + 历史对话摘要 + 历史工具执行 + 长期记忆分区 + 历史对话 + 当前用户消息
 
     memory_block：该用户 current-view 的格式化文本（见 memory.load_current_view /
     format_core_rows）。以独立分区注入，避免模型把它当作对话内容；并明确其只是背景，
@@ -117,6 +165,10 @@ def build_llm_messages(
     - context_summary：已被折叠进摘要的较早轮次（非原文，只作背景分区注入）；
     - compressed_count：已折叠消息条数，history 中前 compressed_count 条不再进对话部分
       （折叠只发生在更早的轮次，最近轮次始终保留原文）。默认 0 时行为与原来完全一致。
+
+    历史工具执行分区：对 history[compressed_count:] 剩余原文区间内的 assistant 消息，
+    用 build_tool_history_block 抽取 agent_trace 里按 toolName 去重后的工具执行（§八），
+    作为背景分区注入，顺序在【历史对话摘要】之后、【长期记忆】之前。用 settings 开关关闭时跳过。
     """
     system_content = (
         "你是微光职引智能求职系统中的求职助手。\n"
@@ -129,6 +181,11 @@ def build_llm_messages(
             "不是本轮最新对话；本会话最新几轮对话仍以下方原文为准，涉及简历/岗位等事实以工具返回的真实数据为准：\n"
             + context_summary
         )
+    if settings.context_tool_history_enabled:
+        tool_block = build_tool_history_block(history[compressed_count:])
+        if tool_block:
+            # tool_block 自带引导语与去重规则，这里只加分区标题
+            system_content += "\n\n【历史工具执行】\n" + tool_block
     if memory_block:
         system_content += (
             "\n\n以下是你对该用户的【长期记忆】（学习进展/项目/目标/自评），用于理解其当前状况"

@@ -89,5 +89,10 @@ class Settings(BaseSettings):
     context_compress_keep_recent: int = 8      # 保留最近 N 条消息原文（≈ 最近 4 轮）
     context_compress_min_new:    int = 2       # 距上次折叠至少新增 N 条才再次压缩
 
+    # ---------- 对话前历史工具执行注入（设计见 fc2026/上下文压缩方案.md §八）----------
+    # 组装上下文前把各 assistant 消息 agent_trace 里的工具执行按 toolName 去重，作为 system 背景分区注入；
+    # 与上面的后台折叠互补（折叠管 content，这里管 trace）。关闭则跳过该分区。
+    context_tool_history_enabled: bool = True
+
 
 settings = Settings()
