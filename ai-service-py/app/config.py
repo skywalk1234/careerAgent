@@ -83,5 +83,11 @@ class Settings(BaseSettings):
     interview_max_questions: int = 8    # 提示性提问上限；到后 prompt 引导收尾出报告（服务端硬上限兜底）
     interview_report_recent_messages: int = 0  # 预留：是否补读主对话上下文（本期不读，见方案风险/取舍）
 
+    # ---------- 上下文自动压缩参数（app/services/context_compress.py，设计见 fc2026/上下文压缩方案.md）----------
+    context_compress_enabled:    bool = True   # 主开关：每轮回复结束后后台异步折叠压缩
+    context_compress_threshold:  int = 30000   # 单次模型调用 API prompt_tokens ≥ 该值触发一次压缩
+    context_compress_keep_recent: int = 8      # 保留最近 N 条消息原文（≈ 最近 4 轮）
+    context_compress_min_new:    int = 2       # 距上次折叠至少新增 N 条才再次压缩
+
 
 settings = Settings()

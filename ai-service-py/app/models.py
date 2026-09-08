@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Index, String, Text
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +24,10 @@ class ChatSession(Base):
     last_message_preview: Mapped[str] = mapped_column(Text, default="")
     pinned: Mapped[bool] = mapped_column("is_pinned", Boolean, default=False)
     favorited: Mapped[bool] = mapped_column("is_favorited", Boolean, default=False)
+    # 上下文压缩：已折叠的最早一段对话的滚动摘要 + 已折叠消息条数（见 fc2026/上下文压缩方案.md）
+    # ⚠️ 这两列需手动 DDL（附录 A），create_all 不会给已存在的表加列
+    context_summary: Mapped[str | None] = mapped_column(MEDIUMTEXT, default=None)
+    compressed_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

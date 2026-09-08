@@ -104,18 +104,31 @@ def build_llm_messages(
     history: list[ChatMessage],
     current_content: str,
     memory_block: str | None = None,
+    context_summary: str | None = None,
+    compressed_count: int = 0,
 ) -> list[dict]:
-    """构造发给 LLM 的上下文：system + 长期记忆分区 + 历史对话 + 当前用户消息
+    """构造发给 LLM 的上下文：system + 历史对话摘要 + 长期记忆分区 + 历史对话 + 当前用户消息
 
     memory_block：该用户 current-view 的格式化文本（见 memory.load_current_view /
     format_core_rows）。以独立分区注入，避免模型把它当作对话内容；并明确其只是背景，
     涉及简历/岗位等事实仍须以工具返回的真实数据为准。
+
+    context_summary / compressed_count：上下文压缩（见 fc2026/上下文压缩方案.md §四）。
+    - context_summary：已被折叠进摘要的较早轮次（非原文，只作背景分区注入）；
+    - compressed_count：已折叠消息条数，history 中前 compressed_count 条不再进对话部分
+      （折叠只发生在更早的轮次，最近轮次始终保留原文）。默认 0 时行为与原来完全一致。
     """
     system_content = (
         "你是微光职引智能求职系统中的求职助手。\n"
         "1. 回答必须基于工具返回的真实数据，逐条给出具体、可执行的分析与建议；\n"
         "2. 如果工具返回错误或没有获取到数据（例如认证失败、暂无简历画像），要如实告知用户原因，严禁编造分析结论或谎称已完成分析。"
     )
+    if context_summary:
+        system_content += (
+            "\n\n以下是本会话【更早部分对话的摘要】（已取代被折叠的原始消息）。它是较早轮次的背景，"
+            "不是本轮最新对话；本会话最新几轮对话仍以下方原文为准，涉及简历/岗位等事实以工具返回的真实数据为准：\n"
+            + context_summary
+        )
     if memory_block:
         system_content += (
             "\n\n以下是你对该用户的【长期记忆】（学习进展/项目/目标/自评），用于理解其当前状况"
@@ -124,7 +137,7 @@ def build_llm_messages(
         )
 
     messages: list[dict] = [{"role": "system", "content": system_content}]
-    for m in history:
+    for m in history[compressed_count:]:
         if m.role in ("user", "assistant"):
             messages.append({"role": m.role, "content": m.content})
     messages.append({"role": "user", "content": current_content})

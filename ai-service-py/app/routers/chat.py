@@ -22,7 +22,7 @@ from app.schemas import (
     StreamConfigOut,
 )
 from app.security import extract_token, get_current_user_id
-from app.services import chat_service, memory
+from app.services import chat_service, context_compress, memory
 from app.services.llm import get_llm, get_llm_with_tools
 from app.tools import ALL_TOOLS
 
@@ -30,6 +30,8 @@ router = APIRouter(prefix="/users/me/home/assistant")
 
 # 长期记忆后台抽取任务：保持强引用避免被 GC，任务结束后自动移除
 _memory_tasks: set[asyncio.Task] = set()
+# 上下文压缩后台任务：同上，保持强引用
+_compress_tasks: set[asyncio.Task] = set()
 
 
 def _spawn_memory_extraction(user_id: int, session_id: str, pg_pool) -> None:
@@ -39,6 +41,13 @@ def _spawn_memory_extraction(user_id: int, session_id: str, pg_pool) -> None:
     )
     _memory_tasks.add(task)
     task.add_done_callback(_memory_tasks.discard)
+
+
+def _spawn_context_compress(user_id: int, session_id: str) -> None:
+    """本轮 prompt 达到阈值时，后台把最老一段对话折叠进摘要（不阻塞 SSE）。"""
+    task = asyncio.create_task(context_compress.maybe_compress(user_id, session_id))
+    _compress_tasks.add(task)
+    task.add_done_callback(_compress_tasks.discard)
 
 
 def _sse(name: str, data: dict) -> str:
@@ -106,6 +115,26 @@ def _extract_thinking(response) -> str:
     ak = getattr(response, "additional_kwargs", None) or {}
     rc = ak.get("reasoning_content")
     return rc.strip() if isinstance(rc, str) else ""
+
+
+def _extract_prompt_tokens(msg_or_chunk) -> int | None:
+    """从模型响应（AIMessage）或流式 chunk 里提取本次调用的 prompt（input）token 数。
+
+    优先 usage_metadata.input_tokens（langchain 统一映射；流式开 stream_usage=True 后，
+    末尾会有一个 content 为空、带 usage_metadata 的 chunk）；回退 response_metadata 的
+    token_usage.prompt_tokens。均拿不到返回 None——本轮不触发压缩，不阻塞主链路。
+    """
+    try:
+        um = getattr(msg_or_chunk, "usage_metadata", None) or {}
+        val = um.get("input_tokens")
+        if val is not None:
+            return int(val)
+        rd = getattr(msg_or_chunk, "response_metadata", None) or {}
+        tu = rd.get("token_usage") or {}
+        val = tu.get("prompt_tokens")
+        return int(val) if val is not None else None
+    except Exception:
+        return None
 
 
 # ===================== 会话 =====================
@@ -223,6 +252,11 @@ async def stream_message(
     if user_msg is None or user_msg.session_id != session_id or user_msg.role != "user":
         raise HTTPException(status_code=404, detail="消息不存在")
 
+    # 会话对象带 context_summary / compressed_count（上下文压缩折叠状态，见 fc2026/上下文压缩方案.md）
+    session = await chat_service.get_session(db, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
     history = [m for m in await chat_service.list_messages(db, session_id) if m.message_id != message_id]
 
     # 长期记忆 · 常驻核心（current-view）：每轮建 prompt 时取最新活跃集，注入 system 分区。
@@ -238,7 +272,13 @@ async def stream_message(
     except Exception as e:
         print(f"[memory] 核心记忆注入失败(忽略): {e}", flush=True)
 
-    messages = chat_service.build_llm_messages(history, user_msg.content, memory_block=memory_block)
+    messages = chat_service.build_llm_messages(
+        history,
+        user_msg.content,
+        memory_block=memory_block,
+        context_summary=session.context_summary,
+        compressed_count=session.compressed_count or 0,
+    )
 
     # 绑定工具后的模型实例 + 工具查找表
     llm_with_tools = get_llm_with_tools(ALL_TOOLS)
@@ -247,6 +287,9 @@ async def stream_message(
     async def event_stream():
         yield _sse("start", {"type": "start", "messageId": message_id})
         full = ""
+        # 本轮最后一次模型调用返回的 prompt token 数（工具循环 ainvoke 或最终 astream 的 usage chunk）。
+        # 收尾处 ≥ 阈值则触发后台上下文压缩（见 fc2026/上下文压缩方案.md §4.2）。
+        last_prompt_tokens: int | None = None
 
         # ---------- agent trace 状态：供前端展示「思考过程 + 工具调用」 ----------
         started_at = _now_iso()
@@ -287,6 +330,10 @@ async def stream_message(
             # 最多迭代 5 轮，防止模型反复调用工具陷入死循环
             for _ in range(5):
                 response = await llm_with_tools.ainvoke(messages)
+                # 工具循环是非流式调用，响应自带 usage；记录本次 prompt token 规模
+                prompt_tokens = _extract_prompt_tokens(response)
+                if prompt_tokens is not None:
+                    last_prompt_tokens = prompt_tokens
                 tool_calls = response.tool_calls
 
                 # 模型没有调用工具 → 退出循环，最终回答交给下面 astream 真实流式生成
@@ -398,6 +445,11 @@ async def stream_message(
             frame_start = loop.time()
             pending = ""
             async for chunk in get_llm().astream(messages):
+                # stream_usage=True 时末尾 usage chunk 内容为空、带 usage_metadata，
+                # 这里在跳过内容前先取 prompt token（纯聊天无工具时也能拿到本轮规模）
+                prompt_tokens = _extract_prompt_tokens(chunk)
+                if prompt_tokens is not None:
+                    last_prompt_tokens = prompt_tokens
                 text = chunk.content or ""
                 if not text:
                     continue
@@ -426,6 +478,10 @@ async def stream_message(
             agent_trace = build_trace(status="succeeded", finished_at=finished_at)
             agent_trace["steps"] = persist_steps
             await chat_service.save_assistant_message(db, session_id, full, agent_trace=agent_trace)
+            # 上下文压缩：本轮 prompt 达到阈值 → 后台折叠最早对话进摘要（异步、失败只记日志，不影响 SSE）
+            if settings.context_compress_enabled and last_prompt_tokens is not None \
+                    and last_prompt_tokens >= settings.context_compress_threshold:
+                _spawn_context_compress(user_id, session_id)
             # 后台抽取长期记忆（不阻塞 SSE；内部自开会话与 pg 连接，失败只记日志）
             _spawn_memory_extraction(user_id, session_id, request.app.state.pg_pool)
             done_message = {

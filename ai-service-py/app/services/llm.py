@@ -27,6 +27,10 @@ _THINKING_DISABLED_BODY = {
 def get_llm() -> ChatOpenAI:
     """懒加载 LLM 客户端：第一次流式调用时才创建。
     DeepSeek 提供 OpenAI 兼容接口，langchain-openai 直接可用。
+
+    stream_usage=True：astream 末尾会多一个内容为空、带 usage_metadata 的 chunk
+    （对应请求体 stream_options.include_usage），供上下文压缩拿真实 prompt_tokens。
+    现有消费方（chat.py / interview.py）对空 content chunk 均已 continue，不受影响。
     """
     if not settings.deepseek_api_key:
         raise RuntimeError("未配置 DEEPSEEK_API_KEY，请在 .env 文件中填写")
@@ -38,6 +42,7 @@ def get_llm() -> ChatOpenAI:
         temperature=0.7,
         max_tokens=2048,
         timeout=60,
+        stream_usage=True,
         extra_body=_THINKING_BODY,
     )
 
@@ -68,6 +73,27 @@ def get_json_llm() -> ChatOpenAI:
         base_url=settings.deepseek_base_url,
         temperature=0.2,
         max_tokens=4096,
+        timeout=150,
+        extra_body=_THINKING_DISABLED_BODY,
+    )
+
+
+@lru_cache(maxsize=1)
+def get_summary_llm() -> ChatOpenAI:
+    """会话摘要专用 LLM（见 fc2026/上下文压缩方案.md §6.1）。
+
+    与 get_json_llm 同思路：显式关闭 thinking（摘要求快求稳），低温度（0.2）保证合并输出稳定；
+    max_tokens 适中即可（摘要几百 token）；timeout=150 兜底较长的早期对话。
+    """
+    if not settings.deepseek_api_key:
+        raise RuntimeError("未配置 DEEPSEEK_API_KEY，请在 .env 文件中填写")
+
+    return ChatOpenAI(
+        model=settings.deepseek_model,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        temperature=0.2,
+        max_tokens=2048,
         timeout=150,
         extra_body=_THINKING_DISABLED_BODY,
     )
