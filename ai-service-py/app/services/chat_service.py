@@ -65,8 +65,17 @@ async def list_messages(db: AsyncSession, session_id: str) -> list[ChatMessage]:
     return list(result.scalars().all())
 
 
-async def save_assistant_message(db: AsyncSession, session_id: str, content: str) -> str:
-    """保存助手消息并更新会话标题/预览，返回消息 id"""
+async def save_assistant_message(
+    db: AsyncSession,
+    session_id: str,
+    content: str,
+    agent_trace: dict | None = None,
+) -> str:
+    """保存助手消息并更新会话标题/预览，返回消息 id
+
+    agent_trace：可选。传入时原样落库到 messages.agent_trace（真实 agent 时间线，
+    含每个 tool 步骤的 toolName/完整 result）；不传时保留旧的空模板，兼容其它调用方。
+    """
     message_id = gen_id()
     msg = ChatMessage(
         message_id=message_id,
@@ -74,7 +83,9 @@ async def save_assistant_message(db: AsyncSession, session_id: str, content: str
         role="assistant",
         content=content,
         status="succeeded",
-        agent_trace={"steps": [], "status": "succeeded", "activeStepId": None},
+        agent_trace=agent_trace
+        if agent_trace is not None
+        else {"steps": [], "status": "succeeded", "activeStepId": None},
     )
     db.add(msg)
 

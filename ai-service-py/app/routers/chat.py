@@ -251,6 +251,9 @@ async def stream_message(
         # ---------- agent trace 状态：供前端展示「思考过程 + 工具调用」 ----------
         started_at = _now_iso()
         trace_steps: list[dict] = []
+        # 旁路收集每个 tool 步骤的完整原始返回（key = tool 步骤 stepId）。不挂到 trace_steps 上，
+        # 避免后续每次 emit_trace 把全量 result 重复序列化进 SSE；只在收尾落库时回填。
+        tool_results: dict[str, str] = {}
         step_seq = 0
 
         def next_step_id() -> str:
@@ -370,6 +373,9 @@ async def stream_message(
                         except Exception as e:
                             result = f"工具执行失败: {e}"
 
+                    # 完整原始返回留档（成功/未知工具/失败统一记录），落库时回填进 agent_trace
+                    tool_results[tool_step_id] = result
+
                     # 更新工具步骤为完成，附结果摘要（通用路径）
                     tool_step["status"] = "succeeded"
                     tool_step["outputSummary"] = _summarize_tool_result(result)
@@ -409,7 +415,17 @@ async def stream_message(
             finished_at = _now_iso()
             yield emit_trace(status="succeeded", finished_at=finished_at)
 
-            await chat_service.save_assistant_message(db, session_id, full)
+            # 落库用的 trace：与 SSE done 同一结构，但每个 tool 步骤回填完整原始 result。
+            # 浅拷贝每个 step dict（不污染 trace_steps，避免影响已发出的实时 trace）。
+            persist_steps = []
+            for step in trace_steps:
+                d = dict(step)
+                if d.get("type") == "tool" and d.get("stepId") in tool_results:
+                    d["result"] = tool_results[d["stepId"]]
+                persist_steps.append(d)
+            agent_trace = build_trace(status="succeeded", finished_at=finished_at)
+            agent_trace["steps"] = persist_steps
+            await chat_service.save_assistant_message(db, session_id, full, agent_trace=agent_trace)
             # 后台抽取长期记忆（不阻塞 SSE；内部自开会话与 pg 连接，失败只记日志）
             _spawn_memory_extraction(user_id, session_id, request.app.state.pg_pool)
             done_message = {
