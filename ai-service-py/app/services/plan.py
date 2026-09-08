@@ -322,13 +322,17 @@ def _build_prompt(
     return "\n\n".join(parts)
 
 
-def _render_markdown(plan: dict) -> str:
+def _render_markdown(plan: dict, job_id: str | None = None) -> str:
     """把结构化方案 JSON 渲染成整份 content markdown（落库正文）。
+
+    job_id：该方案对应的目标岗位 id（生成时用户 target 里带 jobId:xxx 才有，纯数字 id）；
+    有则作为一行写进「目标」区，无则正文不含岗位引用，方便回看时知道方案对应哪个岗位。
 
     本期不做逐条勾选，动作用普通圆点而非 [ ] 复选框，避免前端误以为可勾选。
     """
     title = (str(plan.get("title") or "").strip()) or "职业规划行动方案"
     goal = str(plan.get("goal") or "").strip()
+    job_id = str(job_id or "").strip()
     diagnosis = str(plan.get("diagnosis") or "").strip()
     gap_list = plan.get("gapList") or []
     phases = plan.get("phases") or []
@@ -339,6 +343,9 @@ def _render_markdown(plan: dict) -> str:
     lines = [f"# {title}", ""]
     if goal:
         lines += ["## 🎯 目标", goal, ""]
+        if job_id:
+            lines.append(f"**对应目标岗位 ID**：{job_id}")
+            lines.append("")
     if diagnosis:
         lines += ["## 🔍 现状诊断", diagnosis, ""]
     if gap_list:
@@ -457,7 +464,7 @@ async def create_plan(
     if not isinstance(phases, list) or not phases:
         raise ValueError("方案生成缺少分阶段动作，请稍后重试")
 
-    content = _render_markdown(raw)
+    content = _render_markdown(raw, job_id=job_id)
     summary = str(raw.get("summary") or "").strip() or f"已生成行动方案：{title}"
 
     plan_id = await _save_plan(title, content, session_id, token)
