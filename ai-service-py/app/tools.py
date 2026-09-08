@@ -410,6 +410,65 @@ async def create_career_plan(
 
 
 @tool
+async def get_career_plan(
+    plan_id: Optional[str] = None,
+    token: Annotated[str, InjectedToolArg] = "",
+) -> str:
+    """查询「职业规划行动方案」的完整正文（markdown 全文：目标、现状诊断、当前差距、分阶段行动、风险、复盘检查点、说明等），用于回看或展开讲解某份方案。
+
+    触发时机——用户想**看/回顾某份方案的完整内容、或展开其中某阶段/某动作的细节**时调用：
+    - create_career_plan 刚生成后用户想立刻看方案全文、追问具体每一步做什么（create_career_plan 只返回摘要与引导，完整正文已落库，
+      需要本工具按 planId 再取回）；
+    - 用户提到某份方案要求展示完整内容（如「把我那份方案完整发我看」「上次方案的阶段二具体怎么安排」「最新方案里风险部分写了啥」）。
+
+    plan_id（可选）：要查询的方案ID。对话中带 `planId:`/`planID:`/`plan_id:` 前缀或纯数字 id 时填进去（可去前缀只传纯ID）；
+    想回看某份特定（含历史/已归档）版本时必须传。**未传时默认取「当前方案」（该用户最新一条 active，等价于前端『计划与行动方案』页
+    展示的那份）**，不必为了看当前方案去猜测 ID。若该用户从未生成过方案，按返回提示引导其先 create_career_plan 生成。
+    """
+    raw_plan_id = str(plan_id or "").strip()
+    normalized_plan_id = raw_plan_id.split(":", 1)[-1].strip() if ":" in raw_plan_id else raw_plan_id
+    if not normalized_plan_id:
+        normalized_plan_id = None
+
+    # 透传用户 JWT：网关对 /users/me/plans/** 有登录校验，不带 token 会被 401 拦截
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    base_url = f"{settings.career_service_base_url}/users/me/plans"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            if normalized_plan_id:
+                url = f"{base_url}/{normalized_plan_id}"
+                resp = await client.get(url, headers=headers)
+                resp.raise_for_status()
+                payload = resp.json()
+            else:
+                # 未指定 ID：先拉列表（按时间倒序、含 status）定位「当前方案」，
+                # 再取详情（列表不含 content 正文）。
+                list_resp = await client.get(base_url, headers=headers)
+                list_resp.raise_for_status()
+                list_payload = list_resp.json()
+                items = (list_payload.get("data") or {}).get("list") or []
+                target = next((i for i in items if i.get("status") == "active"), None) or (items[0] if items else None)
+                if target is None or target.get("id") is None:
+                    return json.dumps(
+                        {"error": "你还没有生成过职业规划行动方案，可先让我帮你规划一份（create_career_plan）"}, ensure_ascii=False
+                    )
+                resp = await client.get(f"{base_url}/{target['id']}", headers=headers)
+                resp.raise_for_status()
+                payload = resp.json()
+    except Exception as e:
+        return json.dumps({"error": f"获取行动方案失败: {e}"}, ensure_ascii=False)
+
+    data = payload.get("data")
+    if not data:
+        return json.dumps(
+            {"error": payload.get("msg") or f"方案 {normalized_plan_id or ''} 不存在或无权访问"},
+            ensure_ascii=False,
+        )
+
+    return json.dumps(data, ensure_ascii=False, default=str)
+
+
+@tool
 async def submit_mock_interview_report(
     user_id: Annotated[int, InjectedToolArg] = 0,
     token: Annotated[str, InjectedToolArg] = "",
@@ -458,6 +517,7 @@ ALL_TOOLS = [
     polish_resume,
     recall_memory,
     create_career_plan,
+    get_career_plan,
 ]
 
 # 模拟面试专家 · 面试官主 LLM 专属工具集（不进 ALL_TOOLS，避免混入主对话助理；见 fc2026/模拟面试专家方案.md）
