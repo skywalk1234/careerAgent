@@ -9,3 +9,5 @@ pyjwt[crypto]>=2.8
 httpx>=0.27
 asyncpg>=0.29
 pgvector>=0.3
+# BOSS 直聘岗位爬虫（app 顶层 crawler/ 包，唯一第三方依赖，驱动真实 Chrome）
+DrissionPage>=4.1.0

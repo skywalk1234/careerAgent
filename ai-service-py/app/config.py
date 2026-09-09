@@ -94,5 +94,14 @@ class Settings(BaseSettings):
     # 与上面的后台折叠互补（折叠管 content，这里管 trace）。关闭则跳过该分区。
     context_tool_history_enabled: bool = True
 
+    # ---------- BOSS 直聘岗位爬虫配置（顶层 crawler/ 包，原 boss_fetch）----------
+    # 已登录 BOSS 直聘的 Chrome 用户目录（Cookie 持久化）。首次需真实浏览器登录一次，
+    # 之后可 headless 复用；服务端跑绝不弹登录框（见 crawler/platform_utils.py 的 AI_PM_UNATTENDED）。
+    crawler_profile_dir: str = ".chrome_profile"
+    # 爬取结果写入的 SQLite 文件（相对 ai-service-py 根目录）
+    crawler_db_file: str = "jobs_data.db"
+    # 采集默认是否无头。服务端/CI 跑必须 True；False 仅用于本地人工联调（会弹出 Chrome 窗口）
+    crawler_headless: bool = True
+
 
 settings = Settings()
