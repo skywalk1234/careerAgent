@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus, Document } from '@element-plus/icons-vue'
+import { Calendar, ChatDotRound, ChatLineRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus, Document } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { isSuccessCode } from '../services/http'
@@ -29,6 +29,8 @@ import {
 } from '../services/home'
 import { getStudentProfileList, type ResumeListItem } from '../services/studentProfile'
 import { polishCareerReport } from '../services/careerReport'
+import { getCareerPlanList, type CareerPlanListItem } from '../services/careerPlan'
+import { getInterviewReportList, type InterviewReportListItem } from '../services/mockInterview'
 import { getMatchRecommendations, refineMatchRecommendations, type MatchRecommendationsResult } from '../services/matchAnalysis'
 import { getToken } from '../utils/auth'
 import {
@@ -99,6 +101,14 @@ const resumeOptions = ref<ResumeListItem[]>([])
 const resumePickerVisible = ref(false)
 let resumePickerHideTimer: ReturnType<typeof setTimeout> | null = null
 const shouldStickToBottom = ref(true)
+
+const planOptions = ref<CareerPlanListItem[]>([])
+const planPickerVisible = ref(false)
+let planPickerHideTimer: ReturnType<typeof setTimeout> | null = null
+
+const reportOptions = ref<InterviewReportListItem[]>([])
+const reportPickerVisible = ref(false)
+let reportPickerHideTimer: ReturnType<typeof setTimeout> | null = null
 const panelRef = ref<HTMLDivElement>()
 
 const panelX = ref(Math.max(16, window.innerWidth - 500))
@@ -1378,6 +1388,128 @@ function pickResume(item: ResumeListItem) {
   nextTick(() => composerInputRef.value?.focus())
 }
 
+// ---------- 输入框自动增高（默认约两行，随行数增长，最多五行） ----------
+// 与 .assistant-input 样式的 line-height(20px)/纵向 padding(8px) 保持一致
+const COMPOSER_LINE_HEIGHT = 20
+const COMPOSER_MIN_LINES = 2
+const COMPOSER_MAX_LINES = 5
+const COMPOSER_VERTICAL_PADDING = 8
+const COMPOSER_MIN_HEIGHT = COMPOSER_MIN_LINES * COMPOSER_LINE_HEIGHT + COMPOSER_VERTICAL_PADDING
+const COMPOSER_MAX_HEIGHT = COMPOSER_MAX_LINES * COMPOSER_LINE_HEIGHT + COMPOSER_VERTICAL_PADDING
+
+function autoResizeComposerInput() {
+  const el = composerInputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  const target = Math.max(COMPOSER_MIN_HEIGHT, Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT))
+  el.style.height = `${target}px`
+}
+
+// 输入中实时跟随（@input 兜底），程序化设置 draft 后经 nextTick 重新测量
+watch(draft, () => {
+  nextTick(() => autoResizeComposerInput())
+})
+
+// ---------- 规划方案悬浮列表（把 planId 塞进输入框） ----------
+function planOptionTitle(item: CareerPlanListItem): string {
+  const base = String(item?.title || '').trim() || '未命名方案'
+  const text = item?.status === 'active' ? `${base}（当前）` : base
+  return text.length > 22 ? `${text.slice(0, 22)}…` : text
+}
+
+async function loadPlanOptions() {
+  try {
+    const response = await getCareerPlanList()
+    const payload = response.data as ApiResponse<{ total: number; list: CareerPlanListItem[] }>
+    planOptions.value = isSuccessCode(payload.code) && payload.data
+      ? (payload.data.list || [])
+      : []
+  } catch {
+    planOptions.value = []
+  }
+}
+
+function openPlanPicker() {
+  if (planPickerHideTimer) {
+    clearTimeout(planPickerHideTimer)
+    planPickerHideTimer = null
+  }
+  if (planOptions.value.length === 0) {
+    void loadPlanOptions()
+  }
+  planPickerVisible.value = true
+}
+
+function closePlanPicker() {
+  if (planPickerHideTimer) clearTimeout(planPickerHideTimer)
+  planPickerHideTimer = setTimeout(() => {
+    planPickerVisible.value = false
+  }, 150)
+}
+
+function pickPlan(item: CareerPlanListItem) {
+  const planId = String(item?.id ?? '').trim()
+  if (!planId) return
+  const token = `planId:${planId}`
+  const nextDraft = String(draft.value || '')
+  draft.value = nextDraft.includes(token)
+    ? nextDraft
+    : nextDraft.trim() ? `${nextDraft.trim()} ${token}` : token
+  planPickerVisible.value = false
+  nextTick(() => composerInputRef.value?.focus())
+}
+
+// ---------- 面试记录悬浮列表（把 reportId 塞进输入框） ----------
+function reportOptionTitle(item: InterviewReportListItem): string {
+  const title = String(item?.title || '').trim()
+  const context = [item?.companyName, item?.jobName].filter(Boolean).join(' · ')
+  const base = title || context || '面试总结'
+  const text = context && context !== title ? `${base} · ${context}` : base
+  return text.length > 26 ? `${text.slice(0, 26)}…` : text
+}
+
+async function loadReportOptions() {
+  try {
+    const response = await getInterviewReportList()
+    const payload = response.data as ApiResponse<{ total: number; list: InterviewReportListItem[] }>
+    reportOptions.value = isSuccessCode(payload.code) && payload.data
+      ? (payload.data.list || [])
+      : []
+  } catch {
+    reportOptions.value = []
+  }
+}
+
+function openReportPicker() {
+  if (reportPickerHideTimer) {
+    clearTimeout(reportPickerHideTimer)
+    reportPickerHideTimer = null
+  }
+  if (reportOptions.value.length === 0) {
+    void loadReportOptions()
+  }
+  reportPickerVisible.value = true
+}
+
+function closeReportPicker() {
+  if (reportPickerHideTimer) clearTimeout(reportPickerHideTimer)
+  reportPickerHideTimer = setTimeout(() => {
+    reportPickerVisible.value = false
+  }, 150)
+}
+
+function pickReport(item: InterviewReportListItem) {
+  const reportId = String(item?.id ?? '').trim()
+  if (!reportId) return
+  const token = `reportId:${reportId}`
+  const nextDraft = String(draft.value || '')
+  draft.value = nextDraft.includes(token)
+    ? nextDraft
+    : nextDraft.trim() ? `${nextDraft.trim()} ${token}` : token
+  reportPickerVisible.value = false
+  nextTick(() => composerInputRef.value?.focus())
+}
+
 async function sendMessage(content: string, contextPayload?: GlobalAssistantContextPayload | null) {
   const text = String(content || '').trim()
   if (!text || sending.value) return
@@ -1834,6 +1966,7 @@ watch(visible, (value) => {
       .then(async () => {
         nextTick(() => {
           ensurePanelResizeObserver()
+          autoResizeComposerInput()
         })
         await tryAutoSendPendingInitialMessage()
       })
@@ -2163,23 +2296,63 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="assistant-composer">
-          <div class="assistant-resume-picker" @mouseenter="openResumePicker" @mouseleave="closeResumePicker">
-            <button type="button" class="assistant-resume-btn">
-              <el-icon><Document /></el-icon>
-              <span>选择简历</span>
-            </button>
-            <div v-if="resumePickerVisible" class="assistant-resume-dropdown">
-              <p v-if="resumeOptions.length === 0" class="assistant-resume-empty">暂无简历，请先到「学生画像」页创建</p>
-              <button
-                v-for="item in resumeOptions"
-                :key="`${String(item.profileId)}-${item.title}`"
-                type="button"
-                class="assistant-resume-item"
-                :title="resumeOptionTitle(item)"
-                @click="pickResume(item)"
-              >
-                {{ resumeOptionTitle(item) }}
+          <div class="assistant-composer-tools">
+            <div class="assistant-resume-picker" @mouseenter="openResumePicker" @mouseleave="closeResumePicker">
+              <button type="button" class="assistant-resume-btn">
+                <el-icon><Document /></el-icon>
+                <span>选择简历</span>
               </button>
+              <div v-if="resumePickerVisible" class="assistant-resume-dropdown">
+                <p v-if="resumeOptions.length === 0" class="assistant-resume-empty">暂无简历，请先到「学生画像」页创建</p>
+                <button
+                  v-for="item in resumeOptions"
+                  :key="`${String(item.profileId)}-${item.title}`"
+                  type="button"
+                  class="assistant-resume-item"
+                  :title="resumeOptionTitle(item)"
+                  @click="pickResume(item)"
+                >
+                  {{ resumeOptionTitle(item) }}
+                </button>
+              </div>
+            </div>
+            <div class="assistant-picker" @mouseenter="openPlanPicker" @mouseleave="closePlanPicker">
+              <button type="button" class="assistant-tool-btn">
+                <el-icon><Calendar /></el-icon>
+                <span>我的规划方案</span>
+              </button>
+              <div v-if="planPickerVisible" class="assistant-picker-dropdown">
+                <p v-if="planOptions.length === 0" class="assistant-picker-empty">暂无方案，可先到首页让 AI 规划一份</p>
+                <button
+                  v-for="item in planOptions"
+                  :key="`plan-${item.id}`"
+                  type="button"
+                  class="assistant-picker-item"
+                  :title="planOptionTitle(item)"
+                  @click="pickPlan(item)"
+                >
+                  {{ planOptionTitle(item) }}
+                </button>
+              </div>
+            </div>
+            <div class="assistant-picker" @mouseenter="openReportPicker" @mouseleave="closeReportPicker">
+              <button type="button" class="assistant-tool-btn">
+                <el-icon><ChatLineRound /></el-icon>
+                <span>面试记录</span>
+              </button>
+              <div v-if="reportPickerVisible" class="assistant-picker-dropdown">
+                <p v-if="reportOptions.length === 0" class="assistant-picker-empty">暂无面试记录，完成模拟面试后自动生成</p>
+                <button
+                  v-for="item in reportOptions"
+                  :key="`report-${item.id}`"
+                  type="button"
+                  class="assistant-picker-item"
+                  :title="reportOptionTitle(item)"
+                  @click="pickReport(item)"
+                >
+                  {{ reportOptionTitle(item) }}
+                </button>
+              </div>
             </div>
           </div>
           <textarea
@@ -2187,6 +2360,7 @@ onBeforeUnmount(() => {
             v-model="draft"
             class="assistant-input"
             placeholder="输入你的问题（回车发送）"
+            @input="autoResizeComposerInput"
             @keydown.enter.exact.prevent="sendMessage(draft)"
           />
           <button class="assistant-send" type="button" :disabled="sending || Boolean(regeneratingMessageId)" @click="sendMessage(draft)">
@@ -3046,15 +3220,26 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.assistant-resume-picker {
+.assistant-composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.assistant-resume-picker,
+.assistant-picker {
   position: relative;
   align-self: flex-start;
 }
 
-.assistant-resume-btn {
+.assistant-resume-btn,
+.assistant-tool-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  flex: 0 0 auto;
+  white-space: nowrap;
   border: 1px solid #dbeafe;
   border-radius: 9999px;
   background: #f8fbff;
@@ -3065,12 +3250,14 @@ onBeforeUnmount(() => {
   transition: all 160ms ease;
 }
 
-.assistant-resume-btn:hover {
+.assistant-resume-btn:hover,
+.assistant-tool-btn:hover {
   border-color: #3d6c85;
   background: #eef6fa;
 }
 
-.assistant-resume-dropdown {
+.assistant-resume-dropdown,
+.assistant-picker-dropdown {
   position: absolute;
   left: 0;
   bottom: calc(100% + 6px);
@@ -3085,14 +3272,21 @@ onBeforeUnmount(() => {
   padding: 6px;
 }
 
-.assistant-resume-empty {
+.assistant-picker-dropdown {
+  left: auto;
+  right: 0;
+}
+
+.assistant-resume-empty,
+.assistant-picker-empty {
   margin: 0;
   padding: 8px 10px;
   font-size: 12px;
   color: #94a3b8;
 }
 
-.assistant-resume-item {
+.assistant-resume-item,
+.assistant-picker-item {
   display: block;
   width: 100%;
   text-align: left;
@@ -3108,18 +3302,25 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.assistant-resume-item:hover {
+.assistant-resume-item:hover,
+.assistant-picker-item:hover {
   background: #eef6fa;
   color: #1d4ed8;
 }
 
 .assistant-input {
   width: 100%;
-  min-height: 62px;
+  box-sizing: border-box;
+  height: 48px; /* 初始约两行：2 × 20px 行高 + 8px 纵向 padding */
+  min-height: 48px;
+  max-height: 108px; /* 上限五行 */
   border: none;
   outline: none;
   resize: none;
+  overflow-y: auto;
   font-size: 12px;
+  line-height: 20px;
+  padding: 4px 2px;
   color: #0f172a;
   background: transparent;
 }
