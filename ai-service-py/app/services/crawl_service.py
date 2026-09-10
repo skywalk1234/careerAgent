@@ -267,10 +267,16 @@ class CrawlManager:
                 cleaned_count=len(cleaned),
                 added_count=stats["inserted"],
             )
+            embed_note = f"，向量化 {stats.get('embedded', 0)} 条"
+            if stats.get("embed_failed"):
+                embed_note += f"（失败 {stats['embed_failed']} 条，重跑可自动补嵌）"
             self._finish(
                 "done",
                 stats={"raw": len(raw_jobs), "cleaned": len(cleaned), **stats},
-                message=f"采集完成：新增 {stats['inserted']} 条，刷新 {stats['updated']} 条，跳过 {stats['skipped']} 条",
+                message=(
+                    f"采集完成：新增 {stats['inserted']} 条，刷新 {stats['updated']} 条，"
+                    f"跳过 {stats['skipped']} 条{embed_note}"
+                ),
             )
         except BossAuthenticationError:
             self._finish(

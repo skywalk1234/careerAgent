@@ -89,13 +89,39 @@ metadata字段内容：
   "updatedAtRaw": "2026-09-09",
 
   "contentHash": "sha1:9c1f...",
-  "embeddingModel": "text-embedding-v1"
+  "embeddingModel": "qwen3.7-text-embedding"
 }
 ```
 
+## 向量化口径（2026-09-10 起）
+
+这张表的 `embedding` 由**采集入库后内联写入**（`crawler/db.py` 的 `_embed_pending`），不再是空的：
+
+| 项 | 值 |
+|---|---|
+| 模型 | `qwen3.7-text-embedding`（`settings.job_embedding_model`） |
+| 维度 | 1536（模型默认 1024，必须显式传 `dimensions`） |
+| 输入 | `content` 列（即岗位 JD 文本），超 `settings.job_embedding_max_chars`（8000）才截断 |
+| text_type | 写库 `document` / 检索 `query` |
+
+**该表的向量空间是 Python 与 Java 共用的，换模型必须两侧一起换**，否则相似度分数失真：
+
+| 角色 | 位置 |
+|---|---|
+| 写（文档侧，text_type=document） | `ai-service-py/crawler/db.py`（爬虫）、`scripts/import_intern_jobs.py`（人工录入） |
+| 读（查询侧，text_type=query） | `ai-service-py/app/services/job_recommend.py` 的 `recommend_specific_job` |
+| 读（查询侧） | `resume-parser-service/.../config/SpringAIConfig.java` 的 `jobDetailEmbeddingModel` bean（qwen3.7 / 1536 / 库默认 text_type=document） |
+
+其余三张表（`job_category_vector`、`resume_example_vector`、`user_episodic_memory`）**仍是
+`text-embedding-v1`**，所以 `job_recommend.recommend_category`、长期记忆、简历样例检索都不受影响，
+别顺手把 `settings.embedding_model` 也改了。
+
+`vector_ready` 语义：`content` 变更时 upsert 会把 `embedding` 置 NULL 并把该列打回 `false`，
+由 `_embed_pending` 重嵌后置回 `true`；嵌入失败的行保持 `false`，下次重跑自动补。
+
 ## 谁在读写这张表
 
-**写**：`fc2026/ai-service-py/crawler/db.py`（BOSS 直聘爬虫，upsert 到 `job_detail_vector`，本阶段只写结构化字段、不做向量化，`embedding` 为 NULL、`vector_ready=false`）。
+**写**：`fc2026/ai-service-py/crawler/db.py`（BOSS 直聘爬虫，upsert 到 `job_detail_vector`，事务提交后按上节口径内联向量化）。
 
 **读**：
 

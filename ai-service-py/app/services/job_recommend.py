@@ -11,7 +11,7 @@ import re
 import time
 
 from app.config import settings
-from app.services.embedding import embed_text, truncate_for_embedding
+from app.services.embedding import embed_job_query, embed_text, truncate_for_embedding
 from app.services.llm import get_json_llm
 from app.services.vector_store import (
     TABLE_JOB_CATEGORY,
@@ -148,9 +148,10 @@ async def recommend_specific_job(pool, query_text: str) -> str:
     _t0 = time.perf_counter()
     try:
         # ---- 步骤 1/4：嵌入 ----
-        embedding = await embed_text(truncate_for_embedding(query_text))
+        # 必须与爬虫写库时（crawler/db.py 的 embed_job_content）同模型同空间，否则相似度失真
+        embedding = await embed_job_query(query_text)
         print(
-            f"[job_recommend] 具体推荐 | 1/4 嵌入完成({settings.embedding_model}, "
+            f"[job_recommend] 具体推荐 | 1/4 嵌入完成({settings.job_embedding_model}, "
             f"{len(embedding)}维) 耗时 {time.perf_counter() - _t0:.2f}s"
         )
 

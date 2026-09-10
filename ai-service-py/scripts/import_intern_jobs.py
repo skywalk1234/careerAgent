@@ -27,7 +27,7 @@ from pgvector.asyncpg import register_vector
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import settings  # noqa: E402
-from app.services.embedding import embed_text, truncate_for_embedding  # noqa: E402
+from app.services.embedding import embed_job_content  # noqa: E402
 
 ES_BASE = os.getenv("ES_URL", "http://192.168.118.130:9200")
 ES_INDEX = "jobs_index"
@@ -255,9 +255,13 @@ async def vector_exists(conn, job_id: str) -> bool:
     ))
 
 
-async def write_vector(conn, content: str, metadata: dict, embedding: list[float]) -> None:
+async def write_vector(conn, job_key: str, content: str, metadata: dict, embedding: list[float]) -> None:
+    """与 crawler/db.py 写同一张表，口径保持一致：job_key 必填（NOT NULL UNIQUE），
+    写入即视为向量就绪（本脚本只写已嵌入的行）。"""
     await conn.execute(
-        "INSERT INTO job_detail_vector (id, content, metadata, embedding) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO job_detail_vector (job_key, id, content, metadata, embedding, vector_ready) "
+        "VALUES ($1, $2, $3, $4, $5, true)",
+        job_key,
         str(uuid.uuid4()),
         content,
         json.dumps(metadata, ensure_ascii=False),
@@ -293,14 +297,15 @@ async def run(dry_run: bool) -> None:
             for job in JOBS:
                 content = build_content(job)
                 metadata = build_metadata(job)
-                truncated = len(content) > settings.embedding_max_chars
-                embed_text_ = truncate_for_embedding(content)
+                truncated = len(content) > settings.job_embedding_max_chars
 
                 print(f"\n=== {job['jobName']} ({job['jobId']}) ===")
-                print(f"content 长度: {len(content)}" + ("（已截断到2000）" if truncated else ""))
+                print(f"content 长度: {len(content)}"
+                      + (f"（已截断到{settings.job_embedding_max_chars}）" if truncated else ""))
 
-                embedding = await embed_text(embed_text_)
-                print(f"嵌入完成: {len(embedding)} 维")
+                # 与 crawler/db.py 同模型同空间：qwen3.7-text-embedding / 1536 维 / text_type=document
+                embedding = await embed_job_content(content)
+                print(f"嵌入完成: {len(embedding)} 维（{settings.job_embedding_model}）")
 
                 if dry_run:
                     print("[dry-run] 向量元数据:",
@@ -314,7 +319,7 @@ async def run(dry_run: bool) -> None:
                     if await vector_exists(conn, job["jobId"]):
                         print(f"[skip] job_detail_vector 已存在 {job['jobId']}，跳过向量写入")
                     else:
-                        await write_vector(conn, content, metadata, embedding)
+                        await write_vector(conn, job["jobId"], content, metadata, embedding)
                         print(f"[ok] 已写入 job_detail_vector: {job['jobId']}")
 
                 if await es_doc_exists(client, job["jobId"]):

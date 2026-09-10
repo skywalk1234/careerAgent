@@ -4,8 +4,10 @@
 
 - 落库目标换成 8.147.71.59:40086/ai-vector 的 `job_detail_vector`（见 岗位向量库job_detail_vector.md），
   采集审计写同库的 `crawl_runs` 表（本模块首次运行自动 CREATE TABLE IF NOT EXISTS）。
-- 本阶段**不触发向量化**：`embedding` 恒为 NULL、`vector_ready` 恒为 false；`content`/`metadata`
-  先按文档结构写好，后续向量化脚本按 `WHERE vector_ready = false` 补嵌入即可。
+- upsert 事务提交后**内联向量化**：把本次写入且 `vector_ready = false` 的行按 `content`（JD 文本）
+  用 qwen3.7-text-embedding（1536 维，见 app/config.py 的 job_embedding_*）嵌入，写回 `embedding`
+  并置 `vector_ready = true`。单条失败只打日志不影响入库，失败行留待下次重跑补嵌。
+  注意：该表的向量空间由 Python/Java 的读、写两侧共同约定，换模型必须两侧一起换（见 embedding.py）。
 - 对外仍保持**同步函数签名**（爬虫在 worker 线程里同步调用，见 app/services/crawl_service.py），
   内部用 asyncio.run 驱动 asyncpg；连接池不常驻，每次调用开一条连接（一次采集只调用个位数次数）。
 - 函数签名保留 `db_file` 形参以兼容调用方（boss.py CLI 的 --db、crawl_service 的 db_file 路径），
@@ -36,8 +38,9 @@ TABLE_CRAWL_RUNS = 'crawl_runs'
 
 SOURCE_BOSS = 'boss'
 SOURCE_SITE_BOSS = 'BOSS直聘'
-# 仅用于 metadata.embeddingModel 标注（本阶段不真的嵌入）
-EMBEDDING_MODEL = 'text-embedding-v1'
+# 仅用于 metadata.embeddingModel 标注；实际嵌入走 app.services.embedding.embed_job_content，
+# 模型/维度由 settings.job_embedding_* 决定，改模型时两处一起改。
+EMBEDDING_MODEL = 'qwen3.7-text-embedding'
 
 JOB_DETAIL_ID_RE = re.compile(r'/job_detail/([^/?#]+)\.html')
 
@@ -257,9 +260,60 @@ RETURNING (xmax = 0) AS inserted
 '''
 
 
+# 待向量化的行：本次写过、JD 非空、且尚未就绪（content 变更时 upsert 会把 vector_ready 打回 false）
+_EMBED_PENDING_SQL = f'''
+SELECT id, job_key, content FROM {TABLE_JOB_DETAIL}
+WHERE job_key = ANY($1::text[]) AND vector_ready = false
+  AND content IS NOT NULL AND content <> ''
+ORDER BY id
+'''
+
+_EMBED_UPDATE_SQL = f'''
+UPDATE {TABLE_JOB_DETAIL} SET embedding = $2, vector_ready = true WHERE id = $1
+'''
+
+
+def _load_job_embedder():
+    """延迟 import app.services.embedding：crawler 包可能脱离服务单独跑（boss_fetch CLI 的 --merge），
+    那里没有 app 包时给出明确报错而不是 import 期就炸。"""
+    from app.services.embedding import embed_job_content
+    return embed_job_content
+
+
+async def _embed_pending(conn: asyncpg.Connection, job_keys: list) -> tuple:
+    """把本次写过且未向量化的行按 content 补嵌入，返回 (成功数, 失败数)。
+
+    单条失败只打日志、continue：失败行保持 vector_ready = false，下次重跑自动补。
+    """
+    if not job_keys:
+        return 0, 0
+
+    try:
+        embed_job_content = _load_job_embedder()
+    except Exception as e:  # noqa: BLE001 —— 嵌入不可用时仍要保证入库结果可用
+        print(f'[crawler.db] 向量化不可用（{type(e).__name__}: {e}），本次仅入库、不嵌入')
+        return 0, 0
+
+    rows = await conn.fetch(_EMBED_PENDING_SQL, job_keys)
+    embedded = failed = 0
+    for row in rows:
+        try:
+            vector = await embed_job_content(row['content'])
+            await conn.execute(_EMBED_UPDATE_SQL, row['id'], vector)
+            embedded += 1
+        except Exception as e:  # noqa: BLE001 —— 单条失败不拖垮整批采集
+            failed += 1
+            print(f'[crawler.db] 向量化失败 job_key={row["job_key"]}: {type(e).__name__}: {e}')
+
+    if rows:
+        print(f'[crawler.db] 向量化完成：成功 {embedded} 条，失败 {failed} 条（待嵌入 {len(rows)} 条）')
+    return embedded, failed
+
+
 async def _upsert_async(jobs: list) -> dict:
     now = dt.datetime.now(dt.timezone.utc)
     inserted = updated = skipped = 0
+    touched_keys: list = []
 
     conn = await _connect()
     try:
@@ -300,6 +354,15 @@ async def _upsert_async(jobs: list) -> dict:
                     inserted += 1
                 else:
                     updated += 1
+                touched_keys.append(key)
+
+        # 事务提交后内联向量化（在连接关闭前做完，复用同一条连接）。
+        # 兜底 catch：数据已提交，嵌入整体失败也不该让调用方以为「入库失败」。
+        try:
+            embedded, embed_failed = await _embed_pending(conn, touched_keys)
+        except Exception as e:  # noqa: BLE001
+            embedded = embed_failed = 0
+            print(f'[crawler.db] 向量化步骤异常（数据已入库，可重跑补嵌）: {type(e).__name__}: {e}')
     finally:
         await conn.close()
 
@@ -308,11 +371,14 @@ async def _upsert_async(jobs: list) -> dict:
         'inserted': inserted,
         'updated': updated,
         'skipped': skipped,
+        'embedded': embedded,
+        'embed_failed': embed_failed,
     }
 
 
 def upsert_jobs(jobs: Iterable[dict], db_file: Optional[str] = None) -> dict:
-    """写入/刷新 job_detail_vector。返回 {input, inserted, updated, skipped}。
+    """写入/刷新 job_detail_vector，并对本轮数据内联向量化。
+    返回 {input, inserted, updated, skipped, embedded, embed_failed}。
 
     db_file 参数仅为兼容旧调用方保留，现已无意义。
     """

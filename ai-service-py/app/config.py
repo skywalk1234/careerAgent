@@ -53,6 +53,17 @@ class Settings(BaseSettings):
     # 嵌入输入超长时防御性截断（text-embedding-v1 单次输入有上限），可调大以完全对齐 Java 不截断
     embedding_max_chars: int = 2000
 
+    # ---------- 岗位内容向量化配置（仅 job_detail_vector，见 岗位向量库job_detail_vector.md）----------
+    # 该表建表时留了 embedding vector(1536) / vector_ready 两列，但长期没有代码写过；
+    # 由 crawler/db.py 在 upsert 后内联向量化（content=JD 文本）。
+    # 注意：job_category_vector / resume_example_vector / user_episodic_memory 仍用上面的
+    # text-embedding-v1，两套模型空间不同，别混用（换表模型前先确认查/写两侧一起换）。
+    # qwen3.7-text-embedding 默认 1024 维，必须显式传 1536 才能对上列类型。
+    job_embedding_model: str = "qwen3.7-text-embedding"
+    job_embedding_dimensions: int = 1536
+    # 该模型上下文 128k token，远大于 v1，岗位 JD 基本不会被截断
+    job_embedding_max_chars: int = 8000
+
     # ---------- RAG 岗位推荐参数（对齐 AI_recommend.java）----------
     recommend_top_k: int = 5
     recommend_category_threshold: float = 0.3
