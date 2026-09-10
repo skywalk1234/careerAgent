@@ -430,11 +430,16 @@ function resumeOptionTitle(item: ResumeListItem): string {
   return text.length > 16 ? `${text.slice(0, 16)}…` : text
 }
 
-/** 收藏岗位的薪资展示：薪资面议 → “面议”，否则用归一化字符串；异常/缺失返回空串 */
-function favoriteSalaryText(job: { salaryNormalized?: string; salaryNegotiable?: boolean }) {
-  if (job.salaryNegotiable) return '面议'
-  const normalized = String(job.salaryNormalized ?? '').trim()
-  return normalized && !/unknown/i.test(normalized) ? normalized : ''
+/**
+ * 收藏岗位的薪资展示。
+ * 数据源已从 ES 换成 pgvector 的 job_detail_vector，薪资字段是原始文本 salaryText
+ * （如 20-35K·15薪），“面议/薪资面议”就在文本里，直接判一下即可。
+ */
+function favoriteSalaryText(job: { salaryText?: string | null }) {
+  const text = String(job.salaryText ?? '').trim()
+  if (!text || /unknown/i.test(text)) return ''
+  if (/面议|面谈/.test(text)) return '面议'
+  return text
 }
 
 async function loadResumeOptions() {

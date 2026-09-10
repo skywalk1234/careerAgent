@@ -1,52 +1,66 @@
 import { http } from './http'
 import type { CompetencyKey } from '../types/domain'
 
+/**
+ * 岗位探索链路的数据源已从 ES 的 jobs_index 换成 pgvector 的 job_detail_vector
+ * （写入方是 ai-service-py 的 BOSS 直聘爬虫）。选项与字段只覆盖爬虫真实采集到的内容，
+ * 原来的 industryTags / level / companyType / companySize / district 新表里没有，已去掉。
+ */
 export interface JobFilterOptions {
-  jobNames?: string[]
+  /** 向量库里 DISTINCT 出来的城市 */
   cities: string[]
-  districts?: string[]
-  industryTags: string[]
-  levels: Array<'junior' | 'mid' | 'middle' | 'senior' | 'lead' | string>
-  companySizes?: string[]
-  companyTypes?: string[]
   educationRequirements?: string[]
-  salaryUnits?: string[]
-  salaryMonths?: number[]
+  /** 经验要求，如 3-5年 */
+  exps?: string[]
+  /** 薪资档，如 15-30K */
+  salaryTiers?: string[]
 }
 
 export interface JobListItem {
+  /** job_key（表上唯一键） */
   jobId: string
+  /** BOSS 招聘帖 id，形如 boss:8a3f1c... */
+  bossJobId?: string | null
   jobName: string
   categoryName?: string
-  jobCode: string
   companyName: string
   city: string
-  district?: string
-  industryTags: string[]
-  educationRequirement?: string
+  /** 岗位分类标签，由爬虫 cat_rules 自动打，如 ["大模型/LLM"] */
+  cats?: string[]
+  /** 原始薪资文本，如 20-35K·15薪 */
+  salaryText?: string | null
   salaryMin?: number | null
   salaryMax?: number | null
-  salaryUnit?: string
-  salaryMonths?: number | null
-  salaryNegotiable?: boolean
-  salaryNormalized?: string
-  level: 'junior' | 'mid' | 'middle' | 'senior' | 'lead' | string
-  updatedAtRaw?: string
-  updatedAtNormalized?: string | null
-  sourceSite?: string
-  companySize?: string
-  companyType?: string
+  salaryUnit?: string | null
+  /** 月平均薪资，单位 K（薪资区间筛选/排序用的就是它） */
+  avg?: number | null
+  /** 薪资档：15-30K / 30-50K / 50K+ ... */
+  tier?: string | null
+  exp?: string | null
+  edu?: string | null
+  source?: string | null
+  sourceSite?: string | null
+  sourceUrl?: string | null
+  updatedAtRaw?: string | null
+  /** 最近一次采集到该岗位的时间（ISO 8601 带时区） */
+  lastSeen?: string | null
+  firstSeen?: string | null
+  isNew?: boolean
+  /** 是否已向量化、可被 RAG 检索 */
+  vectorReady?: boolean
 }
 
 export interface JobListQuery {
   keyword?: string
   city?: string
-  industryTag?: string
-  educationRequirement?: string
-  level?: string
-  companySize?: string
-  companyType?: string
-  sortBy?: 'salary' | 'updatedAt' | string
+  /** 月平均薪资下限，单位 K */
+  salaryMin?: number
+  /** 月平均薪资上限，单位 K */
+  salaryMax?: number
+  salaryTier?: string[]
+  exp?: string[]
+  edu?: string[]
+  sortBy?: 'salary' | 'updatedAt' | 'createdAt' | string
   sortOrder?: 'asc' | 'desc' | string
   page?: number
   pageSize?: number
@@ -79,33 +93,14 @@ export interface JobGraphResult {
   edges: JobGraphEdge[]
 }
 
-export interface JobDetailResult {
-  jobId: string
-  jobName: string
-  categoryName?: string
-  jobCode: string
-  companyName: string
-  city: string
-  district?: string
-  industryTags: string[]
-  educationRequirement?: string
-  salaryMin?: number | null
-  salaryMax?: number | null
-  salaryUnit?: string
-  salaryMonths?: number | null
-  salaryNegotiable?: boolean
-  salaryNormalized?: string
-  updatedAtRaw?: string
-  updatedAtNormalized?: string | null
-  sourceUrl?: string
-  sourceSite?: string
-  companySize: string
-  companyType: string
-  level: 'junior' | 'mid' | 'middle' | 'senior' | 'lead' | string
+/** 详情 = 列表字段 + JD 正文 */
+export interface JobDetailResult extends JobListItem {
   jobDescription: string
-  companyBrief?: string
-  companyDescription?: string
-  abilityRequirements: Record<CompetencyKey, number>
+  /**
+   * 以下三项是 ES 时代的遗留字段，爬虫采集的数据里没有。
+   * 详情面板会在这三项都为空时整块隐藏（见 JobGraphView 的 hasDetailAbilityData）。
+   */
+  abilityRequirements?: Record<CompetencyKey, number>
   dimensionDetails?: Partial<Record<CompetencyKey, string>>
   keySkills?: {
     hardSkills?: string[]
@@ -120,11 +115,9 @@ export interface FavoriteJobsResult {
     jobName: string
     companyName?: string
     city: string
-    educationRequirement?: string
-    salaryNegotiable?: boolean
-    salaryNormalized?: string
+    edu?: string
+    salaryText?: string
     updatedAtRaw?: string
-    updatedAtNormalized?: string | null
     favoritedAt: string
   }>
 }

@@ -771,7 +771,19 @@ function publishDateText(payload: { updatedAtRaw?: string; updatedAtNormalized?:
   return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
-function displaySalaryText(payload: { salaryNormalized?: string; salaryNegotiable?: boolean } | null | undefined) {
+/**
+ * 薪资展示。
+ * 岗位探索/收藏链路的数据源是 pgvector 的 job_detail_vector，薪资字段是原始文本 salaryText；
+ * 匹配分析自己的接口（match/analyze 等）仍是老结构，字段是 salaryNormalized / salaryNegotiable。
+ * 两种都兼容，优先用 salaryText。
+ */
+function displaySalaryText(payload: {
+  salaryText?: string | null
+  salaryNormalized?: string
+  salaryNegotiable?: boolean
+} | null | undefined) {
+  const text = String(payload?.salaryText || '').trim()
+  if (text) return text
   if (payload?.salaryNegotiable) return '面谈'
   const normalized = String(payload?.salaryNormalized || '').trim()
   if (normalized) return normalized
@@ -3259,15 +3271,15 @@ onBeforeUnmount(() => {
                   <div>
                     <div class="flex flex-wrap items-center gap-2">
                       <div class="text-base font-semibold text-slate-900">{{ jobDetail.jobName }}</div>
-                      <el-tag v-if="jobDetail.educationRequirement" size="small" type="info" effect="plain">{{ jobDetail.educationRequirement }}</el-tag>
+                      <el-tag v-if="jobDetail.edu" size="small" type="info" effect="plain">{{ jobDetail.edu }}</el-tag>
+                      <el-tag v-if="jobDetail.exp" size="small" type="info" effect="plain">{{ jobDetail.exp }}</el-tag>
                     </div>
                     <div class="mt-1 text-xs text-slate-500">
-                      {{ jobDetail.companyName }} · {{ jobDetail.city }}{{ jobDetail.district ? `-${jobDetail.district}` : '' }} · {{ displaySalaryText(jobDetail) }}
+                      {{ jobDetail.companyName }} · {{ jobDetail.city }} · {{ displaySalaryText(jobDetail) }}
                     </div>
                     <div class="mt-2 flex flex-wrap gap-2">
-                      <el-tag v-for="tag in jobDetail.industryTags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
-                      <el-tag v-if="jobDetail.companySize" size="small" effect="plain">{{ jobDetail.companySize }}</el-tag>
-                      <el-tag v-if="jobDetail.companyType" size="small" effect="plain">{{ jobDetail.companyType }}</el-tag>
+                      <el-tag v-if="jobDetail.tier" size="small" type="success" effect="plain">{{ jobDetail.tier }}</el-tag>
+                      <el-tag v-for="tag in jobDetail.cats || []" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
                     </div>
                   </div>
                   <el-button size="small" type="primary" plain :icon="ChatDotRound" @click="handleAddJobToAssistant">
@@ -3904,23 +3916,14 @@ onBeforeUnmount(() => {
         <template v-if="nodeDetail">
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
             <div class="font-semibold text-slate-800">{{ nodeDetail.jobName }}</div>
-            <div class="mt-1 text-xs text-slate-500">{{ nodeDetail.companyName }} · {{ nodeDetail.city }}{{ nodeDetail.district ? `-${nodeDetail.district}` : '' }} · {{ displaySalaryText(nodeDetail) }}</div>
+            <div class="mt-1 text-xs text-slate-500">{{ nodeDetail.companyName }} · {{ nodeDetail.city }} · {{ displaySalaryText(nodeDetail) }}</div>
             <div class="mt-2 flex flex-wrap gap-2">
-              <el-tag v-for="tag in nodeDetail.industryTags || []" :key="tag">{{ tag }}</el-tag>
-              <el-tag>{{ nodeDetail.level }}</el-tag>
+              <el-tag v-for="tag in nodeDetail.cats || []" :key="tag">{{ tag }}</el-tag>
+              <el-tag v-if="nodeDetail.edu" type="info">{{ nodeDetail.edu }}</el-tag>
+              <el-tag v-if="nodeDetail.exp" type="info">{{ nodeDetail.exp }}</el-tag>
+              <el-tag v-if="nodeDetail.tier" type="success">{{ nodeDetail.tier }}</el-tag>
               <el-tag type="info">{{ nodeDetail.updatedAtRaw || '发布日期未知' }}</el-tag>
-              <el-tag type="warning">{{ nodeDetail.companyType || '公司类型待补充' }}</el-tag>
-              <el-tag type="success">{{ nodeDetail.companySize || '公司规模待补充' }}</el-tag>
             </div>
-          </div>
-
-          <div class="rounded-lg border border-slate-200 p-3 text-xs leading-6 text-slate-600">
-            <div class="mb-1 text-sm font-medium text-slate-700">公司简介</div>
-            {{
-              (String(nodeDetail.companyBrief || nodeDetail.companyDescription || '').trim() && !['暂无公司介绍', '暂无公司简介', '公司简介待补充'].includes(String(nodeDetail.companyBrief || nodeDetail.companyDescription || '').trim().replace(/\s+/g, '')))
-                ? String(nodeDetail.companyBrief || nodeDetail.companyDescription || '').trim()
-                : `暂无“${nodeDetail.companyName || '该公司'}”的简介，可前往岗位来源站点查看。`
-            }}
           </div>
 
           <div class="rounded-lg border border-slate-200 p-3 text-sm leading-6 text-slate-600">
@@ -3928,7 +3931,8 @@ onBeforeUnmount(() => {
             {{ nodeDetail.jobDescription }}
           </div>
 
-          <div class="rounded-lg border border-slate-200 p-3">
+          <!-- 能力要求是 ES 时代的字段，pgvector 的 job_detail_vector 里没有，无数据时整块隐藏 -->
+          <div v-if="Object.keys(nodeDetail.abilityRequirements || {}).length" class="rounded-lg border border-slate-200 p-3">
             <div class="mb-2 text-sm font-medium text-slate-700">岗位能力要求（Top5）</div>
             <div class="space-y-2">
               <div
