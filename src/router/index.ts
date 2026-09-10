@@ -8,6 +8,7 @@ const loadAdminGovernancePage = () => import('../views/admin/AdminGovernancePage
 const loadAdminJobsPage = () => import('../views/admin/AdminJobsPage.vue')
 const loadHomeView = () => import('../views/HomeView.vue')
 const loadJobGraphView = () => import('../views/JobGraphView.vue')
+const loadJobCrawlView = () => import('../views/JobCrawlView.vue')
 const loadStudentProfileView = () => import('../views/StudentProfileView.vue')
 const loadMatchAnalysisView = () => import('../views/MatchAnalysisView.vue')
 const loadCareerPlanView = () => import('../views/CareerPlanView.vue')
@@ -17,6 +18,7 @@ const loadInterviewReportsView = () => import('../views/InterviewReportsView.vue
 const routePrefetchLoaders: Record<string, () => Promise<unknown>> = {
   '/': loadHomeView,
   '/jobs': loadJobGraphView,
+  '/crawl': loadJobCrawlView,
   '/student': loadStudentProfileView,
   '/match': loadMatchAnalysisView,
   '/report': loadCareerPlanView,
@@ -143,6 +145,16 @@ const router = createRouter({
       component: loadJobGraphView,
       meta: {
         title: '岗位探索',
+        requiresAuth: true,
+        transition: 'page-slide',
+      },
+    },
+    {
+      path: '/crawl',
+      name: 'crawl',
+      component: loadJobCrawlView,
+      meta: {
+        title: '岗位采集',
         requiresAuth: true,
         transition: 'page-slide',
       },

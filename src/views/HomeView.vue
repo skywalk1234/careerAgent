@@ -184,6 +184,12 @@ const staticModules = [
     desc: '聚合岗位趋势要求，快速定位目标方向',
   },
   {
+    key: 'jobCrawl',
+    title: '岗位采集',
+    route: '/crawl',
+    desc: '批量采集 BOSS 直聘真实岗位，清洗入库',
+  },
+  {
     key: 'careerPlan',
     title: '职业规划',
     route: '/match',
