@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(powershell -NoProfile -Command)",
+      "Shell(Get-Content:*)",
+      "Shell(Out-String:*)",
+      "Shell(.Length:*)",
+      "Shell(D:\\desktop\\university\\career_agent\\career-planner-web\\src\\views\\JobGraphView.vue:*)",
+      "Shell([0..3]:*)",
+      "Shell(ForEach-Object:*)",
+      "Shell(powershell -NoProfile -Command $p='D:\\desktop\\university\\career_agent\\career-planner-web\\src\\views\\JobGraphView.vue'; $t=[System.IO.File]::ReadAllText($p); $t=$t.Replace(\"`0\",''); [System.IO.File]::WriteAllText('C:\\Users\\15070\\AppData\\Local\\Temp\\commandcode\\D--desktop-university-career-agent-career-planner-web\\42878524-008c-4344-bbb9-44f32b6dee10\\scratchpad\\JobGraphView.vue',$t); (Get-Item 'C:\\Users\\15070\\AppData\\Local\\Temp\\commandcode\\D--desktop-university-career-agent-career-planner-web\\42878524-008c-4344-bbb9-44f32b6dee10\\scratchpad\\JobGraphView.vue').Length)",
+      "Shell(powershell -NoProfile -Command =D:\\desktop\\university\\career_agent\\career-planner-web\\src\\views\\JobGraphView.vue)",
+      "Shell(=[System.IO.File]::ReadAllText:*)",
+      "Shell(=.Replace:*)",
+      "Shell([string][char]0,:*)",
+      "Shell(=C:\\Users\\15070\\AppData\\Local\\Temp\\commandcode\\D--desktop-university-career-agent-career-planner-web\\42878524-008c-4344-bbb9-44f32b6dee10\\scratchpad\\JobGraphView.vue:*)",
+      "Shell([System.IO.File]::WriteAllText:*)",
+      "Shell(,:*)",
+      "Shell(Get-Item:*)",
+      "powershell",
+      "Shell(npm:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

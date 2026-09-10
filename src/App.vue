@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { HomeFilled, Collection, Download, UserFilled, DataAnalysis, Document, Menu, SwitchButton, ChatLineRound } from '@element-plus/icons-vue'
+import { HomeFilled, Collection, Download, UserFilled, Document, Menu, SwitchButton, ChatLineRound } from '@element-plus/icons-vue'
 import GlobalAssistantWidget from './components/GlobalAssistantWidget.vue'
 import TaskOrchestratorWidget from './components/TaskOrchestratorWidget.vue'
 import { clearAuthStorage, getToken, isTokenExpired } from './utils/auth'
@@ -39,7 +39,6 @@ const navItems = [
   { to: '/jobs', label: '岗位探索', icon: Collection },
   { to: '/crawl', label: '岗位采集', icon: Download },
   { to: '/student', label: '能力评估', icon: UserFilled },
-  { to: '/match', label: '职业规划', icon: DataAnalysis },
   { to: '/report', label: '计划与行动方案', icon: Document },
   { to: '/interview', label: '模拟面试', icon: ChatLineRound },
 ]

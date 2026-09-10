@@ -190,12 +190,6 @@ const staticModules = [
     desc: '批量采集 BOSS 直聘真实岗位，清洗入库',
   },
   {
-    key: 'careerPlan',
-    title: '职业规划',
-    route: '/match',
-    desc: '生成人岗匹配结果，规划职业成长路径',
-  },
-  {
     key: 'careerReport',
     title: '计划与行动方案',
     route: '/report',
@@ -235,16 +229,16 @@ const metricCardImageMap: Record<string, string> = {
 
 const metricCardRouteMap: Record<string, string> = {
   usersServed: '/student',
-  pathsGenerated: '/match',
+  pathsGenerated: '/report',
   reportsCompleted: '/report',
-  helpMatched: '/match',
+  helpMatched: '/jobs',
 }
 
 const metricCardTitleMap: Record<string, string> = {
   usersServed: '前往能力评估',
-  pathsGenerated: '前往职业规划',
+  pathsGenerated: '前往计划与行动方案',
   reportsCompleted: '前往计划与行动方案',
-  helpMatched: '前往职业规划',
+  helpMatched: '前往岗位探索',
 }
 
 function resolveMetricCardImage(key: string) {
@@ -666,7 +660,7 @@ function sanitizeTaskResultCard(
 
   const kind = String(card.kind || '').trim()
   const hasStudentRoute = actionList.some(action => String(action?.route || '').trim() === '/student')
-  const hasMatchRoute = actionList.some(action => String(action?.route || '').trim() === '/match')
+  const hasMatchRoute = actionList.some(action => ['/match', '/jobs', '/report'].includes(String(action?.route || '').trim()))
   const hasParseResumeAction = actionList.some(
     action => action?.type === 'navigate_and_parse_resume' || action?.intent === 'parse_resume',
   )

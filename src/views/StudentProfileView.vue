@@ -461,7 +461,7 @@ async function saveProfile() {
     refreshResumeListTab()
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
 
-    // 同步应用级画像快照，供 /match 岗位推荐、任务编排器、AI 助手等页面即时读取
+    // 同步应用级画像快照，供 /jobs 岗位推荐、任务编排器、AI 助手等页面即时读取
     appStore.setProfileSnapshot({
       hasProfile: true,
       profileId: savedProfileId || null,

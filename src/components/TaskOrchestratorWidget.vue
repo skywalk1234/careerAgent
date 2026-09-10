@@ -124,7 +124,7 @@ interface DemoResultPayload {
   intent: DemoIntent
   title: string
   summary: string
-  jumpRoute: '/student' | '/match' | '/report' | ''
+  jumpRoute: '/student' | '/jobs' | '/report' | ''
   jumpLabel: string
   scores?: DemoScoreItem[]
   match?: DemoMatchResult
@@ -419,7 +419,7 @@ function buildAutoPlan(intent: DemoIntent, goalText: string, fileNames: string[]
         type: 'plan',
         title: '生成岗位冲刺建议并提示跳转',
         detail: '按匹配结果给出行动建议。',
-        expectedResult: '提示跳转/match查看详细匹配过程。',
+        expectedResult: '提示跳转/jobs岗位推荐查看详细匹配结果。',
         toolName: '',
         status: 'pending',
       },
@@ -451,7 +451,7 @@ function buildAutoPlan(intent: DemoIntent, goalText: string, fileNames: string[]
         type: 'plan',
         title: '展示AI建议详情并提示跳转',
         detail: '输出路径说明与下一步动作。',
-        expectedResult: '提示跳转/match查看路径图与详细建议。',
+        expectedResult: '提示跳转/report查看路径图与详细建议。',
         toolName: '',
         status: 'pending',
       },
@@ -809,9 +809,9 @@ function buildFallbackDemoResult(intent: DemoIntent, goalText = ''): DemoResultP
     return {
       intent,
       title: '推荐与匹配结果',
-      summary: '已完成推荐与匹配流程，已生成可视化匹配卡片，可继续查看职业规划详情。',
-      jumpRoute: '/match',
-      jumpLabel: '前往职业规划',
+      summary: '已完成推荐与匹配流程，已生成可视化匹配卡片，可在岗位探索页查看推荐岗位。',
+      jumpRoute: '/jobs',
+      jumpLabel: '前往岗位探索',
       match: {
         jobName: '前端开发工程师',
         jobFamily: 'Web应用开发',
@@ -824,8 +824,8 @@ function buildFallbackDemoResult(intent: DemoIntent, goalText = ''): DemoResultP
       actions: [
         {
           type: 'navigate',
-          label: '查看匹配详情',
-          route: '/match',
+          label: '查看推荐岗位',
+          route: '/jobs',
           intent: 'job_match',
         },
       ],
@@ -836,8 +836,8 @@ function buildFallbackDemoResult(intent: DemoIntent, goalText = ''): DemoResultP
     return {
       intent,
       title: 'AI职业路径规划',
-      summary: '已完成路径规划流程，已生成阶段卡片，可在职业规划页继续查看路径图。',
-      jumpRoute: '/match',
+      summary: '已完成路径规划流程，已生成阶段卡片，可在计划与行动方案页继续查看。',
+      jumpRoute: '/report',
       jumpLabel: '查看详情',
       pathStages: [
         {
@@ -860,7 +860,7 @@ function buildFallbackDemoResult(intent: DemoIntent, goalText = ''): DemoResultP
         {
           type: 'navigate',
           label: '查看职业路径详情',
-          route: '/match',
+          route: '/report',
           intent: 'path_plan',
         },
       ],
@@ -1075,8 +1075,8 @@ async function buildLiveJobMatchResult() {
       intent: 'job_match' as const,
       title: '推荐与匹配结果',
       summary: `已同步最新匹配结果，当前最高匹配岗位为“${best.jobName}”，综合匹配度${overallScore}。`,
-      jumpRoute: '/match' as const,
-      jumpLabel: '前往职业规划',
+      jumpRoute: '/jobs' as const,
+      jumpLabel: '前往岗位探索',
       match: {
         jobId: best.jobId,
         jobName: best.jobName,
@@ -1090,8 +1090,8 @@ async function buildLiveJobMatchResult() {
       actions: [
         {
           type: 'navigate',
-          label: '查看匹配详情',
-          route: '/match',
+          label: '查看推荐岗位',
+          route: '/jobs',
           intent: 'job_match',
         },
         {
@@ -1180,14 +1180,14 @@ async function buildLivePathPlanResult() {
       intent: 'path_plan' as const,
       title: 'AI职业路径规划',
       summary: `已同步“${pathName}”路径评估：可行性${feasibilityScore}，就绪度${readinessScore}，推荐度${recommendationScore}。`,
-      jumpRoute: '/match' as const,
+      jumpRoute: '/report' as const,
       jumpLabel: '查看路径详情',
       pathStages,
       actions: [
         {
           type: 'navigate',
           label: '查看职业路径详情',
-          route: '/match',
+          route: '/report',
           intent: 'path_plan',
         },
         ...(reportReady
@@ -1515,10 +1515,6 @@ function reconcileSelectedPreset() {
 function pushRouteRefreshEvent(intent: DemoIntent) {
   if (intent === 'resume_analysis' && route.path === '/student') {
     emitTaskOrchestratorRouteRefresh({ routePath: '/student', intent })
-    return
-  }
-  if ((intent === 'job_match' || intent === 'path_plan') && route.path === '/match') {
-    emitTaskOrchestratorRouteRefresh({ routePath: '/match', intent })
   }
 }
 

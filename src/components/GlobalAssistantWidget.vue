@@ -632,7 +632,7 @@ function sanitizeTaskResultCard(
 
   const kind = String(card.kind || '').trim()
   const hasStudentRoute = actionList.some(action => String(action?.route || '').trim() === '/student')
-  const hasMatchRoute = actionList.some(action => String(action?.route || '').trim() === '/match')
+  const hasMatchRoute = actionList.some(action => ['/match', '/jobs', '/report'].includes(String(action?.route || '').trim()))
   const hasParseResumeAction = actionList.some(
     action => action?.type === 'navigate_and_parse_resume' || action?.intent === 'parse_resume',
   )
@@ -927,7 +927,6 @@ function buildDefaultContextPrompt(path: string) {
   if (path === '/jobs') return '您正在查看岗位图谱，需要我详细解释每个阶段的技能要求吗？'
   if (path === '/report') return '这份报告显示您与目标岗位有一定匹配度，想了解如何提升吗？'
   if (path === '/student') return '上传简历后我可以帮您分析能力短板，并给出补齐建议。'
-  if (path === '/match') return '如果匹配结果不满意，我可以帮你细化岗位范围、城市意向与薪资偏好。'
   return '我可以结合当前页面给你更精准的建议。'
 }
 
@@ -957,9 +956,6 @@ function resolveRouteQuickFlowPrompts(routePath: string) {
   }
   if (path === '/student') {
     return ['帮我分析一下简历', '我现在先补哪几项画像信息', '请给我一份简历优化清单']
-  }
-  if (path === '/match') {
-    return ['帮我细化一下匹配范围', '帮我规划一下职业路径', '我想提高匹配分应该先做什么']
   }
   if (path === '/report') {
     return ['帮我润色一下这份报告', '帮我写一段报告展示话术', '这份报告下一步怎么优化']
@@ -1715,15 +1711,15 @@ async function handleMessageAction(action: {
         messageId: `hm_local_${Date.now()}`,
         role: 'assistant',
         content: finished
-          ? '已完成按意愿细化后的重新匹配，推荐结果已更新。你可以在职业规划页右侧推荐面板查看。'
-          : '已触发细化匹配，结果仍在处理中。请稍后刷新职业规划页推荐面板。',
+          ? '已完成按意愿细化后的重新匹配，推荐结果已更新。你可以在岗位探索页的岗位推荐中查看。'
+          : '已触发细化匹配，结果仍在处理中。请稍后在岗位探索页的岗位推荐中查看。',
         status: 'succeeded',
         createdAt: new Date().toISOString(),
         actions: [
           {
             type: 'navigate',
-            label: '打开职业规划页查看',
-            route: '/match',
+            label: '打开岗位探索页查看',
+            route: '/jobs',
           },
         ],
       })

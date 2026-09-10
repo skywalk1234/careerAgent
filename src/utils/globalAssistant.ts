@@ -105,7 +105,7 @@ export interface TaskOrchestratorStreamPayload {
 }
 
 export interface TaskOrchestratorRouteRefreshPayload {
-  routePath?: '/student' | '/match' | string
+  routePath?: '/student' | string
   intent?: 'resume_analysis' | 'job_match' | 'path_plan' | 'generic' | string
 }
 

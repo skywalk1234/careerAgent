@@ -10,7 +10,6 @@ const loadHomeView = () => import('../views/HomeView.vue')
 const loadJobGraphView = () => import('../views/JobGraphView.vue')
 const loadJobCrawlView = () => import('../views/JobCrawlView.vue')
 const loadStudentProfileView = () => import('../views/StudentProfileView.vue')
-const loadMatchAnalysisView = () => import('../views/MatchAnalysisView.vue')
 const loadCareerPlanView = () => import('../views/CareerPlanView.vue')
 const loadMockInterviewView = () => import('../views/MockInterviewView.vue')
 const loadInterviewReportsView = () => import('../views/InterviewReportsView.vue')
@@ -20,7 +19,6 @@ const routePrefetchLoaders: Record<string, () => Promise<unknown>> = {
   '/jobs': loadJobGraphView,
   '/crawl': loadJobCrawlView,
   '/student': loadStudentProfileView,
-  '/match': loadMatchAnalysisView,
   '/report': loadCareerPlanView,
   '/interview': loadMockInterviewView,
   '/interview/reports': loadInterviewReportsView,
@@ -165,16 +163,6 @@ const router = createRouter({
       component: loadStudentProfileView,
       meta: {
         title: '能力评估',
-        requiresAuth: true,
-        transition: 'page-slide',
-      },
-    },
-    {
-      path: '/match',
-      name: 'match',
-      component: loadMatchAnalysisView,
-      meta: {
-        title: '职业规划',
         requiresAuth: true,
         transition: 'page-slide',
       },
