@@ -91,3 +91,28 @@ metadata字段内容：
   "contentHash": "sha1:9c1f...",
   "embeddingModel": "text-embedding-v1"
 }
+```
+
+## 谁在读写这张表
+
+**写**：`fc2026/ai-service-py/crawler/db.py`（BOSS 直聘爬虫，upsert 到 `job_detail_vector`，本阶段只写结构化字段、不做向量化，`embedding` 为 NULL、`vector_ready=false`）。
+
+**读**：
+
+| 链路 | 位置 | 说明 |
+|---|---|---|
+| 岗位探索页 | `career-service` `JobExploreController` → `JobVectorQueryService` → `JobVectorRepository` | `POST /jobs/search`、`GET /jobs/{jobId}`、`GET /jobs/filters`、收藏列表 |
+| RAG 岗位推荐 | `ai-service-py` `app/routers/job_recommend.py` | pgvector 余弦检索 + DeepSeek 精排 |
+| Java 版 RAG / 岗位分析 / 职业路径 / 生涯报告 | resume-parser-service、career-service | **仍读 ES 的 `jobs_index`**，本次未动 |
+
+### career-service 侧的接入方式（2026-09-10）
+
+前台岗位探索链路的数据源已从 ES `jobs_index` 切到本表，前端契约同步改过。
+
+- 配置在 `career-service/src/main/resources/application.yml` 的 `vector.datasource.*`（指向线上向量库）。
+- `config/VectorJdbcConfig.java` **只暴露 `JdbcTemplate` Bean，绝不暴露 `DataSource` Bean**——`MybatisPlusAutoConfiguration` 上有 `@ConditionalOnSingleCandidate(DataSource.class)`，多一个 DataSource 候选会让全部 MyBatis-Plus Mapper 静默失效（`favorite_jobs` 等直接报错）；加 `@Primary` 也救不了，那会把 MyBatis 指到 PG。
+- `repository/JobVectorRepository.java` 是纯 JdbcTemplate SQL：关键词 `ILIKE`、`city`、`avg` 区间、`tier/exp/edu` 多值 `IN`，排序走白名单（`salary→avg`、`updatedAt→last_seen`、`createdAt→first_seen`）。
+- 接口里返回的 `jobId` 用的是 **`job_key`**（表上 UNIQUE、必然非空）；`metadata->>'jobId'`（`boss:{encryptJobId}`）只作为 `bossJobId` 附带返回。
+- `metadata` 是 `json` 类型，取值统一走 `->>'xxx'` 拿 text，避免处理 `PGobject`。
+- `GET /jobs/{jobId}` 查 PG 未命中时会**回退查 ES**，保证老的 ES jobId（以及基于它存的收藏记录）仍能打开详情。
+- `JobFilterRes` 的 `cities / educationRequirements / exps / salaryTiers` 都是 `SELECT DISTINCT` 出来的真实取值；`industryTags / levels / companySizes / companyTypes` 在本表里没有对应列，已从接口契约里删掉，前端 `jobGraph.ts`、`JobGraphView.vue`、`MatchAnalysisView.vue`、`MockInterviewView.vue` 同步改过。

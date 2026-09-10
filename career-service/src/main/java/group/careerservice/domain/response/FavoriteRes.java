@@ -12,10 +12,12 @@ public class FavoriteRes {
     public static class JobInfo {
         private String jobId;
         private String jobName;
+        private String companyName;
         private String city;
-        private String educationRequirement;
-        private Boolean salaryNegotiable;
-        private String salaryNormalized;
+        /** 学历要求（job_detail_vector.edu） */
+        private String edu;
+        /** 原始薪资文本，如 20-35K·15薪 */
+        private String salaryText;
         private String updatedAtRaw;
         private String favoritedAt;
     }

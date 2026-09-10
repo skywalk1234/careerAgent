@@ -1,26 +1,24 @@
 package group.careerservice.controller;/* I love coding */
 
 import group.careerservice.domain.po.FavoriteJob;
-import group.careerservice.domain.dto.JobDocument;
+import group.careerservice.domain.dto.JobVectorItem;
 import group.careerservice.domain.response.FavoriteRes;
 import group.careerservice.domain.response.JobFilterRes;
 import group.careerservice.domain.response.JobGraphRes;
-import group.careerservice.domain.response.JobRelationRes;
-import group.careerservice.domain.vo.JobsFilter;
+import group.careerservice.domain.vo.JobVectorFilter;
+import group.careerservice.repository.JobVectorRepository.PageResult;
 import group.careerservice.service.JobExploration.AddFavoriteJobService;
+import group.careerservice.service.JobExploration.JobVectorQueryService;
 import group.careerservice.service.JobExploration.QueryFavoriteJobService;
 import group.careerservice.service.JobExploration.QueryJobGraphService;
 import group.careerservice.service.JobExploration.QueryJobRelationService;
-import group.careerservice.service.JobExploration.SaveJobService;
 import group.careerservice.tools.FavoriteTrans;
 import group.common.Result;
 import group.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,44 +27,40 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class JobExploreController {
-    private final SaveJobService saveJobService;
+    private final JobVectorQueryService jobVectorQueryService;
     private final QueryFavoriteJobService queryFavoriteJobService;
     private final AddFavoriteJobService addFavoriteJobService;
     private final FavoriteTrans favoriteTrans;
     private final QueryJobRelationService queryJobRelationService;
     private final QueryJobGraphService queryJobGraphService;
+
+    /** 岗位详情：数据源是 pgvector 的 job_detail_vector，查不到时回退 ES 老库 */
     @GetMapping("/jobs/{jobId}")
     public Result queryJobById(@PathVariable String jobId) {
         log.info("开始查询岗位详细信息，jobId: {}", jobId);
-        JobDocument jobDocument = saveJobService.queryJobById(jobId);
-        if (jobDocument != null) {
+        JobVectorItem job = jobVectorQueryService.queryJobById(jobId);
+        if (job != null) {
             log.info("查询成功，返回岗位详细信息");
-            return Result.success(jobDocument);
+            return Result.success(job);
         }
 
         return Result.error(500, "查询失败");
     }
 
+    /** 筛选下拉选项：从向量库 DISTINCT 出真实存在的取值 */
     @GetMapping("/jobs/filters")
     public Result queryJobFilters() {
         log.info("开始查询岗位筛选条件");
-        return Result.success(JobFilterRes.getDefaultOptions());
+        return Result.success(JobFilterRes.fromOptions(jobVectorQueryService.queryFilterOptions()));
     }
 
     //根据过滤条件查询岗位
     @PostMapping("/jobs/search")
-    public Result queryJobsByFilter(@RequestBody JobsFilter filters) {
-        log.info("开始查询所有岗位信息");
-        Page<JobDocument> jobs = saveJobService.queryJobsByFilter(filters);
-        log.info("查询成功，返回岗位列表，数量：{}", jobs.getTotalElements());
+    public Result queryJobsByFilter(@RequestBody JobVectorFilter filters) {
+        log.info("开始按条件查询岗位信息");
+        PageResult jobs = jobVectorQueryService.queryJobs(filters);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("total", jobs.getTotalElements());
-        response.put("page", filters.getPage() != null ? filters.getPage() : 1);
-        response.put("pageSize", filters.getPageSize() != null ? filters.getPageSize() : 20);
-        response.put("list", jobs.getContent());
-
-        return Result.success(response);
+        return Result.success(jobVectorQueryService.toPageResponse(jobs, filters));
     }
 
     @GetMapping("/users/me/favorite-jobs")

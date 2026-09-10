@@ -37,6 +37,15 @@ dashscope:
 ai-service:
   url: http://127.0.0.1:8086
 
+# 岗位向量库（pgvector）—— 岗位探索链路读 job_detail_vector，写入方是 ai-service-py 的爬虫
+# 与 ai-service-py/app/config.py 的 vector_database_url 指向同一个库，密码里的 @ 是明文（JDBC 不像 URL 需要转义）
+vector:
+  datasource:
+    url: jdbc:postgresql://8.147.71.59:40086/ai-vector
+    username: postgres
+    password: "Mm85619562@"
+    max-pool-size: 4
+
 feign:
   client:
     config:
