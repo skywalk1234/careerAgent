@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS crawl_runs (
 
 metadata字段内容：
 {
-  "jobKey": "boss:8a3f1c...",
-  "jobId": "boss:8a3f1c...",
+  "jobKey": "9c1f0a...",              // 与 job_key 列同值（采集去重键）
+  "jobId": "boss:8a3f1c...",          // BOSS 招聘帖 id（encryptJobId）
   "jobName": "AI应用开发工程师",
   "companyName": "××科技有限公司",
   "companySize": "100-999人",

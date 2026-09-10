@@ -179,7 +179,9 @@ def build_metadata(job: dict) -> dict:
     """严格按 岗位向量库job_detail_vector.md 的 metadata 结构构建。
 
     companySize / companyStage / district 当前爬虫未采集，保留键、值为 None。
-    jobKey / jobId 取 BOSS 招聘帖 id（encryptJobId，来自 url），取不到时退回采集去重键。
+    jobKey 与 job_key 列同值（采集去重键，见 _job_key）；jobId 取 BOSS 招聘帖 id
+    （encryptJobId，来自 url），取不到时退回采集去重键。
+    调用方（_upsert_async）已保证 _key 非空，jobKey 不会是空串。
     """
     title = str(job.get('title') or '').strip()
     company = str(job.get('company') or '').strip()
@@ -189,11 +191,12 @@ def build_metadata(job: dict) -> dict:
     content = str(job.get('desc') or '').strip()
     salary_min, salary_max, salary_unit = _parse_salary_range(salary_text)
 
-    encrypt_id = _encrypt_job_id(url) or str(job.get('security_id') or '').strip() or _job_key(job)
+    job_key = _job_key(job)
+    encrypt_id = _encrypt_job_id(url) or str(job.get('security_id') or '').strip() or job_key
     boss_identity = f'boss:{encrypt_id}' if encrypt_id else ''
 
     return {
-        'jobKey': boss_identity,
+        'jobKey': job_key,
         'jobId': boss_identity,
         'jobName': title,
         'companyName': company,
