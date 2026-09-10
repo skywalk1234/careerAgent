@@ -10,11 +10,13 @@ import { emitCareerReportRefresh } from './utils/globalAssistant'
 import { getCareerReportPolishJobStatus } from './services/careerReport'
 import { isSuccessCode } from './services/http'
 import { useAppStore } from './stores/app'
+import { useJobRecommendStore } from './stores/jobRecommend'
 import brandLogo from './assets/favicon.png'
 
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const jobRecommendStore = useJobRecommendStore()
 const mobileOpen = ref(false)
 const activeContainerPath = ref(route.path)
 const pendingContainerPath = ref(route.path)
@@ -90,6 +92,7 @@ async function logout() {
 
     clearAuthStorage()
     appStore.clearProfileSnapshot()
+    jobRecommendStore.clear()
     ElMessage.success('已退出登录')
     router.replace('/auth')
   } catch {

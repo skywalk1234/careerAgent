@@ -22,8 +22,9 @@ import {
   type JobListItem,
   type JobListResult,
 } from '../services/jobGraph'
-import { getMatchRecommendationsFromPython, type MatchRecommendationsResult } from '../services/matchAnalysis'
+import { getMatchRecommendationsFromPython } from '../services/matchAnalysis'
 import { useAppStore } from '../stores/app'
+import { useJobRecommendStore } from '../stores/jobRecommend'
 import {
   JOB_RECOMMENDATION_APPLY_EVENT,
   consumePendingJobRecommendationApply,
@@ -53,6 +54,7 @@ interface DisplayGraphEdge extends NormalizedGraphEdge {
 const isDesktop = ref(window.innerWidth >= 1024)
 const router = useRouter()
 const appStore = useAppStore()
+const jobRecommendStore = useJobRecommendStore()
 const listCollapsed = ref(false)
 const listViewMode = ref<'all' | 'favorites' | 'recommend'>('all')
 const combinedPanelView = ref<'list' | 'graph'>('list')
@@ -60,7 +62,8 @@ const rightPanel = ref<'detail' | 'paths' | 'recommend'>('detail')
 const filterLoading = ref(false)
 const listLoading = ref(false)
 const recommendLoading = ref(false)
-const matchRecommendations = ref<MatchRecommendationsResult | null>(null)
+// 推荐结果放在 store 里（sessionStorage 持久化），切页面回来还在；想更新点「智能推荐岗位」
+const matchRecommendations = computed(() => jobRecommendStore.result)
 const graphLoading = ref(false)
 const detailLoading = ref(false)
 const favoriteLoading = ref(false)
@@ -754,7 +757,7 @@ async function fetchRecommendedJobs() {
       ElMessage.error(result.message || '获取推荐失败')
       return
     }
-    matchRecommendations.value = result.data ?? null
+    jobRecommendStore.save(appStore.currentStudentId, result.data)
     if (!recommendedJobList.value.length) {
       ElMessage.warning('暂未匹配到推荐岗位，请稍后重试')
     }
@@ -2830,6 +2833,8 @@ watch(
 
 onMounted(async () => {
   graphViewAlive = true
+  // 先恢复上次的推荐结果（不自动重推，想更新点「智能推荐岗位」）
+  jobRecommendStore.hydrate(appStore.currentStudentId)
   window.addEventListener('resize', onResize)
   window.addEventListener(JOB_RECOMMENDATION_APPLY_EVENT, handleJobRecommendationApplyEvent as EventListener)
   await Promise.all([refreshAll(), fetchUserProfileSummary()])
