@@ -108,6 +108,8 @@ export interface MatchRecommendationsResult {
     professionalSkillMatchRate?: number
     matchTags: string[]
     dimensionScores?: MatchDimensionScores
+    // AI 排序理由（Python 侧 /jobs/recommend/specific 生成，Java 侧 DTO 也有该字段）
+    reason?: string
   } | null
   otherRecommendations: Array<{
     jobId: string
@@ -125,6 +127,8 @@ export interface MatchRecommendationsResult {
     overallScore: number
     professionalSkillMatchRate?: number
     matchTags: string[]
+    // AI 排序理由（Python 侧 /jobs/recommend/specific 生成，Java 侧 DTO 也有该字段）
+    reason?: string
   }>
 }
 

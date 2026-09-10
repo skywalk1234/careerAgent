@@ -702,6 +702,8 @@ interface RecommendedJobItem {
   isBestMatch: boolean
   salaryText?: string
   updatedAtRaw?: string
+  // AI 排序理由（Python 侧 /jobs/recommend/specific 返回），推荐卡片的主文案
+  reason?: string
 }
 
 const recommendedJobList = computed<RecommendedJobItem[]>(() => {
@@ -3028,24 +3030,17 @@ onBeforeUnmount(() => {
                         :key="item.jobId"
                         class="recommend-job-card"
                         :class="{ 'recommend-job-card--selected': item.jobId === selectedJobId }"
-                        @click="selectJob(item.jobId)"
+                        @click="item.jobId && selectJob(item.jobId)"
                       >
-                        <div class="flex items-start justify-between gap-2">
-                          <div class="flex items-center gap-2">
-                            <span class="font-medium text-slate-800">{{ item.jobName }}</span>
-                            <el-tag v-if="item.isBestMatch" type="danger" size="small" effect="dark">最佳匹配</el-tag>
-                            <el-tag v-if="item.level" size="small" effect="plain">{{ item.level }}</el-tag>
-                          </div>
-                          <el-tag type="success" effect="plain" size="small">匹配度 {{ item.overallScore }}</el-tag>
+                        <div class="flex items-center gap-2">
+                          <span class="font-medium text-slate-800">{{ item.jobName }}</span>
+                          <el-tag v-if="item.isBestMatch" type="danger" size="small" effect="dark">最佳匹配</el-tag>
+                          <el-tag v-if="item.level" size="small" effect="plain">{{ item.level }}</el-tag>
                         </div>
                         <div class="mt-1 text-xs text-slate-500">
-                          {{ item.companyName }} · {{ item.city }}{{ item.district ? ` · ${item.district}` : '' }} · {{ item.salaryText }}
+                          {{ item.companyName }} · {{ item.city }} · {{ item.salaryText }}
                         </div>
-                        <div v-if="item.matchTags?.length" class="mt-2 flex flex-wrap gap-1">
-                          <el-tag v-for="tag in item.matchTags.slice(0, 4)" :key="tag" size="small" type="info" effect="plain">
-                            {{ tag }}
-                          </el-tag>
-                        </div>
+                        <div v-if="item.reason" class="recommend-job-reason">{{ item.reason }}</div>
                       </div>
                     </template>
 
@@ -3896,5 +3891,20 @@ onBeforeUnmount(() => {
 .recommend-job-card--selected {
   border-color: #3b82f6;
   background: #eff6ff;
+}
+
+.recommend-job-reason {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border-left: 2px solid #93c5fd;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.recommend-job-card--selected .recommend-job-reason {
+  background: rgba(255, 255, 255, 0.7);
 }
 </style>
