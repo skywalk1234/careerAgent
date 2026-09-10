@@ -16,9 +16,10 @@
 metadata 严格按 岗位向量库job_detail_vector.md 给出的结构写（jobKey/jobId/jobName/companyName/
 companySize/companyStage/city/district/salaryText/salaryMin/salaryMax/salaryUnit/salaryAvgK/
 salaryTier/experience/education/source/sourceSite/sourceUrl/updatedAtRaw/contentHash/embeddingModel）。
-注意：RAG 消费方 app/services/job_recommend.py 的 build_candidate() 读的是 educationRequirement/
-level/salaryNormalized 等键（人工录入脚本 scripts/import_intern_jobs.py 走的是那套），
-本模块按文档结构写，那几个键取不到值（null），如需对齐消费方再补键。
+RAG 消费方 app/services/job_recommend.py 读的就是本模块写的这套键：build_candidate() 取
+jobName/companyName/education/salaryText，build_recommendation() 取 jobKey（作为对外 jobId，
+与 job_key 列同值）/jobName/companyName/city/education/salaryText/updatedAtRaw/experience。
+改这里的键名要同步改消费方。
 """
 import asyncio
 import hashlib

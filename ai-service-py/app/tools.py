@@ -285,7 +285,8 @@ async def recommend_specific_jobs(
     - skills：技能栈（选填），如「Java, Spring, MySQL, Redis」
     - experience：经验水平（选填），如「应届生 / 3 年经验」
 
-    内部会把这些信息拼成用户画像文本，走「向量检索 + DeepSeek 精排」返回最佳匹配岗位及备选岗位。
+    内部会把这些信息拼成用户画像文本，走「向量检索 + DeepSeek 排序」返回 {bestMatch, otherRecommendations}：
+    第 1 名在 bestMatch，其余在 otherRecommendations，每条含 reason（AI 给出的排序理由）。
     """
     # 拼装成与 /jobs/recommend/specific 接口一致的「用户画像」查询文本
     profile = {
