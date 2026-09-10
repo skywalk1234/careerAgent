@@ -6,8 +6,9 @@
   这里用独立 daemon 线程执行；同一时刻只允许一个采集任务（同 Cookie 并发敏感，见 boss_fetch README）。
 - 服务端跑必须关掉 platform_utils 的模态登录弹窗：本模块 import 时即设 AI_PM_UNATTENDED=1
   （若 Cookie 失效不会卡在「请先登录」对话框等人点确认，而是快速失败 → 任务进入 error）。
-- 采集 → 清洗 → 入库 SQLite 全流程与脚本 `--merge` 行为一致：
+- 采集 → 清洗 → 入库**向量库**（8.147.71.59:40086 的 job_detail_vector）全流程与脚本 `--merge` 行为一致：
   crawler.run() → process_batch() → upsert_jobs() → save_run()。
+  本阶段只落结构化数据，不触发向量化（embedding 恒为 NULL、vector_ready=false）。
 - 进度通过 crawler 的 set_progress_callback 回填到快照，供 GET /status 轮询；stop() 走
   crawler.request_stop() 优雅停止（后台线程内不能注册信号，见 boss.py _setup_signal_handler）。
 - 线程内中断语义：run() 只返回「详情已完整」的岗位子集，未抓完详情的留在 crawl_partial.json（可续采）。
@@ -37,7 +38,7 @@ _BUILTIN_PROBE = str(Path(CRAWLER_CONFIG_FILE).with_name("__builtin_probe__.json
 
 from crawler import BossCrawler  # noqa: E402
 from crawler.boss import BossAuthenticationError, load_cities, load_config, load_keywords  # noqa: E402
-from crawler.db import load_existing_job_index, save_run, upsert_jobs  # noqa: E402
+from crawler.db import TABLE_JOB_DETAIL, load_existing_job_index, save_run, upsert_jobs  # noqa: E402
 from crawler.pipeline import MIN_AVG_SALARY_K, process_batch  # noqa: E402
 
 
@@ -146,7 +147,8 @@ class CrawlManager:
                     raise ValueError(f"未知城市「{name}」，支持: {', '.join(table)}")
                 city_map[name] = code
 
-            db = _resolve(db_file or settings.crawler_db_file)
+            # 落库目标已从本地 SQLite 改成向量库 job_detail_vector；db_file 参数仅作兼容保留
+            target = f"pgvector:{TABLE_JOB_DETAIL}"
             profile = _resolve(profile_dir or settings.crawler_profile_dir)
             if headless is None:
                 headless = settings.crawler_headless
@@ -158,18 +160,18 @@ class CrawlManager:
             snap.started_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
             snap.keywords = keywords
             snap.cities = list(city_map.keys())
-            snap.db_file = str(db)
+            snap.db_file = target
             snap.total_units = len(keywords) * len(city_map)
 
             crawler = BossCrawler(
                 profile_dir=str(profile),
                 config_file=CRAWLER_CONFIG_FILE,
             )
-            # 已入库岗位跳过详情页抓取（复用 db 现有索引，首次运行空索引无害）
+            # 已入库岗位跳过详情页抓取（复用向量库现有索引，首次运行空索引无害）
             try:
-                crawler.set_existing_job_index(load_existing_job_index(str(db)))
+                crawler.set_existing_job_index(load_existing_job_index())
             except Exception:
-                pass  # 库文件不存在/损坏时忽略，仍可全量爬
+                pass  # 向量库不可达/表不存在时忽略，仍可全量爬
 
             crawler.set_progress_callback(self._on_progress)
             crawler.set_crawl_started_callback(self._on_crawl_started)
@@ -179,7 +181,7 @@ class CrawlManager:
             thread = threading.Thread(
                 target=self._run_worker,
                 args=(crawler, keywords, city_map, search_filters, new_job_target,
-                      max_jobs, headless, str(db)),
+                      max_jobs, headless, target),
                 name=f"boss-crawl-{snap.run_id}",
                 daemon=True,
             )

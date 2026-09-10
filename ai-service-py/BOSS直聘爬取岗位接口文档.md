@@ -6,8 +6,12 @@
 
 - 采集**异步**执行：提交后立即返回任务状态，后台 daemon 线程里同步爬取（DrissionPage 驱动真实 Chrome）。
 - **同一时刻只允许一个采集任务**（BOSS 对同一 Cookie 并发敏感），已有任务在跑时重复提交返回 `409`。
-- 结果入**本地 SQLite**（`.env` 的 `CRAWLER_DB_FILE`，默认 `jobs_data.db`），全流程等价 `boss_fetch --merge`：`crawler.run() → process_batch()（清洗）→ upsert_jobs() → save_run()`。
-- 采集动作**不写入 pgvector 岗位向量库**（岗位推荐 RAG 的数据源），如需让新爬岗位被推荐检索到，需另行做 embedding 入库。
+- 结果入**岗位向量库**（`8.147.71.59:40086/ai-vector` 的 `job_detail_vector` 表，DDL 见 `岗位向量库job_detail_vector.md`），
+  全流程等价 `boss_fetch --merge`：`crawler.run() → process_batch()（清洗）→ upsert_jobs() → save_run()`；
+  采集审计写同库的 `crawl_runs` 表。
+- 本阶段**只落结构化数据、不触发向量化**：`embedding` 恒为 NULL、`vector_ready=false`，`content`/`metadata` 已按建表文档写好；
+  待后续向量化脚本按 `WHERE vector_ready = false` 补嵌入后，新爬岗位才会进入 RAG 推荐检索。
+- 注意：`crawler/db.py` 已被改为写 PG（不再写 SQLite），与独立脚本 `fc2026/boss_fetch` 的同名文件**不再保持一致**（那份仍写本地 SQLite）。
 
 ---
 
@@ -111,7 +115,7 @@ Authorization: Bearer <JWT>
     "startedAt": "2026-09-09T08:00:00Z",
     "finishedAt": null,
     "stats": null,
-    "dbFile": "jobs_data.db",
+    "dbFile": "pgvector:job_detail_vector",
     "message": null
   }
 }
@@ -141,7 +145,7 @@ Authorization: Bearer <JWT>
     "startedAt": "2026-09-09T08:00:00Z",
     "finishedAt": null,
     "stats": null,
-    "dbFile": "jobs_data.db",
+    "dbFile": "pgvector:job_detail_vector",
     "message": null
   }
 }
@@ -187,7 +191,7 @@ Authorization: Bearer <JWT>
       "updated": 2,
       "skipped": 1
     },
-    "dbFile": "jobs_data.db",
+    "dbFile": "pgvector:job_detail_vector",
     "message": "采集完成：新增 45 条，刷新 2 条，跳过 1 条"
   }
 }
@@ -196,11 +200,11 @@ Authorization: Bearer <JWT>
 `stats` 字段含义（对齐 `crawler.db.upsert_jobs` 返回 + 脚本统计）：
 - `raw`：爬虫原始抓取条数
 - `cleaned`：清洗后条数（标题命中关键词、未命中黑名单；自动打分类标签）
-- `inserted`：**新增**入库条数（`jobs.is_new=1`）
+- `inserted`：**新增**入库条数（`job_detail_vector.is_new=1`）
 - `updated`：已存在刷新条数
 - `skipped`：清洗丢弃条数
 
-完整岗位数据在 SQLite `jobs` 表内（字段见 `crawler/db.py`），本接口只回统计，不回岗位明细。
+完整岗位数据在向量库 `job_detail_vector` 表内（字段见 `岗位向量库job_detail_vector.md` 与 `crawler/db.py`），本接口只回统计，不回岗位明细。
 
 ---
 
@@ -235,7 +239,8 @@ Authorization: Bearer <JWT>
 | 环境变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `CRAWLER_PROFILE_DIR` | `.chrome_profile` | 已登录 BOSS 直聘的 Chrome 用户目录（Cookie 持久化），相对 ai-service-py 根目录 |
-| `CRAWLER_DB_FILE` | `jobs_data.db` | 采集结果 SQLite 文件路径 |
+| `VECTOR_DATABASE_URL` | `postgresql://postgres:***@8.147.71.59:40086/ai-vector` | 岗位向量库 DSN（与 RAG 推荐同一套配置），采集结果写入其 `job_detail_vector` 表 |
+| `CRAWLER_DB_FILE` | `jobs_data.db` | **已废弃**：原 SQLite 路径，现不再使用（仅为兼容旧 .env 保留） |
 | （代码内 `crawler_headless`） | `true` | 采集默认无头 |
 
 其它行为受 `crawler/config/keywords.json` 控制：`keywords` / `cities` / `cat_rules` / `scrape_limits`。

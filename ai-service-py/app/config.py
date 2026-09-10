@@ -98,7 +98,8 @@ class Settings(BaseSettings):
     # 已登录 BOSS 直聘的 Chrome 用户目录（Cookie 持久化）。首次需真实浏览器登录一次，
     # 之后可 headless 复用；服务端跑绝不弹登录框（见 crawler/platform_utils.py 的 AI_PM_UNATTENDED）。
     crawler_profile_dir: str = ".chrome_profile"
-    # 爬取结果写入的 SQLite 文件（相对 ai-service-py 根目录）
+    # 【已废弃】原为爬取结果写入的 SQLite 文件路径。落库已改为向量库 job_detail_vector
+    # （DSN 见上方 vector_database_url），该配置不再生效，仅为兼容旧 .env 保留。
     crawler_db_file: str = "jobs_data.db"
     # 采集默认是否无头。服务端/CI 跑必须 True；False 仅用于本地人工联调（会弹出 Chrome 窗口）
     crawler_headless: bool = True

@@ -44,6 +44,22 @@ CREATE INDEX idx_job_detail_vector_title ON job_detail_vector (title);
 CREATE INDEX idx_job_detail_vector_ready ON job_detail_vector (vector_ready) WHERE vector_ready;
 
 
+-- ============ 3) 采集审计表（crawler/db.py 的 save_run 写入；代码内也会自动建，这里留档） ============
+CREATE TABLE IF NOT EXISTS crawl_runs (
+    id            bigserial PRIMARY KEY,
+    started_at    timestamptz,
+    finished_at   timestamptz,
+    keywords_json jsonb DEFAULT '[]'::jsonb,
+    cities_json   jsonb DEFAULT '[]'::jsonb,
+    mode          text,                          -- 如 crawl-api / scroll / process_partial
+    raw_count     integer DEFAULT 0,
+    cleaned_count integer DEFAULT 0,
+    added_count   integer DEFAULT 0,
+    db_file       text,                          -- 沿旧列名，落库值固定为 pgvector:job_detail_vector
+    note          text
+);
+
+
 
 metadata字段内容：
 {
