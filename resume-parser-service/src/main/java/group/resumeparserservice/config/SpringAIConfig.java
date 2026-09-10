@@ -62,8 +62,8 @@ public class SpringAIConfig {
     public VectorStore pgVectorVectorStore(
             @Qualifier("vectorJdbcTemplate") JdbcTemplate jdbcTemplate,
             // 必须显式限定：本类还定义了 jobDetailEmbeddingModel，同类型 bean 有两个，
-            // 不限定会 NoUniqueBeanDefinitionException（参数名对不上自动配置的 bean 名）
-            @Qualifier("dashscopeEmbeddingModel") DashScopeEmbeddingModel embeddingModel) {
+            // 不限定会 NoUniqueBeanDefinitionException
+            @Qualifier("categoryEmbeddingModel") DashScopeEmbeddingModel embeddingModel) {
         return PgVectorStore.builder(jdbcTemplate, embeddingModel)
                 .vectorTableName("job_category_vector") //如果要改大类的向量化先改这里
                 .dimensions(1536)  // 与嵌入模型维度对齐
@@ -83,7 +83,7 @@ public class SpringAIConfig {
      * （注意 MetadataMode 是 Spring AI 控制「metadata 要不要拼进向量输入」的枚举，与 text_type 无关）
      * <p>
      * 注意：不能改 application.yml 的 spring.ai.dashscope.embedding.options.model —— 那会连带
-     * 改掉 job_category_vector 用的自动配置 bean，而那张表的 38 条向量仍是 text-embedding-v1。
+     * 改掉 job_category_vector 用的 categoryEmbeddingModel，而那张表的 38 条向量仍是 text-embedding-v1。
      */
     @Bean("jobDetailEmbeddingModel")
     public DashScopeEmbeddingModel jobDetailEmbeddingModel(
@@ -98,6 +98,30 @@ public class SpringAIConfig {
                 MetadataMode.NONE,  // 只嵌 Document 正文，不把 metadata 拼进向量输入
                 DashScopeEmbeddingOptions.builder()
                         .withModel("qwen3.7-text-embedding")
+                        .withDimensions(1536)
+                        .build());
+    }
+
+    /**
+     * job_category_vector 专用嵌入模型（text-embedding-v1 / 1536 维），保持与该表已有向量同一空间。
+     * <p>
+     * 之所以要显式声明：自动配置 DashScopeEmbeddingAutoConfiguration#dashscopeEmbeddingModel
+     * 带 @ConditionalOnMissingBean，本类一旦存在 DashScopeEmbeddingModel 类型的 bean（jobDetailEmbeddingModel），
+     * 自动配置就不再创建 dashscopeEmbeddingModel，所以这里补上它。
+     */
+    @Bean("categoryEmbeddingModel")
+    public DashScopeEmbeddingModel categoryEmbeddingModel(
+            @Value("${spring.ai.dashscope.api-key}") String apiKey,
+            @Value("${spring.ai.dashscope.base-url:https://dashscope.aliyuncs.com}") String baseUrl) {
+        DashScopeApi dashScopeApi = DashScopeApi.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .build();
+        return new DashScopeEmbeddingModel(
+                dashScopeApi,
+                MetadataMode.EMBED,  // 与自动配置默认值一致
+                DashScopeEmbeddingOptions.builder()
+                        .withModel("text-embedding-v1")
                         .withDimensions(1536)
                         .build());
     }

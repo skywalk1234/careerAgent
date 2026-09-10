@@ -1,0 +1,130 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< group:resume-parser-service >---------------------
+[INFO] Building resume-parser-service 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.3.1:run (default-cli) > test-compile @ resume-parser-service >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ resume-parser-service ---
+[INFO] Copying 3 resources from src\main\resources to target\classes
+[INFO] Copying 7 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ resume-parser-service ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 77 source files with javac [debug parameters release 17] to target\classes
+[INFO] /D:/desktop/university/career_agent/fc2026/resume-parser-service/src/main/java/group/resumeparserservice/service/AI_image_parser.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /D:/desktop/university/career_agent/fc2026/resume-parser-service/src/main/java/group/resumeparserservice/service/AI_image_parser.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /D:/desktop/university/career_agent/fc2026/resume-parser-service/src/main/java/group/resumeparserservice/controller/Agent_controller.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /D:/desktop/university/career_agent/fc2026/resume-parser-service/src/main/java/group/resumeparserservice/controller/Agent_controller.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ resume-parser-service ---
+[INFO] skip non existing resourceDirectory D:\desktop\university\career_agent\fc2026\resume-parser-service\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ resume-parser-service ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug parameters release 17] to target\test-classes
+[INFO] 
+[INFO] <<< spring-boot:3.3.1:run (default-cli) < test-compile @ resume-parser-service <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.3.1:run (default-cli) @ resume-parser-service ---
+[INFO] Attaching agents: []
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+SLF4J(W): Class path contains multiple SLF4J providers.
+SLF4J(W): Found provider [ch.qos.logback.classic.spi.LogbackServiceProvider@5594a1b5]
+SLF4J(W): Found provider [org.slf4j.simple.SimpleServiceProvider@6a5fc7f7]
+SLF4J(W): See https://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J(I): Actual provider is of type [ch.qos.logback.classic.spi.LogbackServiceProvider@5594a1b5]
+2026-09-10T15:53:11.698+08:00  INFO 20776 --- [resume-parser-service] [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback12.LogbackNacosLoggingAdapterBuilder
+2026-09-10T15:53:11.704+08:00  INFO 20776 --- [resume-parser-service] [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapterBuilder
+2026-09-10T15:53:11.704+08:00  INFO 20776 --- [resume-parser-service] [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapter match ch.qos.logback.classic.Logger success.
+2026-09-10T15:53:11.710+08:00  INFO 20776 --- [resume-parser-service] [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.log4j2.Log4j2NacosLoggingAdapterBuilder
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.1)
+
+2026-09-10T15:53:13.518+08:00  INFO 20776 --- [resume-parser-service] [           main] g.r.ResumeParserServiceApplication       : The following 1 profile is active: "dev"
+2026-09-10T15:53:14.240+08:00  INFO 20776 --- [resume-parser-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-09-10T15:53:14.242+08:00  INFO 20776 --- [resume-parser-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-09-10T15:53:14.264+08:00  INFO 20776 --- [resume-parser-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 11 ms. Found 0 Redis repository interfaces.
+2026-09-10T15:53:14.463+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=cff60ff9-885b-307b-bd1c-71d8b4937fe3
+2026-09-10T15:53:14.486+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'com.alibaba.cloud.nacos.NacosConfigAutoConfiguration' of type [com.alibaba.cloud.nacos.NacosConfigAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [nacosAnnotationProcessor] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-09-10T15:53:14.487+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'nacosConfigProperties' of type [com.alibaba.cloud.nacos.NacosConfigProperties] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [nacosAnnotationProcessor]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-09-10T15:53:14.562+08:00  INFO 20776 --- [resume-parser-service] [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.impl.NacosClientAuthServiceImpl success.
+2026-09-10T15:53:14.562+08:00  INFO 20776 --- [resume-parser-service] [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.ram.RamClientAuthServiceImpl success.
+2026-09-10T15:53:14.564+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'nacosConfigManager' of type [com.alibaba.cloud.nacos.NacosConfigManager] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [nacosAnnotationProcessor]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-09-10T15:53:14.659+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.LoadBalancerAutoConfiguration$DeferringLoadBalancerInterceptorConfig' of type [org.springframework.cloud.client.loadbalancer.LoadBalancerAutoConfiguration$DeferringLoadBalancerInterceptorConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [lbRestClientPostProcessor] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-09-10T15:53:14.661+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'deferringLoadBalancerInterceptor' of type [org.springframework.cloud.client.loadbalancer.DeferringLoadBalancerInterceptor] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [lbRestClientPostProcessor]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-09-10T15:53:14.662+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [loadBalancerWebClientBuilderBeanPostProcessor] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-09-10T15:53:14.662+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [loadBalancerWebClientBuilderBeanPostProcessor]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-09-10T15:53:14.662+08:00  WARN 20776 --- [resume-parser-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected into a currently created BeanPostProcessor [loadBalancerWebClientBuilderBeanPostProcessor]? Check the corresponding BeanPostProcessor declaration and its dependencies.
+2026-09-10T15:53:14.843+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-09-10T15:53:14.851+08:00  INFO 20776 --- [resume-parser-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-09-10T15:53:14.851+08:00  INFO 20776 --- [resume-parser-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.25]
+2026-09-10T15:53:14.942+08:00  INFO 20776 --- [resume-parser-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-09-10T15:53:14.942+08:00  INFO 20776 --- [resume-parser-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1414 ms
+Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+2026-09-10T15:53:15.628+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.c.openfeign.FeignClientFactoryBean   : For 'profile-service' URL not provided. Will try picking an instance via load-balancing.
+2026-09-10T15:53:15.667+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.c.openfeign.FeignClientFactoryBean   : For 'career-service' URL not provided. Will try picking an instance via load-balancing.
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        3.5.7 
+2026-09-10T15:53:16.249+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.a.v.pgvector.PgVectorStore           : Using the vector table name: job_category_vector. Is empty: false
+2026-09-10T15:53:16.252+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.a.v.pgvector.PgVectorStore           : Initializing PGVectorStore schema for table: job_category_vector in schema: public
+2026-09-10T15:53:16.252+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.a.v.pgvector.PgVectorStore           : vectorTableValidationsEnabled false
+>>> [DEBUG] ���ڴ���ָ��� 'job_detail_vector' �� VectorStore Bean...
+2026-09-10T15:53:16.316+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.a.v.pgvector.PgVectorStore           : Using the vector table name: job_detail_vector. Is empty: false
+2026-09-10T15:53:16.316+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.a.v.pgvector.PgVectorStore           : Initializing PGVectorStore schema for table: job_detail_vector in schema: public
+2026-09-10T15:53:16.316+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.a.v.pgvector.PgVectorStore           : vectorTableValidationsEnabled false
+2026-09-10T15:53:16.356+08:00  INFO 20776 --- [resume-parser-service] [           main] g.r.config.RedisPubSubConfig             : �Ѷ���Ƶ����task_control:*
+2026-09-10T15:53:16.356+08:00  INFO 20776 --- [resume-parser-service] [           main] g.r.config.RedisPubSubConfig             : �Ѷ���Ƶ����approval:*
+2026-09-10T15:53:16.356+08:00  INFO 20776 --- [resume-parser-service] [           main] g.r.config.RedisPubSubConfig             : Redis Message Listener Container ��ʼ�����
+2026-09-10T15:53:17.766+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2026-09-10T15:53:19.188+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2026-09-10T15:53:20.455+08:00  INFO 20776 --- [resume-parser-service] [           main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2026-09-10T15:53:20.474+08:00  WARN 20776 --- [resume-parser-service] [           main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-09-10T15:53:22.629+08:00  WARN 20776 --- [resume-parser-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-09-10T15:53:22.637+08:00  INFO 20776 --- [resume-parser-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-09-10T15:53:22.646+08:00  INFO 20776 --- [resume-parser-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-09-10T15:53:22.657+08:00 ERROR 20776 --- [resume-parser-service] [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2026-09-10T15:53:23.631+08:00  WARN 20776 --- [resume-parser-service] [       Thread-2] c.a.n.common.executor.ThreadPoolManager  : [ThreadPoolManager] Start destroying ThreadPool
+2026-09-10T15:53:23.631+08:00  WARN 20776 --- [resume-parser-service] [      Thread-29] c.a.n.common.http.HttpClientBeanHolder   : [HttpClientBeanHolder] Start destroying common HttpClient
+2026-09-10T15:53:23.631+08:00  WARN 20776 --- [resume-parser-service] [       Thread-2] c.a.n.common.executor.ThreadPoolManager  : [ThreadPoolManager] Destruction of the end
+2026-09-10T15:53:23.631+08:00  WARN 20776 --- [resume-parser-service] [      Thread-29] c.a.n.common.http.HttpClientBeanHolder   : [HttpClientBeanHolder] Destruction of the end
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  34.384 s
+[INFO] Finished at: 2026-09-10T15:53:24+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.3.1:run (default-cli) on project resume-parser-service: Process terminated with exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
