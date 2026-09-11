@@ -1,9 +1,9 @@
-package group.career_backend.user.controller;/* I love coding */
+package group.career_backend.user.controller;
 
 import group.career_backend.common.Result;
 import group.career_backend.user.domain.response.LoginRes;
 import group.career_backend.user.domain.vo.UserVO;
-import group.career_backend.user.service.IUserService;
+import group.career_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,7 +17,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RequestMapping("/users")
 public class UserController {
-    private final IUserService userService;
+    private final UserService userService;
 
     @PostMapping("/login")
     public Result<LoginRes> login(@RequestBody UserVO userVO) {

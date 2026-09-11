@@ -1,4 +1,4 @@
-package group.career_backend.user.service.impl;/* I love coding */
+package group.career_backend.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
@@ -8,7 +8,7 @@ import group.career_backend.user.domain.po.User_;
 import group.career_backend.user.domain.response.LoginRes;
 import group.career_backend.user.domain.response.UserInfo;
 import group.career_backend.user.mapper.UserMapper;
-import group.career_backend.user.service.IUserService;
+import group.career_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl extends ServiceImpl<UserMapper, User_> implements IUserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, User_> implements UserService {
     private final JwtTool jwtTool;
 
     @Override

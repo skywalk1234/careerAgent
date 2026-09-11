@@ -2,7 +2,7 @@ package group.career_backend.user.controller;
 
 import group.career_backend.user.domain.response.LoginRes;
 import group.career_backend.user.domain.response.UserInfo;
-import group.career_backend.user.service.IUserService;
+import group.career_backend.user.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -22,7 +22,7 @@ class UserControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private IUserService userService;
+    private UserService userService;
 
     @Test
     void loginSuccessKeepsOriginalContract() throws Exception {

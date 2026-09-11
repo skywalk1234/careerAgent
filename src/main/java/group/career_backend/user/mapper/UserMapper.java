@@ -1,4 +1,4 @@
-package group.career_backend.user.mapper;/* I love coding */
+package group.career_backend.user.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import group.career_backend.user.domain.po.User_;
