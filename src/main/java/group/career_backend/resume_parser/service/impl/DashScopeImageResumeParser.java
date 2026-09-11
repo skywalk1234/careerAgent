@@ -14,6 +14,7 @@ import com.alibaba.dashscope.utils.JsonUtils;
 import group.career_backend.exception.CommonException;
 import group.career_backend.resume_parser.service.ImageResumeParser;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DashScopeImageResumeParser implements ImageResumeParser {
     private static final String MODEL_NAME = "qwen-vl-plus";
     private static final String PROMPT = """
@@ -35,7 +37,10 @@ public class DashScopeImageResumeParser implements ImageResumeParser {
 
     @Override
     public String parse(byte[] imageBytes, String contentType) {
+        log.info("[业务处理] 开始调用DashScope图片识别, model={}, contentType={}, imageSize={}",
+                MODEL_NAME, contentType, imageBytes.length);
         if (!StringUtils.hasText(apiKey)) {
+            log.error("[业务处理] DashScope API Key未配置");
             throw new CommonException("未配置 DASHSCOPE_API_KEY", 500);
         }
 
@@ -60,8 +65,11 @@ public class DashScopeImageResumeParser implements ImageResumeParser {
                 .build();
 
         try {
-            return extractContent(new MultiModalConversation().call(param));
+            String content = extractContent(new MultiModalConversation().call(param));
+            log.info("[业务处理] DashScope图片识别完成, model={}, resultLength={}", MODEL_NAME, content.length());
+            return content;
         } catch (NoApiKeyException | ApiException | UploadFileException exception) {
+            log.error("[业务处理] DashScope图片识别失败, model={}", MODEL_NAME, exception);
             throw new CommonException("图片简历解析失败: " + exception.getMessage(), exception, 500);
         }
     }

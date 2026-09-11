@@ -10,6 +10,7 @@ import group.career_backend.profile.domain.response.ResumeProcessingResponse;
 import group.career_backend.profile.mapper.ResumeFullMapper;
 import group.career_backend.profile.service.ProfileService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -22,12 +23,15 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProfileServiceImpl implements ProfileService {
     private final ResumeFullMapper resumeFullMapper;
 
     @Override
     public void saveProfile(StudentProfile profile, Long userId, String profileId,
                             String fileName, String fileType) {
+        log.info("[业务处理] 开始保存简历, userId={}, profileId={}, fileName={}, fileType={}",
+                userId, profileId, fileName, fileType);
         LocalDateTime now = LocalDateTime.now();
         ResumeFull resume = new ResumeFull();
         resume.setUserId(userId);
@@ -37,6 +41,7 @@ public class ProfileServiceImpl implements ProfileService {
 
         if (!StringUtils.hasText(profileId)) {
             profileId = UUID.randomUUID().toString();
+            log.info("[业务处理] 已生成新简历ID, userId={}, profileId={}", userId, profileId);
         }
         profile.setProfileId(profileId);
         resume.setProfileId(profileId);
@@ -46,18 +51,24 @@ public class ProfileServiceImpl implements ProfileService {
                 .eq("user_id", userId)
                 .eq("profile_id", profileId);
         if (resumeFullMapper.exists(wrapper)) {
+            log.info("[业务处理] 简历已存在，执行更新, userId={}, profileId={}", userId, profileId);
             resumeFullMapper.update(resume, wrapper);
+            log.info("[业务处理] 简历更新完成, userId={}, profileId={}", userId, profileId);
             return;
         }
 
+        log.info("[业务处理] 简历不存在，执行新增, userId={}, profileId={}", userId, profileId);
         resume.setCreatedAt(now);
         resumeFullMapper.insert(resume);
+        log.info("[业务处理] 简历新增完成, userId={}, profileId={}", userId, profileId);
     }
 
     @Override
     public Object queryResume(Long userId, String parseJobId) {
+        log.info("[业务处理] 开始查询简历解析结果, userId={}, parseJobId={}", userId, parseJobId);
         ResumeFull resume = getLatestResume(userId);
         if (resume == null) {
+            log.info("[业务处理] 暂未查询到解析结果，返回处理中, userId={}, parseJobId={}", userId, parseJobId);
             return new ResumeProcessingResponse(parseJobId);
         }
 
@@ -74,33 +85,45 @@ public class ProfileServiceImpl implements ProfileService {
         response.setParseJobId(parseJobId);
         response.setStatus("success");
         response.setResult(new QueryResumeResponse.ParseResult(profile, missingFields, sourceMeta));
+        log.info("[业务处理] 简历解析结果组装完成, userId={}, parseJobId={}, missingFields={}",
+                userId, parseJobId, missingFields);
         return response;
     }
 
     @Override
     public ResumeFull getLatestResume(Long userId) {
+        log.info("[业务处理] 查询用户最新简历, userId={}", userId);
         QueryWrapper<ResumeFull> wrapper = new QueryWrapper<ResumeFull>()
                 .eq("user_id", userId)
                 .orderByDesc("updated_at")
                 .last("LIMIT 1");
-        return resumeFullMapper.selectOne(wrapper);
+        ResumeFull resume = resumeFullMapper.selectOne(wrapper);
+        log.info("[业务处理] 最新简历查询完成, userId={}, found={}", userId, resume != null);
+        return resume;
     }
 
     @Override
     public ResumeFull getResume(Long userId, String profileId) {
+        log.info("[业务处理] 查询指定简历, userId={}, profileId={}", userId, profileId);
         QueryWrapper<ResumeFull> wrapper = new QueryWrapper<ResumeFull>()
                 .eq("user_id", userId)
                 .eq("profile_id", profileId)
                 .last("LIMIT 1");
-        return resumeFullMapper.selectOne(wrapper);
+        ResumeFull resume = resumeFullMapper.selectOne(wrapper);
+        log.info("[业务处理] 指定简历查询完成, userId={}, profileId={}, found={}",
+                userId, profileId, resume != null);
+        return resume;
     }
 
     @Override
     public List<ResumeFull> listResumes(Long userId) {
+        log.info("[业务处理] 查询用户简历列表, userId={}", userId);
         QueryWrapper<ResumeFull> wrapper = new QueryWrapper<ResumeFull>()
                 .eq("user_id", userId)
                 .orderByDesc("updated_at");
-        return resumeFullMapper.selectList(wrapper);
+        List<ResumeFull> resumes = resumeFullMapper.selectList(wrapper);
+        log.info("[业务处理] 用户简历列表查询完成, userId={}, count={}", userId, resumes.size());
+        return resumes;
     }
 
     @Override
@@ -110,7 +133,10 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public int deleteProfiles(Long userId) {
-        return resumeFullMapper.delete(new QueryWrapper<ResumeFull>().eq("user_id", userId));
+        log.info("[业务处理] 开始删除用户全部简历, userId={}", userId);
+        int deleted = resumeFullMapper.delete(new QueryWrapper<ResumeFull>().eq("user_id", userId));
+        log.info("[业务处理] 用户简历删除完成, userId={}, deleted={}", userId, deleted);
+        return deleted;
     }
 
     @Override
