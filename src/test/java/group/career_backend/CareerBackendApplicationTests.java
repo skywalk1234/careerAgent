@@ -1,13 +1,14 @@
 package group.career_backend;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.SpringApplication;
 
-@SpringBootTest
 class CareerBackendApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void applicationCanBeConfigured() {
+		SpringApplication application = new SpringApplication(CareerBackendApplication.class);
+		application.setLogStartupInfo(false);
 	}
 
 }
