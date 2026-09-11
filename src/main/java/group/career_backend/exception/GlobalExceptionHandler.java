@@ -14,4 +14,10 @@ public class GlobalExceptionHandler {
         log.error("业务异常: {}", e.getMessage(), e);
         return Result.error(e.getCode(), e.getMessage());
     }
+
+    @ExceptionHandler(CommonException.class)
+    public Result<?> handleCommonException(CommonException e) {
+        log.error("业务异常: {}", e.getMessage(), e);
+        return Result.error(e.getCode(), e.getMessage());
+    }
 }
