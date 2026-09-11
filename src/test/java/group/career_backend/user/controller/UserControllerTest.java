@@ -1,5 +1,6 @@
 package group.career_backend.user.controller;
 
+import group.career_backend.security.JwtTool;
 import group.career_backend.user.domain.response.LoginRes;
 import group.career_backend.user.domain.response.UserInfo;
 import group.career_backend.user.service.UserService;
@@ -23,6 +24,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private JwtTool jwtTool;
 
     @Test
     void loginSuccessKeepsOriginalContract() throws Exception {

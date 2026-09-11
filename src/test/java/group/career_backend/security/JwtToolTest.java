@@ -3,6 +3,8 @@ package group.career_backend.security;
 import cn.hutool.jwt.JWT;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.InputStream;
 import java.security.Key;
@@ -37,6 +39,33 @@ class JwtToolTest {
         assertThat(expiresAt.getTime() - before)
                 .isBetween(Duration.ofDays(1).minusSeconds(5).toMillis(),
                         Duration.ofDays(1).plusSeconds(5).toMillis());
+    }
+
+    @Test
+    void interceptorExtractsUserIdFromBearerToken() throws Exception {
+        JwtTool jwtTool = new JwtTool(loadKeyPair());
+        JwtUserInterceptor interceptor = new JwtUserInterceptor(jwtTool);
+        String token = jwtTool.createToken(111L, Duration.ofDays(1));
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/users/me/profile/parse-jobs");
+        request.addHeader("Authorization", "Bearer " + token);
+
+        boolean allowed = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
+
+        assertThat(allowed).isTrue();
+        assertThat(UserContext.getUserId(request)).isEqualTo(111L);
+        assertThat(UserContext.isAuthenticated(request)).isTrue();
+    }
+
+    @Test
+    void interceptorUsesFallbackUserWhenTokenIsMissing() throws Exception {
+        JwtUserInterceptor interceptor = new JwtUserInterceptor(new JwtTool(loadKeyPair()));
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/users/me/profile/parse-jobs");
+
+        boolean allowed = interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
+
+        assertThat(allowed).isTrue();
+        assertThat(UserContext.getUserId(request)).isEqualTo(23L);
+        assertThat(UserContext.isAuthenticated(request)).isFalse();
     }
 
     private KeyPair loadKeyPair() throws Exception {

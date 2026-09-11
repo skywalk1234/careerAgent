@@ -5,10 +5,9 @@ import group.career_backend.resume_parser.domain.dto.ResumeParseMessage;
 import group.career_backend.resume_parser.domain.response.FileParseResponse;
 import group.career_backend.resume_parser.service.ImageResumeParser;
 import group.career_backend.resume_parser.service.ResumeParserService;
+import group.career_backend.security.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -27,10 +26,6 @@ import java.util.Set;
 public class ResumeParserServiceImpl implements ResumeParserService {
     private static final String FILE_QUEUE = "file_tran";
     private static final String PROFILE_QUEUE = "profile_storage";
-    private static final String LEGACY_MESSAGE_TYPE =
-            "group.resumeparserservice.domain.dto.ResumeParseMessage";
-    private static final long DEFAULT_PARSE_USER_ID = 23L;
-    private static final long DEFAULT_PROFILE_USER_ID = 111L;
     private static final int POLL_AFTER_MS = 2000;
     private static final Set<String> IMAGE_TYPES = Set.of(
             "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp", "image/webp");
@@ -43,7 +38,7 @@ public class ResumeParserServiceImpl implements ResumeParserService {
         log.info("[业务处理] 开始处理PDF简历上传, userId={}, fileName={}, parseMode={}",
                 userId, file == null ? null : file.getOriginalFilename(), parseMode);
         requireFile(file);
-        Long resolvedUserId = userId == null ? DEFAULT_PARSE_USER_ID : userId;
+        Long resolvedUserId = userId == null ? UserContext.DEFAULT_USER_ID : userId;
         log.info("[业务处理] PDF文件校验通过，开始读取文件, userId={}, fileSize={}",
                 resolvedUserId, file.getSize());
         ResumeParseMessage message = new ResumeParseMessage(
@@ -67,7 +62,7 @@ public class ResumeParserServiceImpl implements ResumeParserService {
             throw new CommonException("不支持的文件类型，请上传图片文件(jpg, jpeg, png, gif, bmp, webp)", 400);
         }
 
-        Long resolvedUserId = userId == null ? DEFAULT_PARSE_USER_ID : userId;
+        Long resolvedUserId = userId == null ? UserContext.DEFAULT_USER_ID : userId;
         log.info("[业务处理] 图片格式校验通过，开始调用图片识别服务, userId={}, contentType={}",
                 resolvedUserId, file.getContentType());
         String parsedContent = imageResumeParser.parse(getBytes(file), file.getContentType());
@@ -93,7 +88,7 @@ public class ResumeParserServiceImpl implements ResumeParserService {
             throw new CommonException("content字段不能为空", 114);
         }
 
-        Long resolvedUserId = userId == null ? DEFAULT_PROFILE_USER_ID : userId;
+        Long resolvedUserId = userId == null ? UserContext.DEFAULT_USER_ID : userId;
         Map<String, Object> message = new HashMap<>();
         message.put("userId", resolvedUserId.toString());
         message.put("profileId", profileId);
@@ -120,15 +115,9 @@ public class ResumeParserServiceImpl implements ResumeParserService {
     private void sendParseMessage(ResumeParseMessage message) {
         log.info("[MQ消息] 准备发送 file_tran 消息, userId={}, fileName={}, parseMode={}",
                 message.getUserId(), message.getFileName(), message.getParseMode());
-        MessagePostProcessor legacyTypeHeader = this::useLegacyMessageType;
-        rabbitTemplate.convertAndSend(FILE_QUEUE, message, legacyTypeHeader);
+        rabbitTemplate.convertAndSend(FILE_QUEUE, message);
         log.info("[MQ消息] file_tran 消息发送完成, userId={}, fileName={}",
                 message.getUserId(), message.getFileName());
-    }
-
-    private Message useLegacyMessageType(Message message) {
-        message.getMessageProperties().setHeader("__TypeId__", LEGACY_MESSAGE_TYPE);
-        return message;
     }
 
     private FileParseResponse processingResponse(Long userId) {
