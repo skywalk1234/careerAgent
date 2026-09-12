@@ -16,7 +16,7 @@ import {
 
 /* ============ 常量与码表（对齐 BOSS直聘爬取岗位接口文档） ============ */
 
-/** 服务端配置默认关键词（keywords.json），作为快捷项预填/提示 */
+/** 服务端配置默认关键词（keywords.json），仅作为初始值 */
 const DEFAULT_KEYWORDS = ['AI应用开发工程师', 'Agent应用开发工程师']
 
 /** 内置 20 城回退表（接口不可达时仍可渲染筛选项；真实支持集以后端为准） */
@@ -369,21 +369,6 @@ async function handleRefresh() {
 
 /* ============ 业务操作 ============ */
 
-function toggleQuickKeyword(keyword: string) {
-  const clean = keyword.trim()
-  if (!clean) return
-  const index = form.value.keywords.indexOf(clean)
-  if (index >= 0) {
-    form.value.keywords.splice(index, 1)
-    return
-  }
-  form.value.keywords.push(clean)
-}
-
-function isQuickKeywordActive(keyword: string) {
-  return form.value.keywords.includes(keyword)
-}
-
 function buildSearchFilters(): Record<string, string> {
   const filters: Record<string, string> = {}
   Object.entries(form.value.filters).forEach(([key, value]) => {
@@ -409,7 +394,7 @@ async function handleStart() {
   if (busy.value || submitting.value) return
   const keywords = form.value.keywords.map(item => item.trim()).filter(Boolean)
   if (!keywords.length) {
-    ElMessage.warning('请至少填写一个岗位搜索关键词，或点击下方快捷词')
+    ElMessage.warning('请至少填写一个岗位搜索关键词')
     return
   }
 
@@ -536,39 +521,11 @@ onBeforeUnmount(() => {
             <p class="mb-1.5 flex items-center text-sm font-medium text-slate-600">
               岗位搜索关键词 <span class="ml-0.5 text-rose-500">*</span>
             </p>
-            <el-select
+            <el-input-tag
               v-model="form.keywords"
-              multiple
-              filterable
-              allow-create
-              default-first-option
-              :reserve-keyword="false"
-              collapse-tags
-              collapse-tags-tooltip
-              :max-collapse-tags="2"
               placeholder="输入关键词后回车添加"
               class="w-full"
-            >
-              <el-option v-for="keyword in DEFAULT_KEYWORDS" :key="keyword" :label="keyword" :value="keyword" />
-            </el-select>
-            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span class="text-xs text-slate-400">快捷词：</span>
-              <button
-                v-for="keyword in DEFAULT_KEYWORDS"
-                :key="keyword"
-                type="button"
-                :title="isQuickKeywordActive(keyword) ? '点击移除' : '点击添加'"
-                class="rounded-full border px-2 py-0.5 text-xs transition"
-                :class="
-                  isQuickKeywordActive(keyword)
-                    ? 'border-blue-300 bg-blue-50 text-blue-600'
-                    : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600'
-                "
-                @click="toggleQuickKeyword(keyword)"
-              >
-                {{ keyword }}
-              </button>
-            </div>
+            />
             <p class="mt-1.5 text-xs text-slate-400">标题需包含该词才会保留，词越像完整岗位名越准确。</p>
           </div>
 

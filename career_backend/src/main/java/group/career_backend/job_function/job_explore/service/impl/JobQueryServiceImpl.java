@@ -2,6 +2,7 @@ package group.career_backend.job_function.job_explore.service.impl;
 
 import group.career_backend.job_function.job_explore.domain.dto.JobVectorItem;
 import group.career_backend.job_function.job_explore.domain.vo.JobVectorFilter;
+import group.career_backend.job_function.job_explore.domain.vo.UserJobCreateRequest;
 import group.career_backend.job_function.job_explore.repository.JobVectorRepository;
 import group.career_backend.job_function.job_explore.service.JobQueryService;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,17 @@ public class JobQueryServiceImpl implements JobQueryService {
         response.put("list", result.list());
         log.info("[业务处理] 岗位筛选完成, total={}, returned={}", result.total(), result.list().size());
         return response;
+    }
+
+    @Override
+    public JobVectorItem createUserJob(Long userId, UserJobCreateRequest request) {
+        log.info("[业务处理] 开始新增用户岗位, userId={}, title={}", userId, request.getTitle());
+        return jobVectorRepository.insertUserJob(userId, request);
+    }
+
+    @Override
+    public void deleteUserJob(String jobId) {
+        jobVectorRepository.deleteUserJob(jobId);
     }
 
     private int positiveOrDefault(Integer value, int defaultValue) {

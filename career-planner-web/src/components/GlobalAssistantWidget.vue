@@ -3369,7 +3369,11 @@ onBeforeUnmount(() => {
 }
 
 .assistant-favorite-job-dropdown {
-  min-width: 260px;
+  right: auto;
+  left: 0;
+  width: 260px;
+  min-width: 0;
+  max-width: calc(100vw - 48px);
 }
 
 .assistant-favorite-job-item {

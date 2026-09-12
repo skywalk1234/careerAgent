@@ -122,6 +122,24 @@ export interface FavoriteJobsResult {
   }>
 }
 
+export interface CustomFavoriteJobRequest {
+  title: string
+  company?: string
+  city?: string
+  salary?: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryUnit?: string
+  avg?: number
+  tier?: string
+  exp?: string
+  edu?: string
+  categories?: string[]
+  keywords?: string[]
+  url?: string
+  content?: string
+}
+
 export function getJobFilters() {
   return http.get('/jobs/filters')
 }
@@ -146,6 +164,10 @@ export function getFavoriteJobs() {
 
 export function addFavoriteJob(jobId: string) {
   return http.post('/users/me/favorite-jobs', { jobId })
+}
+
+export function createCustomFavoriteJob(data: CustomFavoriteJobRequest) {
+  return http.post('/users/me/favorite-jobs/custom', data)
 }
 
 export function removeFavoriteJob(jobId: string) {

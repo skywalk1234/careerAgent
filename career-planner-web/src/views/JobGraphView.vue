@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { ArrowDown, ArrowUp, MagicStick, Refresh, Star, StarFilled, Search } from '@element-plus/icons-vue'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ArrowDown, ArrowUp, MagicStick, Plus, Refresh, Star, StarFilled, Search } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import G6 from '@antv/g6'
 import jobsImage from '../assets/jobs.png'
 import { ABILITY_GROUPS, ABILITY_LABELS, type CompetencyKey } from '../types/domain'
 import {
   addFavoriteJob,
+  createCustomFavoriteJob,
   getFavoriteJobs,
   getJobDetail,
   getJobFilters,
@@ -16,6 +17,7 @@ import {
   getJobList,
   removeFavoriteJob,
   type FavoriteJobsResult,
+  type CustomFavoriteJobRequest,
   type JobDetailResult,
   type JobFilterOptions,
   type JobGraphResult,
@@ -68,6 +70,34 @@ const matchRecommendations = computed(() => jobRecommendStore.result)
 const graphLoading = ref(false)
 const detailLoading = ref(false)
 const favoriteLoading = ref(false)
+const customJobDialogVisible = ref(false)
+const customJobSubmitting = ref(false)
+const customJobFormRef = ref<FormInstance>()
+const createEmptyCustomJobForm = (): CustomFavoriteJobRequest => ({
+  title: '',
+  company: '',
+  city: '',
+  salary: '',
+  salaryMin: undefined,
+  salaryMax: undefined,
+  salaryUnit: 'K/月',
+  avg: undefined,
+  tier: '',
+  exp: '',
+  edu: '',
+  categories: [],
+  keywords: [],
+  url: '',
+  content: '',
+})
+const customJobForm = reactive<CustomFavoriteJobRequest>(createEmptyCustomJobForm())
+const customJobRules: FormRules<CustomFavoriteJobRequest> = {
+  title: [
+    { required: true, message: '请填写岗位名称', trigger: 'blur' },
+    { min: 2, max: 100, message: '岗位名称长度应为 2-100 个字符', trigger: 'blur' },
+  ],
+  url: [{ type: 'url', message: '请输入完整的网址，例如 https://example.com/job', trigger: 'blur' }],
+}
 
 // 筛选选项全部来自后端 /jobs/filters（向量库 DISTINCT），前端不写死
 const filterOptions = ref<JobFilterOptions>({
@@ -1235,6 +1265,59 @@ function addSelectedJobToConversation() {
       jobName: String(selectedDetail.value?.jobName || '当前岗位'),
     },
   })
+}
+
+function openCustomJobDialog() {
+  Object.assign(customJobForm, createEmptyCustomJobForm())
+  customJobDialogVisible.value = true
+  nextTick(() => customJobFormRef.value?.clearValidate())
+}
+
+async function submitCustomJob() {
+  if (!customJobFormRef.value || customJobSubmitting.value) return
+  const valid = await customJobFormRef.value.validate().catch(() => false)
+  if (!valid) return
+  if (
+    customJobForm.salaryMin != null
+    && customJobForm.salaryMax != null
+    && customJobForm.salaryMin > customJobForm.salaryMax
+  ) {
+    ElMessage.warning('最低薪资不能高于最高薪资')
+    return
+  }
+
+  const salaryMin = customJobForm.salaryMin
+  const salaryMax = customJobForm.salaryMax
+  const avg = customJobForm.avg ?? (
+    salaryMin != null && salaryMax != null
+      ? Number(((salaryMin + salaryMax) / 2).toFixed(2))
+      : salaryMin ?? salaryMax
+  )
+  customJobSubmitting.value = true
+  try {
+    const response = await createCustomFavoriteJob({
+      ...customJobForm,
+      avg,
+      categories: normalizeTextList(customJobForm.categories),
+      keywords: normalizeTextList(customJobForm.keywords),
+    })
+    const payload = response.data as ApiResponse<JobDetailResult>
+    const created = normalizeJobDetailPayload(payload.payload ?? payload.data)
+    if (payload.code < 200 || payload.code >= 300 || !created?.jobId) {
+      throw new Error(payload.msg || '岗位新增失败')
+    }
+    customJobDialogVisible.value = false
+    await fetchFavorites()
+    selectedJobId.value = created.jobId
+    selectedDetail.value = created
+    selectedCategoryName.value = resolveGraphCategoryName(created)
+    jobDetailMap.value[created.jobId] = created
+    ElMessage.success('岗位已新增到我的收藏')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '岗位新增失败')
+  } finally {
+    customJobSubmitting.value = false
+  }
 }
 
 function resolveJobRowClass({ row }: { row: JobListItem }) {
@@ -3075,6 +3158,10 @@ onBeforeUnmount(() => {
               </template>
 
               <template v-else>
+              <div v-if="listViewMode === 'favorites'" class="mb-3 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2">
+                <span class="text-xs text-slate-500">没有找到现成岗位时，可手动录入并直接收藏。</span>
+                <el-button type="primary" size="small" :icon="Plus" @click="openCustomJobDialog">自己添加岗位信息</el-button>
+              </div>
               <el-table
                 v-if="isDesktop"
                 v-loading="listViewMode === 'favorites' ? favoriteLoading : listLoading"
@@ -3475,6 +3562,79 @@ onBeforeUnmount(() => {
       v-model="jobMapDialogVisible"
       @select-job="handleMapJobSelect"
     />
+
+    <el-dialog
+      v-model="customJobDialogVisible"
+      title="自己添加岗位信息"
+      width="min(760px, 94vw)"
+      top="5vh"
+      destroy-on-close
+      :close-on-click-modal="false"
+    >
+      <p class="mb-4 text-xs leading-5 text-slate-500">填写后将先保存到岗位库，再自动加入“我的收藏”。岗位名称为必填项，其余信息越完整，小助手分析时越准确。</p>
+      <el-form ref="customJobFormRef" :model="customJobForm" :rules="customJobRules" label-position="top">
+        <div class="grid grid-cols-1 gap-x-4 md:grid-cols-2">
+          <el-form-item label="岗位名称" prop="title">
+            <el-input v-model="customJobForm.title" maxlength="100" show-word-limit placeholder="例如：Java 后端开发工程师" />
+          </el-form-item>
+          <el-form-item label="公司名称">
+            <el-input v-model="customJobForm.company" maxlength="100" placeholder="请输入公司名称" />
+          </el-form-item>
+          <el-form-item label="工作城市">
+            <el-input v-model="customJobForm.city" maxlength="50" placeholder="例如：杭州" />
+          </el-form-item>
+          <el-form-item label="原始薪资描述">
+            <el-input v-model="customJobForm.salary" maxlength="50" placeholder="例如：15-25K·14薪" />
+          </el-form-item>
+          <el-form-item label="最低月薪（K）">
+            <el-input-number v-model="customJobForm.salaryMin" :min="0" :max="999" :precision="1" class="!w-full" placeholder="最低月薪" />
+          </el-form-item>
+          <el-form-item label="最高月薪（K）">
+            <el-input-number v-model="customJobForm.salaryMax" :min="0" :max="999" :precision="1" class="!w-full" placeholder="最高月薪" />
+          </el-form-item>
+          <el-form-item label="薪资单位">
+            <el-select v-model="customJobForm.salaryUnit" allow-create filterable class="w-full" placeholder="选择或输入单位">
+              <el-option label="K/月" value="K/月" />
+              <el-option label="元/月" value="元/月" />
+              <el-option label="元/天" value="元/天" />
+              <el-option label="元/时" value="元/时" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="薪资档位">
+            <el-input v-model="customJobForm.tier" maxlength="30" placeholder="例如：15-30K" />
+          </el-form-item>
+          <el-form-item label="经验要求">
+            <el-input v-model="customJobForm.exp" maxlength="50" placeholder="例如：1-3年 / 经验不限" />
+          </el-form-item>
+          <el-form-item label="学历要求">
+            <el-input v-model="customJobForm.edu" maxlength="50" placeholder="例如：本科 / 学历不限" />
+          </el-form-item>
+          <el-form-item label="岗位分类标签">
+            <el-input-tag v-model="customJobForm.categories" placeholder="输入标签后回车，例如 AI Agent" />
+          </el-form-item>
+          <el-form-item label="搜索关键词">
+            <el-input-tag v-model="customJobForm.keywords" placeholder="输入关键词后回车" />
+          </el-form-item>
+        </div>
+        <el-form-item label="岗位链接" prop="url">
+          <el-input v-model="customJobForm.url" maxlength="500" placeholder="https://example.com/job" />
+        </el-form-item>
+        <el-form-item label="岗位职责与任职要求">
+          <el-input
+            v-model="customJobForm.content"
+            type="textarea"
+            :rows="7"
+            maxlength="8000"
+            show-word-limit
+            placeholder="粘贴岗位 JD，包括岗位职责、任职要求、技能要求等信息"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="customJobSubmitting" @click="customJobDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="customJobSubmitting" @click="submitCustomJob">保存并收藏</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 

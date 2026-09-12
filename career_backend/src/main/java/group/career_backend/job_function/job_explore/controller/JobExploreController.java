@@ -5,6 +5,7 @@ import group.career_backend.job_function.job_explore.domain.dto.JobVectorItem;
 import group.career_backend.job_function.job_explore.domain.response.FavoriteRes;
 import group.career_backend.job_function.job_explore.domain.response.JobFilterRes;
 import group.career_backend.job_function.job_explore.domain.vo.JobVectorFilter;
+import group.career_backend.job_function.job_explore.domain.vo.UserJobCreateRequest;
 import group.career_backend.job_function.job_explore.service.FavoriteJobService;
 import group.career_backend.job_function.job_explore.service.JobQueryService;
 import group.career_backend.security.UserContext;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
@@ -56,6 +58,42 @@ public class JobExploreController {
         Map<String, Object> response = jobQueryService.search(filters);
         log.info("[接口完成] 岗位筛选查询成功, total={}", response.get("total"));
         return Result.success(response);
+    }
+
+    @PostMapping("/users/me/favorite-jobs/custom")
+    public Result<?> createAndFavoriteJob(@RequestBody UserJobCreateRequest requestBody,
+                                          HttpServletRequest request) {
+        Long userId = UserContext.getUserId(request);
+        if (requestBody == null || !StringUtils.hasText(requestBody.getTitle())) {
+            return Result.error(400, "请填写岗位名称");
+        }
+        if (requestBody.getSalaryMin() != null && requestBody.getSalaryMax() != null
+                && requestBody.getSalaryMin() > requestBody.getSalaryMax()) {
+            return Result.error(400, "最低薪资不能高于最高薪资");
+        }
+
+        log.info("[接口访问] POST /users/me/favorite-jobs/custom, userId={}, title={}",
+                userId, requestBody.getTitle());
+        JobVectorItem job = jobQueryService.createUserJob(userId, requestBody);
+        if (job == null || !StringUtils.hasText(job.getJobId())) {
+            return Result.error(500, "岗位信息新增失败");
+        }
+        try {
+            if (favoriteJobService.add(userId, job.getJobId())) {
+                log.info("[接口完成] 用户岗位新增并收藏成功, userId={}, jobId={}", userId, job.getJobId());
+                return Result.success(job, "岗位新增并收藏成功");
+            }
+        } catch (RuntimeException exception) {
+            log.error("[接口异常] 用户岗位收藏失败，准备回滚PG岗位, userId={}, jobId={}",
+                    userId, job.getJobId(), exception);
+        }
+        try {
+            jobQueryService.deleteUserJob(job.getJobId());
+        } catch (RuntimeException rollbackException) {
+            log.error("[接口异常] 用户岗位回滚失败, userId={}, jobId={}",
+                    userId, job.getJobId(), rollbackException);
+        }
+        return Result.error(500, "岗位收藏失败");
     }
 
     @GetMapping("/users/me/favorite-jobs")

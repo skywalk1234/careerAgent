@@ -2,6 +2,7 @@ package group.career_backend.job_function.job_explore.repository;
 
 import group.career_backend.job_function.job_explore.domain.dto.JobVectorItem;
 import group.career_backend.job_function.job_explore.domain.vo.JobVectorFilter;
+import group.career_backend.job_function.job_explore.domain.vo.UserJobCreateRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,11 +16,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Repository
 @Slf4j
@@ -93,6 +96,77 @@ public class JobVectorRepository {
                 listRowMapper, jobKey.trim());
         log.info("[PG查询] 岗位详情查询完成, jobId={}, found={}", jobKey, !rows.isEmpty());
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public JobVectorItem insertUserJob(Long userId, UserJobCreateRequest request) {
+        String jobKey = "user:" + userId + ":" + UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+        List<String> categories = cleanStrings(request.getCategories());
+        List<String> keywords = cleanStrings(request.getKeywords());
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("jobId", jobKey);
+        metadata.put("title", request.getTitle().trim());
+        metadata.put("company", trimToNull(request.getCompany()));
+        metadata.put("city", trimToNull(request.getCity()));
+        metadata.put("salary", trimToNull(request.getSalary()));
+        metadata.put("salaryMin", request.getSalaryMin());
+        metadata.put("salaryMax", request.getSalaryMax());
+        metadata.put("salaryUnit", trimToNull(request.getSalaryUnit()));
+        metadata.put("avg", request.getAvg());
+        metadata.put("tier", trimToNull(request.getTier()));
+        metadata.put("exp", trimToNull(request.getExp()));
+        metadata.put("edu", trimToNull(request.getEdu()));
+        metadata.put("cats", categories);
+        metadata.put("keywords", keywords);
+        metadata.put("source", "user");
+        metadata.put("sourceSite", "用户添加");
+        metadata.put("sourceUrl", trimToNull(request.getUrl()));
+        metadata.put("updatedAtRaw", LocalDate.now().toString());
+        metadata.put("userId", userId);
+
+        String categoriesJson = writeJson(categories);
+        String keywordsJson = writeJson(keywords);
+        String metadataJson = writeJson(metadata);
+        String rawJson = writeJson(request);
+        String sql = """
+                INSERT INTO job_detail_vector (
+                    job_key, security_id, title, company, city, salary, avg, tier, exp, edu,
+                    cats_json, kw_json, url, source, first_seen, last_seen, crawled_at, is_new,
+                    raw_json, content, metadata, embedding, vector_ready
+                ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, 'user', ?, ?, ?, 1,
+                          ?::jsonb, ?, ?::json, NULL, false)
+                """;
+        vectorJdbcTemplate.update(sql,
+                jobKey,
+                request.getTitle().trim(),
+                trimToNull(request.getCompany()),
+                trimToNull(request.getCity()),
+                trimToNull(request.getSalary()),
+                request.getAvg(),
+                trimToNull(request.getTier()),
+                trimToNull(request.getExp()),
+                trimToNull(request.getEdu()),
+                categoriesJson,
+                keywordsJson,
+                trimToNull(request.getUrl()),
+                now,
+                now,
+                now,
+                rawJson,
+                trimToNull(request.getContent()),
+                metadataJson);
+        log.info("[PG写入] 用户岗位新增成功, userId={}, jobId={}", userId, jobKey);
+        return findByJobKey(jobKey);
+    }
+
+    public void deleteUserJob(String jobKey) {
+        if (!StringUtils.hasText(jobKey)) {
+            return;
+        }
+        int deleted = vectorJdbcTemplate.update(
+                "DELETE FROM " + TABLE + " WHERE job_key = ? AND source = 'user'", jobKey.trim());
+        log.info("[PG写入] 用户岗位回滚完成, jobId={}, deleted={}", jobKey, deleted);
     }
 
     public Map<String, JobVectorItem> findByJobKeys(List<String> jobKeys) {
@@ -206,6 +280,29 @@ public class JobVectorRepository {
             log.warn("[PG映射] cats_json 解析失败, value={}", json, exception);
             return List.of();
         }
+    }
+
+    private List<String> cleanStrings(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("岗位信息序列化失败", exception);
+        }
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private Double toDouble(Object value) {
