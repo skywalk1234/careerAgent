@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, EditPen, Plus, Refresh, Upload } from '@element-plus/icons-vue'
+import { Check, Delete, EditPen, Plus, Refresh, Upload } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { htmlToMarkdown } from '../utils/htmlToMarkdown'
@@ -43,6 +43,8 @@ const updatedAt = ref('')
 const savedSnapshot = ref('')
 const resumeList = ref<ResumeListItem[]>([])
 const activeResumeId = ref('')
+const hasPersistedResume = ref(true)
+const isCreatingResume = ref(false)
 let isPageActive = true
 const fileInputRef = ref<HTMLInputElement>()
 // WYSIWYG 编辑（直接在渲染后的 markdown 上改）：resumeEditorRef 为 contenteditable，
@@ -51,6 +53,59 @@ const resumeEditorRef = ref<HTMLElement | null>(null)
 const resumeEditorDirty = ref(false)
 
 const profile = reactive<ProfileFormData>(createDefaultProfile())
+
+interface ResumeDraftEducation {
+  school: string
+  major: string
+  degree: string
+  startYear: string
+  endYear: string
+  gpa: string
+  courses: string
+  honors: string
+}
+
+interface ResumeDraft {
+  title: string
+  name: string
+  phone: string
+  email: string
+  city: string
+  birthday: string
+  education: ResumeDraftEducation[]
+  selfEvaluation: string
+  workExperience: string
+  projects: string
+  skills: string
+  certificates: string
+  activities: string
+  portfolio: string
+  github: string
+  blog: string
+  hobbies: string
+  jobIntention: string
+  otherInfo: string
+}
+
+function createDraftEducation(): ResumeDraftEducation {
+  return { school: '', major: '', degree: '', startYear: '', endYear: '', gpa: '', courses: '', honors: '' }
+}
+
+function createResumeDraft(): ResumeDraft {
+  return {
+    title: '', name: '', phone: '', email: '', city: '', birthday: '',
+    education: [createDraftEducation()],
+    selfEvaluation: '', workExperience: '', projects: '', skills: '', certificates: '', activities: '',
+    portfolio: '', github: '', blog: '', hobbies: '', jobIntention: '', otherInfo: '',
+  }
+}
+
+const resumeDraft = reactive<ResumeDraft>(createResumeDraft())
+const showResumeForm = computed(() => !hasPersistedResume.value || isCreatingResume.value)
+const hasDraftInput = computed(() => Object.entries(resumeDraft).some(([key, value]) => {
+  if (key === 'education') return resumeDraft.education.some((item) => Object.values(item).some((field) => field.trim()))
+  return typeof value === 'string' && value.trim()
+}))
 
 // markdown 渲染（简历已改为 markdown 原文存储，html 关闭 + DOMPurify 清洗以防御 XSS）
 const markdownRenderer = new MarkdownIt({ html: false, linkify: true, breaks: true })
@@ -134,6 +189,104 @@ function createCertificateItem() {
     name: '',
     date: '',
     issuer: '',
+  }
+}
+
+function addDraftEducation() {
+  resumeDraft.education.push(createDraftEducation())
+}
+
+function resetResumeDraft() {
+  Object.assign(resumeDraft, createResumeDraft())
+}
+
+function removeDraftEducation(index: number) {
+  if (resumeDraft.education.length === 1) return
+  resumeDraft.education.splice(index, 1)
+}
+
+function cleanMarkdownText(value: string): string {
+  return value.trim().replace(/\r\n/g, '\n')
+}
+
+function appendTextSection(parts: string[], title: string, value: string) {
+  const content = cleanMarkdownText(value)
+  if (content) parts.push(`## ${title}\n\n${content}`)
+}
+
+function buildResumeMarkdown(): string {
+  const parts: string[] = [`# ${cleanMarkdownText(resumeDraft.title) || '个人简历'}`]
+  const basicInfo = [
+    resumeDraft.name && `姓名：${cleanMarkdownText(resumeDraft.name)}`,
+    resumeDraft.phone && `电话：${cleanMarkdownText(resumeDraft.phone)}`,
+    resumeDraft.email && `邮箱：${cleanMarkdownText(resumeDraft.email)}`,
+    resumeDraft.city && `现居城市：${cleanMarkdownText(resumeDraft.city)}`,
+    resumeDraft.birthday && `出生日期：${cleanMarkdownText(resumeDraft.birthday)}`,
+  ].filter(Boolean)
+  if (basicInfo.length) parts.push(`## 个人信息\n\n${basicInfo.join('  \n')}`)
+
+  const educations = resumeDraft.education.flatMap((item) => {
+    const heading = [cleanMarkdownText(item.school), cleanMarkdownText(item.major), cleanMarkdownText(item.degree)].filter(Boolean).join('｜')
+    const period = [item.startYear, item.endYear].filter(Boolean).join(' - ')
+    const details = [
+      period && `- 就读时间：${period}`,
+      item.gpa && `- GPA：${cleanMarkdownText(item.gpa)}`,
+      item.courses && `- 主修课程：${cleanMarkdownText(item.courses)}`,
+      item.honors && `- 学术荣誉：${cleanMarkdownText(item.honors)}`,
+    ].filter(Boolean)
+    if (!heading && !details.length) return []
+    return [`### ${heading || '教育经历'}${details.length ? `\n\n${details.join('\n')}` : ''}`]
+  })
+  if (educations.length) parts.push(`## 教育背景\n\n${educations.join('\n\n')}`)
+
+  appendTextSection(parts, '求职意向', resumeDraft.jobIntention)
+  appendTextSection(parts, '自我评价', resumeDraft.selfEvaluation)
+  appendTextSection(parts, '工作经历', resumeDraft.workExperience)
+  appendTextSection(parts, '项目经历', resumeDraft.projects)
+  appendTextSection(parts, '专业技能', resumeDraft.skills)
+  appendTextSection(parts, '证书与荣誉', resumeDraft.certificates)
+  appendTextSection(parts, '组织与活动经历', resumeDraft.activities)
+  appendTextSection(parts, '个人作品', resumeDraft.portfolio)
+
+  const links = [
+    resumeDraft.github && `- GitHub：${cleanMarkdownText(resumeDraft.github)}`,
+    resumeDraft.blog && `- 博客：${cleanMarkdownText(resumeDraft.blog)}`,
+  ].filter(Boolean)
+  if (links.length) parts.push(`## 个人链接\n\n${links.join('\n')}`)
+  appendTextSection(parts, '兴趣爱好', resumeDraft.hobbies)
+  appendTextSection(parts, '其他信息', resumeDraft.otherInfo)
+  return `${parts.join('\n\n')}\n`
+}
+
+async function generateResumeFromDraft() {
+  const phone = resumeDraft.phone.trim()
+  const email = resumeDraft.email.trim()
+  if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+    ElMessage.warning('请输入正确的中国大陆手机号码')
+    return
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    ElMessage.warning('请输入正确的邮箱地址')
+    return
+  }
+  for (const item of resumeDraft.education) {
+    if (item.startYear && item.endYear && Number(item.startYear) > Number(item.endYear)) {
+      ElMessage.warning('教育背景中的入学年份不能晚于毕业年份')
+      return
+    }
+  }
+
+  if (!hasDraftInput.value) {
+    ElMessage.warning('请至少填写一项信息后再生成简历')
+    return
+  }
+
+  profile.content = buildResumeMarkdown()
+  const saved = await saveProfile('简历已生成并保存')
+  if (saved) {
+    hasPersistedResume.value = true
+    isCreatingResume.value = false
+    resetResumeDraft()
   }
 }
 
@@ -300,6 +453,8 @@ async function loadResumeList(selectFirst = true) {
     const payload = extractPayload<ResumeListItem[]>(response as { data: ApiResponse<ResumeListItem[]> })
     const list = Array.isArray(payload) ? payload : []
     resumeList.value = list
+    hasPersistedResume.value = list.length > 0
+    isCreatingResume.value = list.length === 0
 
     if (list.length === 0) {
       // 没有任何简历：创建一个空白项（含新生成的 profileId，保存时才落库）
@@ -349,9 +504,18 @@ async function createNewResume() {
     }
   }
   const blank: ResumeListItem = { profileId: genResumeId(), title: '未命名简历', content: '' }
-  resumeList.value = [...resumeList.value, blank]
   applyProfileContent(blank)
-  enterEditing()
+  resetResumeDraft()
+  isEditing.value = false
+  resumeEditorDirty.value = false
+  isCreatingResume.value = true
+}
+
+function cancelCreateResume() {
+  resetResumeDraft()
+  isCreatingResume.value = false
+  const current = resumeList.value.find((item) => item.profileId === activeResumeId.value) ?? resumeList.value[0]
+  if (current) applyProfileContent(current)
 }
 
 // 保存成功后，用当前 profile 的内容刷新对应列表项的标题/内容
@@ -433,7 +597,7 @@ async function loadProfile() {
   }
 }
 
-async function saveProfile() {
+async function saveProfile(successMessage = '保存成功') {
   if (saveLoading.value) return
   if (!profile.content?.trim()) {
     ElMessage.warning('请填写简历内容')
@@ -459,6 +623,7 @@ async function saveProfile() {
     isEditing.value = false
     resumeEditorDirty.value = false
     refreshResumeListTab()
+    hasPersistedResume.value = true
     savedSnapshot.value = JSON.stringify(normalizeProfile(profile))
 
     // 同步应用级画像快照，供 /jobs 岗位推荐、任务编排器、AI 助手等页面即时读取
@@ -471,7 +636,7 @@ async function saveProfile() {
       improvementSuggestions: payload?.improvementSuggestions ?? [],
       updatedAt: updatedAt.value || null,
     })
-    ElMessage.success('保存成功')
+    ElMessage.success(successMessage)
     return true
   } catch {
     ElMessage.error('保存失败，请稍后重试')
@@ -578,6 +743,10 @@ async function handleRefreshData() {
     ElMessage.warning('当前有未保存的修改，请先保存或取消后再刷新')
     return
   }
+  if (showResumeForm.value && hasDraftInput.value) {
+    ElMessage.warning('当前新建简历有未保存的信息，请先生成简历或取消新建')
+    return
+  }
   if (refreshLoading.value) return
   refreshLoading.value = true
   try {
@@ -592,6 +761,8 @@ async function handleRefreshData() {
     const payload = extractPayload<ResumeListItem[]>(response as { data: ApiResponse<ResumeListItem[]> })
     const list = Array.isArray(payload) ? payload : []
     resumeList.value = list
+    hasPersistedResume.value = list.length > 0
+    isCreatingResume.value = list.length === 0
 
     if (list.length === 0) {
       // 没有任何简历：创建一个空白项（保存时才落库）
@@ -620,7 +791,8 @@ async function handleRefreshData() {
 
 onBeforeRouteLeave(async () => {
   if (saveLoading.value) return true
-  if (!isEditing.value || !hasUnsavedChanges.value) return true
+  const hasUnsavedDraft = showResumeForm.value && hasDraftInput.value
+  if ((!isEditing.value || !hasUnsavedChanges.value) && !hasUnsavedDraft) return true
   try {
     await ElMessageBox.confirm('当前有未保存修改，离开页面将丢失，是否继续离开？', '离开确认', {
       type: 'warning',
@@ -649,8 +821,8 @@ onBeforeUnmount(() => {
   <section class="space-y-4 pb-24 lg:pb-0" v-loading="initLoading">
     <div class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
       <div>
-        <h2 class="text-lg font-semibold text-slate-900 md:text-2xl">个人就业能力分析</h2>
-        <p class="mt-1 text-xs text-slate-500 md:text-sm">上传文件或自行录入简历，使用大模型拆解、分析，形成就业能力画像，供 AI 助手与职业规划流程使用。</p>
+        <h2 class="text-lg font-semibold text-slate-900 md:text-2xl">个人信息</h2>
+        <p class="mt-1 text-xs text-slate-500 md:text-sm">上传文件或自行录入简历，可点击右侧蓝色按钮唤醒小助手来分析</p>
       </div>
       <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
         <span v-if="formattedUpdatedAt" class="rounded-full bg-slate-100 px-3 py-1">最近保存：{{ formattedUpdatedAt }}</span>
@@ -658,7 +830,116 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <el-card v-if="showResumeForm" class="resume-card" shadow="never">
+      <div class="space-y-7" v-loading="saveLoading || parseLoading" element-loading-text="正在生成简历...">
+        <header class="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-lg font-semibold text-slate-900">{{ hasPersistedResume ? '新建简历' : '创建第一份简历' }}</h3>
+              <el-tag type="primary" effect="light">第 1 页</el-tag>
+            </div>
+            <p class="mt-1 text-sm text-slate-500">填写多少都可以生成，系统会将已有信息整理为 Markdown 简历并保存。</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <el-button v-if="hasPersistedResume" @click="cancelCreateResume">取消新建</el-button>
+            <el-button type="primary" plain :icon="Upload" :loading="parseLoading" @click="handleUploadChange">上传已有简历</el-button>
+            <el-button type="primary" :loading="saveLoading" @click="generateResumeFromDraft">生成简历</el-button>
+            <input ref="fileInputRef" type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,application/pdf,image/*" @change="handleFileSelected" />
+          </div>
+        </header>
+
+        <section class="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+          <el-form-item label="简历标题" class="!mb-0">
+            <el-input v-model="resumeDraft.title" maxlength="60" placeholder="如：Java 后端开发求职简历" />
+          </el-form-item>
+          <p class="mt-2 text-xs text-slate-500">该标题将显示在简历正文顶部和右侧简历列表中，不会再使用姓名作为标题。</p>
+        </section>
+
+        <section class="space-y-4">
+          <div class="flex items-center gap-2">
+            <h4 class="font-semibold text-slate-900">个人信息</h4>
+              <el-tag size="small" type="danger" effect="plain">必填</el-tag>
+          </div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <el-form-item label="姓名" class="!mb-0"><el-input v-model="resumeDraft.name" maxlength="30" placeholder="请输入姓名" /></el-form-item>
+            <el-form-item label="电话" class="!mb-0"><el-input v-model="resumeDraft.phone" maxlength="20" placeholder="请输入手机号码" /></el-form-item>
+            <el-form-item label="邮箱" class="!mb-0"><el-input v-model="resumeDraft.email" maxlength="100" placeholder="请输入常用邮箱" /></el-form-item>
+            <el-form-item label="现居城市" class="!mb-0"><el-input v-model="resumeDraft.city" maxlength="50" placeholder="如：杭州" /></el-form-item>
+          </div>
+        </section>
+
+        <section class="space-y-4 border-t border-slate-100 pt-6">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <h4 class="font-semibold text-slate-900">教育背景</h4>
+              <el-tag size="small" type="danger" effect="plain">必填，至少 1 条</el-tag>
+            </div>
+            <el-button size="small" plain :icon="Plus" @click="addDraftEducation">添加教育经历</el-button>
+          </div>
+          <div v-for="(item, index) in resumeDraft.education" :key="index" class="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div class="mb-4 flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-700">教育经历 {{ index + 1 }}</span>
+              <el-button v-if="resumeDraft.education.length > 1" text type="danger" :icon="Delete" @click="removeDraftEducation(index)">删除</el-button>
+            </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <el-form-item label="学校名称" class="!mb-0"><el-input v-model="item.school" maxlength="100" placeholder="请输入学校名称" /></el-form-item>
+              <el-form-item label="专业" class="!mb-0"><el-input v-model="item.major" maxlength="100" placeholder="请输入专业" /></el-form-item>
+              <el-form-item label="学历" class="!mb-0">
+                <el-select v-model="item.degree" class="w-full" allow-create filterable placeholder="请选择或输入学历">
+                  <el-option v-for="degree in ['高中', '专科', '本科', '硕士', '博士']" :key="degree" :label="degree" :value="degree" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="入学年份" class="!mb-0"><el-date-picker v-model="item.startYear" class="!w-full" type="year" value-format="YYYY" placeholder="选择年份" /></el-form-item>
+              <el-form-item label="毕业年份" class="!mb-0"><el-date-picker v-model="item.endYear" class="!w-full" type="year" value-format="YYYY" placeholder="选择年份" /></el-form-item>
+              <el-form-item label="GPA" class="!mb-0"><el-input v-model="item.gpa" maxlength="30" placeholder="如：3.7 / 4.0" /></el-form-item>
+              <el-form-item label="主修课程" class="!mb-0 md:col-span-2"><el-input v-model="item.courses" maxlength="500" placeholder="课程之间可用顿号或逗号分隔" /></el-form-item>
+              <el-form-item label="学术荣誉" class="!mb-0"><el-input v-model="item.honors" maxlength="500" placeholder="奖学金、竞赛荣誉等" /></el-form-item>
+            </div>
+          </div>
+        </section>
+
+        <section class="space-y-4 border-t border-slate-100 pt-6">
+          <div class="flex items-center gap-2">
+            <h4 class="font-semibold text-slate-900">补充信息</h4>
+            <el-tag size="small" type="warning" effect="plain">强烈建议</el-tag>
+          </div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <el-form-item label="出生日期" class="!mb-0"><el-date-picker v-model="resumeDraft.birthday" class="!w-full" type="date" value-format="YYYY-MM-DD" placeholder="选择出生日期" /></el-form-item>
+            <el-form-item label="求职意向" class="!mb-0"><el-input v-model="resumeDraft.jobIntention" maxlength="300" placeholder="目标岗位、城市、行业等" /></el-form-item>
+            <el-form-item label="自我评价" class="!mb-0 md:col-span-2"><el-input v-model="resumeDraft.selfEvaluation" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="概括个人优势、职业特质与发展方向" /></el-form-item>
+            <el-form-item label="其他有助于求职的信息" class="!mb-0 md:col-span-2"><el-input v-model="resumeDraft.otherInfo" type="textarea" :rows="3" maxlength="1500" placeholder="可填写语言能力、竞赛成果或其他补充信息" /></el-form-item>
+          </div>
+        </section>
+
+        <section class="space-y-4 border-t border-slate-100 pt-6">
+          <div class="flex items-center gap-2">
+            <h4 class="font-semibold text-slate-900">详细经历</h4>
+            <el-tag size="small" type="info" effect="plain">选填</el-tag>
+          </div>
+          <p class="text-xs text-slate-500">每项可自由分行填写，支持使用 Markdown 列表，例如以“-”开头描述职责与成果。</p>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <el-form-item label="工作经历" class="!mb-0"><el-input v-model="resumeDraft.workExperience" type="textarea" :rows="5" placeholder="公司、岗位、起止时间、工作内容与成果" /></el-form-item>
+            <el-form-item label="项目经历" class="!mb-0"><el-input v-model="resumeDraft.projects" type="textarea" :rows="5" placeholder="项目名称、角色、技术或方法、量化成果" /></el-form-item>
+            <el-form-item label="专业技能" class="!mb-0"><el-input v-model="resumeDraft.skills" type="textarea" :rows="4" placeholder="软件、编程语言、专业工具等" /></el-form-item>
+            <el-form-item label="证书与荣誉" class="!mb-0"><el-input v-model="resumeDraft.certificates" type="textarea" :rows="4" placeholder="证书名称、颁发机构、取得时间" /></el-form-item>
+            <el-form-item label="组织与活动经历" class="!mb-0"><el-input v-model="resumeDraft.activities" type="textarea" :rows="4" placeholder="学生组织、志愿活动、社团经历等" /></el-form-item>
+            <el-form-item label="个人作品/作品链接" class="!mb-0"><el-input v-model="resumeDraft.portfolio" type="textarea" :rows="4" placeholder="作品名称、说明及链接" /></el-form-item>
+          </div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <el-form-item label="GitHub" class="!mb-0"><el-input v-model="resumeDraft.github" maxlength="300" placeholder="https://github.com/..." /></el-form-item>
+            <el-form-item label="个人博客" class="!mb-0"><el-input v-model="resumeDraft.blog" maxlength="300" placeholder="https://..." /></el-form-item>
+            <el-form-item label="兴趣爱好" class="!mb-0"><el-input v-model="resumeDraft.hobbies" maxlength="300" placeholder="运动、阅读、摄影等" /></el-form-item>
+          </div>
+        </section>
+
+        <footer class="flex flex-col items-center justify-between gap-3 border-t border-slate-200 pt-5 sm:flex-row">
+          <p class="text-xs text-slate-500">生成后仍可在本页面继续编辑和完善简历。</p>
+          <el-button type="primary" size="large" :loading="saveLoading" @click="generateResumeFromDraft">生成并保存简历</el-button>
+        </footer>
+      </div>
+    </el-card>
+
+    <div v-else class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <!-- 左：选中的简历正文预览/编辑 -->
       <el-card class="resume-card min-w-0" shadow="never">
         <div v-loading="parseLoading" class="space-y-5" element-loading-text="正在上传并解析简历..." element-loading-background="rgba(255,255,255,0)">

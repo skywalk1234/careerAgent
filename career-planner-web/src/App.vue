@@ -37,10 +37,10 @@ const mainClass = computed(() => {
 })
 
 const navItems = [
+  { to: '/student', label: '个人信息', icon: UserFilled },
   { to: '/', label: '首页', icon: HomeFilled },
   { to: '/jobs', label: '岗位探索', icon: Collection },
   { to: '/crawl', label: '岗位采集', icon: Download },
-  { to: '/student', label: '能力评估', icon: UserFilled },
   { to: '/report', label: '计划与行动方案', icon: Document },
   { to: '/interview', label: '模拟面试', icon: ChatLineRound },
 ]

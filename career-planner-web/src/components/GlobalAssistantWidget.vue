@@ -116,14 +116,12 @@ const panelY = ref(Math.max(56, window.innerHeight * 0.18))
 const panelWidth = ref(500)
 const panelHeight = ref(700)
 const dragging = ref(false)
-const resizingByHandle = ref(false)
 
 const traceExpandedByMessageId = ref<Record<string, boolean>>({})
 const pendingApprovalsByMessageId = ref<Record<string, HomeMessageApprovalState>>({})
 const approvalSubmittingByMessageId = ref<Record<string, boolean>>({})
 const approvalAutoExecutedIds = new Set<string>()
 const incomingContext = ref<GlobalAssistantContextPayload | null>(null)
-const contextHintMessage = ref('')
 const pendingInitialMessage = ref('')
 const agentRuntimeOverview = ref<HomeAgentRuntimeOverviewResult | null>(null)
 const agentRuntimeLoading = ref(false)
@@ -133,7 +131,7 @@ const agentGoalDraft = ref('')
 const selectedAgentPresetId = ref('')
 const injectedTaskArtifactIds = new Set<string>()
 let agentRuntimePollTimer: ReturnType<typeof window.setInterval> | null = null
-let panelResizeObserver: ResizeObserver | null = null
+let activeResizeCleanup: (() => void) | null = null
 
 const agentRuntimePresets = computed(() => agentRuntimeOverview.value?.presets || [])
 const agentRuntimeTasks = computed(() => agentRuntimeOverview.value?.latestTasks || [])
@@ -145,6 +143,7 @@ const latestAssistantMessageId = computed(() => {
   }
   return ''
 })
+const showAssistantIntroduction = computed(() => !sending.value && !messages.value.some(item => item.role === 'user'))
 const selectedAgentPreset = computed(() => {
   const presetId = String(selectedAgentPresetId.value || '').trim()
   if (presetId) {
@@ -466,79 +465,64 @@ function clampPanelPosition() {
   panelY.value = Math.min(Math.max(12, panelY.value), maxY)
 }
 
-function disconnectPanelResizeObserver() {
-  if (panelResizeObserver) {
-    panelResizeObserver.disconnect()
-    panelResizeObserver = null
-  }
+type ResizeDirection = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+const resizeDirections: ResizeDirection[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+
+function stopPanelResize() {
+  activeResizeCleanup?.()
+  activeResizeCleanup = null
 }
 
-function syncPanelSizeFromDom() {
+function startPanelResize(direction: ResizeDirection, event: MouseEvent) {
   const panel = panelRef.value
   if (!panel) return
 
+  stopPanelResize()
   const rect = panel.getBoundingClientRect()
-  const nextWidth = Math.round(rect.width)
-  const nextHeight = Math.round(rect.height)
+  const startX = event.clientX
+  const startY = event.clientY
+  const startLeft = rect.left
+  const startTop = rect.top
+  const startRight = rect.right
+  const startBottom = rect.bottom
+  const minWidth = Math.min(400, window.innerWidth - 24)
+  const minHeight = Math.min(420, window.innerHeight - 24)
+  const previousCursor = document.body.style.cursor
+  const previousUserSelect = document.body.style.userSelect
+  document.body.style.cursor = getComputedStyle(event.currentTarget as HTMLElement).cursor
+  document.body.style.userSelect = 'none'
 
-  if (Number.isFinite(nextWidth) && nextWidth > 0) {
-    panelWidth.value = nextWidth
-  }
-  if (Number.isFinite(nextHeight) && nextHeight > 0) {
-    panelHeight.value = nextHeight
-  }
-}
+  const onMove = (moveEvent: MouseEvent) => {
+    const deltaX = moveEvent.clientX - startX
+    const deltaY = moveEvent.clientY - startY
 
-function isResizeHandlePointer(event: MouseEvent) {
-  const panel = panelRef.value
-  if (!panel) return false
-
-  const rect = panel.getBoundingClientRect()
-  const offsetRight = rect.right - event.clientX
-  const offsetBottom = rect.bottom - event.clientY
-  const HANDLE_SIZE = 28
-
-  return offsetRight >= 0
-    && offsetBottom >= 0
-    && offsetRight <= HANDLE_SIZE
-    && offsetBottom <= HANDLE_SIZE
-}
-
-function handlePanelMouseDown(event: MouseEvent) {
-  if (!isResizeHandlePointer(event)) return
-  resizingByHandle.value = true
-
-  const onMouseUp = () => {
-    resizingByHandle.value = false
-    syncPanelSizeFromDom()
-    clampPanelPosition()
-  }
-
-  window.addEventListener('mouseup', onMouseUp, { once: true })
-}
-
-function ensurePanelResizeObserver() {
-  if (!panelRef.value || typeof ResizeObserver === 'undefined') return
-  if (panelResizeObserver) return
-
-  panelResizeObserver = new ResizeObserver((entries) => {
-    if (!resizingByHandle.value) return
-
-    const entry = entries[0]
-    if (!entry) return
-    const nextWidth = Math.round(entry.contentRect.width)
-    const nextHeight = Math.round(entry.contentRect.height)
-
-    if (Number.isFinite(nextWidth) && Math.abs(nextWidth - panelWidth.value) > 1) {
-      panelWidth.value = nextWidth
+    if (direction.includes('e')) {
+      panelWidth.value = Math.max(minWidth, Math.min(window.innerWidth - startLeft - 12, rect.width + deltaX))
     }
-    if (Number.isFinite(nextHeight) && Math.abs(nextHeight - panelHeight.value) > 1) {
-      panelHeight.value = nextHeight
+    if (direction.includes('s')) {
+      panelHeight.value = Math.max(minHeight, Math.min(window.innerHeight - startTop - 12, rect.height + deltaY))
     }
-    clampPanelPosition()
-  })
+    if (direction.includes('w')) {
+      const nextLeft = Math.max(12, Math.min(startRight - minWidth, startLeft + deltaX))
+      panelX.value = nextLeft
+      panelWidth.value = startRight - nextLeft
+    }
+    if (direction.includes('n')) {
+      const nextTop = Math.max(12, Math.min(startBottom - minHeight, startTop + deltaY))
+      panelY.value = nextTop
+      panelHeight.value = startBottom - nextTop
+    }
+  }
 
-  panelResizeObserver.observe(panelRef.value)
+  const cleanup = () => {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', stopPanelResize)
+    document.body.style.cursor = previousCursor
+    document.body.style.userSelect = previousUserSelect
+  }
+  activeResizeCleanup = cleanup
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', stopPanelResize)
 }
 
 function renderMarkdownContent(content: string) {
@@ -942,36 +926,6 @@ function buildCurrentPageContext(payload?: GlobalAssistantContextPayload | null)
     contextPrompt,
     data,
   }
-}
-
-function refreshContextHint(payload?: GlobalAssistantContextPayload | null) {
-  const context = buildCurrentPageContext(payload || incomingContext.value)
-  contextHintMessage.value = String(context.contextPrompt || '').trim()
-}
-
-function resolveRouteQuickFlowPrompts(routePath: string) {
-  const path = String(routePath || '').trim()
-  if (path === '/jobs') {
-    return ['帮我推荐一个岗位', '这个岗位的技能差距怎么补', '这个方向在不同城市怎么选']
-  }
-  if (path === '/student') {
-    return ['帮我分析一下简历', '我现在先补哪几项画像信息', '请给我一份简历优化清单']
-  }
-  if (path === '/report') {
-    return ['帮我润色一下这份报告', '帮我写一段报告展示话术', '这份报告下一步怎么优化']
-  }
-  return ['帮我分析当前页面最该先做什么', '给我一个可执行的下一步建议']
-}
-
-async function useContextHintAsDraft() {
-  const context = buildCurrentPageContext(incomingContext.value)
-  const prompts = resolveRouteQuickFlowPrompts(String(context.routePath || route.path || '/'))
-  if (!prompts.length) return
-  const randomIndex = Math.floor(Math.random() * prompts.length)
-  const quickMessage = String(prompts[randomIndex] || '').trim()
-  if (!quickMessage) return
-  draft.value = quickMessage
-  await sendMessage(quickMessage, incomingContext.value)
 }
 
 function formatSessionTitle(session: HomeSession) {
@@ -1903,7 +1857,6 @@ async function initializeWidget() {
 function openWidget(payload?: GlobalAssistantContextPayload | null) {
   const alreadyVisible = visible.value
   incomingContext.value = payload || null
-  refreshContextHint(payload)
   pendingInitialMessage.value = String(payload?.initialMessage || '').trim()
   if (payload?.pendingJob?.jobId && payload?.pendingJob?.jobName) {
     addPendingJobRef(payload.pendingJob)
@@ -1915,14 +1868,12 @@ function openWidget(payload?: GlobalAssistantContextPayload | null) {
   }
 
   nextTick(() => {
-    ensurePanelResizeObserver()
     clampPanelPosition()
   })
 }
 
 function closeWidget() {
-  resizingByHandle.value = false
-  disconnectPanelResizeObserver()
+  stopPanelResize()
   visible.value = false
 }
 
@@ -1961,15 +1912,13 @@ watch(visible, (value) => {
     initializeWidget()
       .then(async () => {
         nextTick(() => {
-          ensurePanelResizeObserver()
           autoResizeComposerInput()
         })
         await tryAutoSendPendingInitialMessage()
       })
       .catch(() => {})
   } else {
-    resizingByHandle.value = false
-    disconnectPanelResizeObserver()
+    stopPanelResize()
     closeStream()
     stopAgentRuntimePolling()
   }
@@ -1983,7 +1932,6 @@ watch(() => route.path, (path) => {
     contextPrompt: buildDefaultContextPrompt(path),
     autoSendPrompt: false,
   }
-  refreshContextHint(incomingContext.value)
 })
 
 onMounted(() => {
@@ -1992,15 +1940,10 @@ onMounted(() => {
   window.addEventListener(HOME_ASSISTANT_SESSION_REFRESH_EVENT, handleHomeAssistantSessionRefreshEvent as EventListener)
   window.addEventListener('resize', clampPanelPosition)
 
-  if (visible.value) {
-    nextTick(() => {
-      ensurePanelResizeObserver()
-    })
-  }
 })
 
 onBeforeUnmount(() => {
-  disconnectPanelResizeObserver()
+  stopPanelResize()
   closeStream()
   stopAgentRuntimePolling()
   window.removeEventListener(GLOBAL_ASSISTANT_OPEN_EVENT, onOpenEvent as EventListener)
@@ -2016,7 +1959,14 @@ onBeforeUnmount(() => {
   </button>
 
   <transition name="assistant-float">
-    <div v-if="visible" ref="panelRef" class="assistant-panel" :style="panelStyle" @mousedown="handlePanelMouseDown">
+    <div v-if="visible" ref="panelRef" class="assistant-panel" :style="panelStyle">
+      <span
+        v-for="direction in resizeDirections"
+        :key="direction"
+        class="assistant-resize-handle"
+        :class="`is-${direction}`"
+        @mousedown.stop.prevent="startPanelResize(direction, $event)"
+      ></span>
       <header class="assistant-head" @mousedown.prevent="handleDragStart">
         <div class="assistant-head-left">
           <img :src="aiAvatarImage" class="assistant-logo" alt="AI助手头像" />
@@ -2072,10 +2022,20 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <div v-if="contextHintMessage" class="assistant-context-hint">
-          <div class="assistant-context-title">AI 提示</div>
-          <div class="assistant-context-text">{{ contextHintMessage }}</div>
-          <button type="button" class="assistant-context-action" @click="useContextHintAsDraft">个性化快捷提问</button>
+        <div v-if="showAssistantIntroduction" class="assistant-introduction">
+          <div class="assistant-introduction-title">我是微光职引小助手，我可以帮你做这些事：</div>
+          <div class="assistant-introduction-item">
+            <strong>简历画像分析</strong>
+            <span>读取你的简历，梳理你的技能、经历、优势与短板</span>
+          </div>
+          <div class="assistant-introduction-item">
+            <strong>岗位匹配诊断</strong>
+            <span>结合你想投的岗位（JD），给出匹配度分析和差距项</span>
+          </div>
+          <div class="assistant-introduction-item">
+            <strong>求职策略建议</strong>
+            <span>简历修改方向、投递节奏、面试准备重点等</span>
+          </div>
         </div>
 
         <div ref="chatListRef" class="assistant-chat-list" @scroll.passive="handleChatListScroll">
@@ -2395,10 +2355,49 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  resize: both;
   min-width: 400px;
   min-height: 420px;
 }
+
+.assistant-resize-handle {
+  position: absolute;
+  z-index: 20;
+}
+
+.assistant-resize-handle.is-n,
+.assistant-resize-handle.is-s {
+  left: 12px;
+  right: 12px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.assistant-resize-handle.is-n { top: 0; }
+.assistant-resize-handle.is-s { bottom: 0; }
+
+.assistant-resize-handle.is-e,
+.assistant-resize-handle.is-w {
+  top: 12px;
+  bottom: 12px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.assistant-resize-handle.is-e { right: 0; }
+.assistant-resize-handle.is-w { left: 0; }
+
+.assistant-resize-handle.is-ne,
+.assistant-resize-handle.is-se,
+.assistant-resize-handle.is-sw,
+.assistant-resize-handle.is-nw {
+  width: 14px;
+  height: 14px;
+}
+
+.assistant-resize-handle.is-ne { top: 0; right: 0; cursor: nesw-resize; }
+.assistant-resize-handle.is-se { right: 0; bottom: 0; cursor: nwse-resize; }
+.assistant-resize-handle.is-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.assistant-resize-handle.is-nw { top: 0; left: 0; cursor: nwse-resize; }
 
 .assistant-head {
   height: 56px;
@@ -2564,35 +2563,34 @@ onBeforeUnmount(() => {
   background: #eef2ff;
 }
 
-.assistant-context-hint {
+.assistant-introduction {
   margin-bottom: 6px;
   border: 1px solid #dbeafe;
   border-radius: 10px;
-  background: #f8fbff;
-  padding: 8px 9px;
+  background: linear-gradient(135deg, #f8fbff, #eff6ff);
+  padding: 10px;
 }
 
-.assistant-context-title {
-  font-size: 11px;
-  color: #1e3a8a;
-  font-weight: 600;
-}
-
-.assistant-context-text {
-  margin-top: 4px;
+.assistant-introduction-title {
   font-size: 12px;
+  color: #1e3a8a;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.assistant-introduction-item {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px;
+  margin-top: 7px;
+  font-size: 11px;
   line-height: 1.5;
   color: #334155;
 }
 
-.assistant-context-action {
-  margin-top: 6px;
-  border: none;
-  background: #e0ebff;
+.assistant-introduction-item strong {
   color: #1d4ed8;
-  border-radius: 9999px;
-  padding: 3px 10px;
-  font-size: 11px;
+  white-space: nowrap;
 }
 
 .assistant-task-entry {
