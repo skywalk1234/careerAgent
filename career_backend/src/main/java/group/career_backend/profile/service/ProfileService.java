@@ -20,7 +20,7 @@ public interface ProfileService {
 
     List<Map<String, Object>> listProfileItems(Long userId);
 
-    int deleteProfiles(Long userId);
+    int deleteProfile(Long userId, String profileId);
 
     GetProfileResponse getProfileResponse(Long userId);
 

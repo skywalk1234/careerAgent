@@ -8,6 +8,7 @@ import DOMPurify from 'dompurify'
 import { htmlToMarkdown } from '../utils/htmlToMarkdown'
 import {
   createParseProfileJob,
+  deleteStudentProfile,
   getStudentProfile,
   getStudentProfileList,
   parseImageResume,
@@ -38,6 +39,7 @@ const parseLoading = ref(false)
 const saveLoading = ref(false)
 const refreshLoading = ref(false)
 const listLoading = ref(false)
+const deletingResumeId = ref('')
 const isEditing = ref(false)
 const updatedAt = ref('')
 const savedSnapshot = ref('')
@@ -509,6 +511,64 @@ async function createNewResume() {
   isEditing.value = false
   resumeEditorDirty.value = false
   isCreatingResume.value = true
+}
+
+async function deleteResume(item: ResumeListItem) {
+  const profileId = String(item.profileId || '').trim()
+  if (!profileId || deletingResumeId.value) return
+
+  try {
+    await ElMessageBox.confirm(`确定删除简历“${getResumeTitle(item)}”吗？删除后无法恢复。`, '删除简历', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'el-button--danger',
+    })
+  } catch {
+    return
+  }
+
+  deletingResumeId.value = profileId
+  try {
+    const response = await deleteStudentProfile(profileId)
+    const result = response.data as ApiResponse<{ deleted: number }>
+    if (!isSuccessCode(Number(result.code))) {
+      ElMessage.error(result.msg || '删除失败')
+      return
+    }
+
+    const payload = extractPayload<{ deleted: number }>(response as { data: ApiResponse<{ deleted: number }> })
+    if (!payload?.deleted) {
+      ElMessage.warning('简历不存在或已被删除')
+      await loadResumeList(true)
+      return
+    }
+
+    const remaining = resumeList.value.filter((resume) => resume.profileId !== profileId)
+    resumeList.value = remaining
+    if (remaining.length === 0) {
+      isEditing.value = false
+      resumeEditorDirty.value = false
+      hasPersistedResume.value = false
+      isCreatingResume.value = true
+      resetResumeDraft()
+      const blank: ResumeListItem = { profileId: genResumeId(), title: '未命名简历', content: '' }
+      resumeList.value = [blank]
+      applyProfileContent(blank)
+    } else if (activeResumeId.value === profileId) {
+      applyProfileContent(remaining[0])
+      isEditing.value = false
+      resumeEditorDirty.value = false
+    }
+
+    const snapshot = await appStore.ensureProfileSnapshot(true).catch(() => null)
+    updatedAt.value = snapshot?.updatedAt ?? ''
+    ElMessage.success('简历已删除')
+  } catch {
+    ElMessage.error('删除失败，请稍后重试')
+  } finally {
+    deletingResumeId.value = ''
+  }
 }
 
 function cancelCreateResume() {
@@ -1014,20 +1074,29 @@ onBeforeUnmount(() => {
           </template>
 
           <div v-if="resumeList.length" class="resume-list-scroll space-y-2">
-            <button
+            <div
               v-for="(item, index) in resumeList"
               :key="item.profileId || `new-${index}`"
-              type="button"
-              class="w-full rounded-lg border px-3 py-2 text-left transition hover:border-blue-300 hover:bg-blue-50"
+              class="flex w-full items-center gap-1 rounded-lg border pr-1 transition hover:border-blue-300 hover:bg-blue-50"
               :class="item.profileId === activeResumeId ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'"
-              @click="selectResume(item)"
             >
-              <div class="flex items-center justify-between gap-2">
-                <p class="line-clamp-1 text-sm font-medium text-slate-800">{{ getResumeTitle(item) }}</p>
-                <el-tag v-if="item.profileId === activeResumeId" size="small" type="success" effect="light">当前</el-tag>
-              </div>
-              <p v-if="item.updatedAt" class="mt-1 text-xs text-slate-500">{{ formatListTime(item.updatedAt) }} 更新</p>
-            </button>
+              <button type="button" class="min-w-0 flex-1 px-3 py-2 text-left" @click="selectResume(item)">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="line-clamp-1 text-sm font-medium text-slate-800">{{ getResumeTitle(item) }}</p>
+                  <el-tag v-if="item.profileId === activeResumeId" size="small" type="success" effect="light">当前</el-tag>
+                </div>
+                <p v-if="item.updatedAt" class="mt-1 text-xs text-slate-500">{{ formatListTime(item.updatedAt) }} 更新</p>
+              </button>
+              <el-button
+                text
+                type="danger"
+                :icon="Delete"
+                :loading="deletingResumeId === item.profileId"
+                title="删除简历"
+                aria-label="删除简历"
+                @click.stop="deleteResume(item)"
+              />
+            </div>
           </div>
           <div v-else class="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">
             暂无简历

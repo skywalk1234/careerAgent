@@ -132,10 +132,15 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
-    public int deleteProfiles(Long userId) {
-        log.info("[业务处理] 开始删除用户全部简历, userId={}", userId);
-        int deleted = resumeFullMapper.delete(new QueryWrapper<ResumeFull>().eq("user_id", userId));
-        log.info("[业务处理] 用户简历删除完成, userId={}, deleted={}", userId, deleted);
+    public int deleteProfile(Long userId, String profileId) {
+        log.info("[业务处理] 开始删除指定简历, userId={}, profileId={}", userId, profileId);
+        if (!StringUtils.hasText(profileId)) {
+            return 0;
+        }
+        int deleted = resumeFullMapper.delete(new QueryWrapper<ResumeFull>()
+                .eq("user_id", userId)
+                .eq("profile_id", profileId));
+        log.info("[业务处理] 指定简历删除完成, userId={}, profileId={}, deleted={}", userId, profileId, deleted);
         return deleted;
     }
 

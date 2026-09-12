@@ -6,10 +6,13 @@ import group.career_backend.security.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -58,12 +61,12 @@ public class ProfileController {
         return Result.success(response);
     }
 
-    @GetMapping("/users/me/profile/delete")
-    public Result<?> deleteProfiles(HttpServletRequest request) {
+    @DeleteMapping("/users/me/profile/{profileId}")
+    public Result<?> deleteProfile(@PathVariable String profileId, HttpServletRequest request) {
         Long userId = UserContext.getUserId(request);
-        log.info("[接口访问] GET /users/me/profile/delete, userId={}", userId);
-        int deleted = profileService.deleteProfiles(userId);
-        log.info("[接口完成] 删除用户简历成功, userId={}, deleted={}", userId, deleted);
-        return Result.success();
+        log.info("[接口访问] DELETE /users/me/profile/{profileId}, userId={}, profileId={}", userId, profileId);
+        int deleted = profileService.deleteProfile(userId, profileId);
+        log.info("[接口完成] 删除指定简历成功, userId={}, profileId={}, deleted={}", userId, profileId, deleted);
+        return Result.success(Map.of("deleted", deleted));
     }
 }

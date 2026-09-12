@@ -206,6 +206,10 @@ export function getStudentProfileList() {
   return http.get('/users/me/profile/list')
 }
 
+export function deleteStudentProfile(profileId: string) {
+  return http.delete(`/users/me/profile/${encodeURIComponent(profileId)}`)
+}
+
 export function getStudentProfileAggregate() {
   return http.get('/analytics/student-profiles/aggregate')
 }
