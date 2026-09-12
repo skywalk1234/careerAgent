@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     server_port: int = 8086
 
     # ---------- DeepSeek API 配置 ----------
-    # API Key 在 .env 文件的 DEEPSEEK_API_KEY 中填写
+    # 通过环境变量 DEEPSEEK_API_KEY 或项目根目录 .env 文件配置
     # 申请地址: https://platform.deepseek.com/
-    deepseek_api_key: str = "${DEEPSEEK_API_KEY}"
+    deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-v4-flash"
 
