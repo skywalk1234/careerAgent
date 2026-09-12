@@ -1,0 +1,75 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: gateway
+  cloud:
+    nacos:
+      server-addr: 192.168.118.130:8848
+    gateway:
+      routes:
+        # user-service 路由：登录注册相关（优先匹配）
+        - id: user-auth
+          uri: lb://user-service
+          predicates:
+            - Path=/users/login,/users/register
+          order: 0
+        # profile-service 路由：/users/me/profile/** 画像相关
+        - id: profile
+          uri: lb://profile-service
+          predicates:
+            - Path=/users/me/profile/**,/users/me/profile/delete
+          order: 1
+        # resume-parser-service 路由：/users/me/profile/parse-jobs 和 /users/me/home/**
+        # 注意：order 必须小于 profile 路由(1)，否则 /users/me/profile/parse-jobs 会被
+        # profile-service 的 /users/me/profile/** 先匹配吞掉，导致 404
+        - id: resume-parser-user
+          uri: lb://resume-parser-service
+          predicates:
+            - Path=/users/me/profile/parse-jobs,/users/me/profile/parse-image,/users/me/home/**
+          order: 0
+        # resume-parser-service 路由：保存简历（POST /users/me/profile）
+        # 注意：必须用 Method=POST 限定方法，否则 GET /users/me/profile（查询画像）也会被
+        # 抢到 resume-parser-service，导致 profile-service 的画像查询失效
+        - id: resume-parser-save-profile
+          uri: lb://resume-parser-service
+          predicates:
+            - Method=POST
+            - Path=/users/me/profile
+          order: 0
+        # career-service 路由：/users/me/** 其他路径（匹配 career-path, career-report, favorite-jobs, match 等）
+        - id: career-user
+          uri: lb://career-service
+          predicates:
+            - Path=/users/me/**
+          order: 3
+        # career-service 路由：/jobs/** 和 /career-reports/**
+        - id: career-public
+          uri: lb://career-service
+          predicates:
+            - Path=/jobs/**,/career-reports/**
+          order: 4
+        # career-service 路由：管理员相关
+        - id: career-admin
+          uri: lb://career-service
+          predicates:
+            - Path=/admin/**
+          order: 5
+        # resume-parser-service 路由：其他路径
+        - id: resume-parser-other
+          uri: lb://resume-parser-service
+          predicates:
+            - Path=/eval/**,/jobs/recommend,/jobs/recommend/specific,/jobs/route/auto-plan,/vector_store/**
+          order: 6
+
+group:
+  jwt:
+    location: classpath:hmall.jks # 秘钥地址
+    alias: hmall # 秘钥别名
+    password: hmall123 # 秘钥文件密码
+    tokenTTL: 30m # 登录有效期
+  auth:
+    excludePaths: # 无需登录校验的路径
+      - /users/login
+      - /users/register
+      - /admin/**

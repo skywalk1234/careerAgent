@@ -1,0 +1,3 @@
+# Only DrissionPage is required by the crawler runtime.
+# pipeline/db/config/platform_utils use the standard library only.
+DrissionPage>=4.1.0

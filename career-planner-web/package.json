@@ -1,0 +1,41 @@
+{
+  "name": "career-planner-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "serve": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@antv/g6": "^4.8.24",
+    "axios": "^1.13.5",
+    "baseline-browser-mapping": "^2.11.20",
+    "caniuse-lite": "^1.0.30001810",
+    "dompurify": "^3.3.1",
+    "echarts": "^6.0.0",
+    "echarts-wordcloud": "^2.1.0",
+    "element-plus": "^2.13.2",
+    "gsap": "^3.14.2",
+    "markdown-it": "^14.1.1",
+    "motion-v": "^2.0.0-beta.3",
+    "pinia": "^2.3.1",
+    "three": "0.134.0",
+    "vanta": "^0.5.24",
+    "vue": "^3.4.37",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/three": "0.134.0",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.1",
+    "vue-tsc": "^2.0.29"
+  }
+}

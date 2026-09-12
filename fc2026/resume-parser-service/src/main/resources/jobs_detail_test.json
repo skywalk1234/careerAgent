@@ -1,0 +1,98 @@
+[
+  {
+    "jobId": "job_frontend_mid_ae2476",
+    "jobName": "前端开发_初级前端开发工程师",
+    "jobCode": "CC668565120J40736166805",
+    "companyName": "东莞市恒亚罗斯计算机科技有限公司",
+    "city": "东莞",
+    "district": "虎门镇",
+    "industryTags": [
+      "计算机软件",
+      "互联网",
+      "IT服务"
+    ],
+    "educationRequirement": "不限",
+    "salaryMin": 3.0,
+    "salaryMax": 4.0,
+    "salaryUnit": "k/月",
+    "salaryMonths": 12,
+    "salaryNegotiable": false,
+    "salaryNormalized": "3-4k/月·12薪",
+    "updatedAtRaw": "5月19日",
+    "updatedAtNormalized": "2026-05-19T00:00:00+08:00",
+    "sourceUrl": "https://www.zhaopin.com/jobdetail/CC668565120J40736166805.htm?refcode=4019&srccode=401901&preactionid=a7c1140f-c46c-45e5-b867-ab342d8bdc77",
+    "sourceSite": "zhaopin.com",
+    "companySize": "20-99人",
+    "companyType": "天使轮",
+    "level": "mid",
+    "jobDescription": "1.负责公司项目web前端页面的设计和开发、测试、优化工作；2.参与前端架构在项目中的落地、实施。并针对开发框架实现编码工作；3.配合后端开发工程师实现界面功能、确保交互界面具有良好的用户体验和卓越的性能；4.持续的优化前端体验和页面响应速度，并保证兼容性和执行效率;",
+    "companyBrief": "工业软件与智能制造企业，早期团队，提供研发与交付服务，面向企业与行业客户",
+    "companyDescription": "东莞市恒亚罗斯计算机科技有限：南极芯科技是一家专业设计，研发，生产，销售数字化工厂富有创新能力的软件企业，在软件应用系统规划和智能MES智能工厂信息化服装ERP供应链系统WMS IOT PLM工业互联网平台智能工厂规划具有丰富经验的专家顾问所创办；企业研发团队全部是计算机软件相关专业本科以上学历，平均年龄不到30岁，是一个优秀、经验丰富和极具创造力的年轻团队。公司依托于与各大院校大学的密切合作，有效利用人才与资源优势，实现产学研一体化运作，一方面提升企业形象和扩大业务渠道，一方面借助于科研联合和政府扶植推动产品技术和业务发展、等的密切联系和以往业务关系，逐渐建立起实质性的业务合作，并形成新的业务模式。目前软件著作权及专利几十项、主要业务、服装ERP MES智能制造 IOT物联网，供应链系统WMS IOT PLM WMS立库工业互联网平台产品、研发投入产生的经济和社会效益。提高生产效率，南极芯工业互联网云平台可以对生产过程进行实时监测和数据分析，帮助企业了解生产情况，提高生产效率。通过实时监测和数据分析，企业可以及时发现问题，进行调整和优化，避免生产中出现的问题和故障，减少停机时间和损失，提高生产效率。降低生产成本，南极芯工业互联网云平台可以通过对生产过程进行优化，降低生产成本。通过对生产过程的监测和分析，企业可以发现生产中的浪费和瓶颈，进行优化和调整，降低生南极芯工业互联网云平台可以促进产业升级，推动企业从传统制造向智能制造转型。通过工业互联网云平台，企业可以实现数字化、网络化和智能化的生产模式，提高生产效率和产品质量，降低生产成本，提高企业的竞争力和盈利能力，促进产业升级。南极芯服装供应链ERP，南极芯MES智能智造管理系统，南极芯WMS智慧立库系统，南极芯IoT物联网，人工智能机器人。全力协同产业智能制造数字化智能化标杆工厂，数字化智能化全面转型升级，全力推动科技与产业融合发展。",
+    "abilityRequirements": {
+      "professionalSkill": 99,
+      "certificate": 0,
+      "innovation": 16,
+      "internalMotivation": 16,
+      "learning": 16,
+      "stressTolerance": 0,
+      "communication": 84,
+      "internship": 80,
+      "language": 0,
+      "leadership": 84,
+      "adaptability": 0,
+      "execution": 65
+    },
+    "dimensionDetails": {
+      "professionalSkill": "精通前端/后端开发与性能优化",
+      "communication": "可与产品测试顺畅沟通问题",
+      "leadership": "能在模块内承担牵头与推动"
+    }
+  },
+  {
+    "jobId": "job_frontend_junior_d89abc",
+    "jobName": "前端开发_初级前端开发工程师",
+    "jobCode": "CCL1480117890J40792633805",
+    "companyName": "外企德科数字技术有限公司",
+    "city": "西安",
+    "district": "雁塔区",
+    "industryTags": [
+      "专业技术服务"
+    ],
+    "educationRequirement": "不限",
+    "salaryMin": 15.0,
+    "salaryMax": 30.0,
+    "salaryUnit": "k/月",
+    "salaryMonths": 12,
+    "salaryNegotiable": false,
+    "salaryNormalized": "15-30k/月·12薪",
+    "updatedAtRaw": "2025-07-27 00:25:56",
+    "updatedAtNormalized": "",
+    "sourceUrl": "https://www.zhaopin.com/jobdetail/CCL1480117890J40792633805.htm?refcode=4019&srccode=401901&preactionid=a7c1140f-c46c-45e5-b867-ab342d8bdc77",
+    "sourceSite": "zhaopin.com",
+    "companySize": "10000人以上",
+    "companyType": "",
+    "level": "junior",
+    "jobDescription": "1. 信息系统/计算机/通讯等相关专业优先，能力优秀者可放宽，无经验22年优秀应届生亦可培养； 2.精通HTML/CSS/JS/H5等Web前端开发技术中的一种或多种软件语言；",
+    "companyBrief": "人力资源与企业服务企业，提供研发与交付服务，面向企业与行业客户工作节奏",
+    "companyDescription": "外企德科数字技术有限公司是一家2023年新成立的中外合资企业。成立于2023年11月24日，公司定位：专注于为信息技术企业提供人才及数字技术外包解决方案的中外合资企业。它是由中国人力资源服务行业的FESCO（北京国际人力资本集团）与全球人力资源服务领导者The Adecco Group（德科集团）合资成立的。公司主要提供网络技术服务、软件外包服务、计算机系统服务、技术进出口、软件开发等信息技术相关服务。专注于为信息技术企业提供信息技术类人才及数字技术外包解决方案。",
+    "abilityRequirements": {
+      "professionalSkill": 94,
+      "certificate": 0,
+      "innovation": 16,
+      "internalMotivation": 16,
+      "learning": 16,
+      "stressTolerance": 0,
+      "communication": 80,
+      "internship": 88,
+      "language": 0,
+      "leadership": 84,
+      "adaptability": 0,
+      "execution": 57
+    },
+    "dimensionDetails": {
+      "professionalSkill": "精通前端/后端开发与性能优化",
+      "internship": "有实践经历能理解工程流程",
+      "leadership": "能在模块内承担牵头与推动"
+    }
+  }
+]

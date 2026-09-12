@@ -1,0 +1,821 @@
+[
+  {
+    "source": "role:cj_backend_DataAlgo",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.7702,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.772,
+      "domainContinuity": 0.8667,
+      "missingSkills": [
+        "Linux",
+        "Java",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "internalMotivation",
+        "leadership",
+        "execution",
+        "communication",
+        "internship",
+        "innovation",
+        "learning",
+        "stressTolerance",
+        "adaptability",
+        "professionalSkill"
+      ],
+      "why": "C/C++_数据分析与算法助理到C/C++_中级系统开发工程师属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强Linux, Java, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_DataAlgo",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.6825,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.8,
+      "domainContinuity": 0.4,
+      "missingSkills": [
+        "Java",
+        "Linux",
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "execution",
+        "internalMotivation",
+        "communication",
+        "internship",
+        "innovation",
+        "learning",
+        "stressTolerance",
+        "adaptability",
+        "professionalSkill"
+      ],
+      "why": "C/C++_数据分析与算法助理到Java_中高级后端开发工程师属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强Java, Linux, 需求分析。"
+    }
+  },
+  {
+    "source": "role:cj_backend_DataAlgo",
+    "target": "role:cj_backend_SeniorExpert",
+    "score": 0.6526,
+    "reason": {
+      "levelFit": 0.6,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.784,
+      "domainContinuity": 0.8667,
+      "missingSkills": [
+        "Linux",
+        "Java",
+        "高性能分布式系统架构设计"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "innovation",
+        "execution",
+        "internship",
+        "communication",
+        "internalMotivation",
+        "learning",
+        "adaptability",
+        "professionalSkill",
+        "stressTolerance"
+      ],
+      "why": "C/C++_数据分析与算法助理到C/C++_资深架构开发工程师属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强Linux, Java, 高性能分布式系统架构设计。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.7422,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8083,
+      "abilityGrowth": 0.2987,
+      "domainContinuity": 0.7,
+      "missingSkills": [
+        "Python"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "why": "C/C++_工控与嵌入式控制工程师到Java_中高级后端开发工程师属于同主线职责升级，核心技能继承度为0.81，执行、沟通和协同要求同步抬升。 仍需补强Python。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.7237,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8083,
+      "abilityGrowth": 0.1059,
+      "domainContinuity": 0.8,
+      "missingSkills": [
+        "Python"
+      ],
+      "missingAbilities": [],
+      "why": "C/C++_工控与嵌入式控制工程师到C/C++_中级系统开发工程师属于同主线职责升级，核心技能继承度为0.81，执行、沟通和协同要求同步抬升。 仍需补强Python。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.6044,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.3083,
+      "abilityGrowth": 0.5764,
+      "domainContinuity": 0.4833,
+      "missingSkills": [
+        "责任心",
+        "Excel"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "stressTolerance",
+        "communication"
+      ],
+      "why": "C/C++_工控与嵌入式控制工程师到项目专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强责任心, Excel。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.8039,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.975,
+      "abilityGrowth": 0.1712,
+      "domainContinuity": 0.8857,
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "Java_初级软件开发工程师到Java_中高级后端开发工程师属于同主线职责升级，核心技能继承度为0.97，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.7054,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.975,
+      "abilityGrowth": 0.0644,
+      "domainContinuity": 0.5,
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "Java_初级软件开发工程师到C/C++_中级系统开发工程师属于同主线职责升级，核心技能继承度为0.97，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_backend_Java",
+    "score": 0.6467,
+    "reason": {
+      "levelFit": 0.6,
+      "skillInheritance": 0.975,
+      "abilityGrowth": 0.0711,
+      "domainContinuity": 0.8,
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "Java_初级软件开发工程师到Java_云原生与分布式架构工程师属于同主线职责升级，核心技能继承度为0.97，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_Java",
+    "score": 0.691,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8083,
+      "abilityGrowth": 0.0091,
+      "domainContinuity": 0.7333,
+      "missingSkills": [],
+      "missingAbilities": [],
+      "why": "Java_中高级后端开发工程师到Java_云原生与分布式架构工程师属于同主线职责升级，核心技能继承度为0.81，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_SeniorExpert",
+    "score": 0.6596,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8333,
+      "abilityGrowth": 0.0483,
+      "domainContinuity": 0.5,
+      "missingSkills": [
+        "高性能分布式系统架构设计"
+      ],
+      "missingAbilities": [],
+      "why": "Java_中高级后端开发工程师到C/C++_资深架构开发工程师属于同主线职责升级，核心技能继承度为0.83，执行、沟通和协同要求同步抬升。 仍需补强高性能分布式系统架构设计。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_data_Java",
+    "score": 0.6429,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6667,
+      "abilityGrowth": 0.0,
+      "domainContinuity": 0.7143,
+      "missingSkills": [
+        "海量数据仓库架构设计与优化",
+        "实时计算引擎开发 (Flink/Spark Streaming)"
+      ],
+      "missingAbilities": [],
+      "why": "Java_中高级后端开发工程师到Java_大数据与数据开发工程师属于同主线职责升级，核心技能继承度为0.67，执行、沟通和协同要求同步抬升。 仍需补强海量数据仓库架构设计与优化, 实时计算引擎开发 (Flink/Spark Streaming)。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.7749,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 1.0,
+      "abilityGrowth": 0.141,
+      "domainContinuity": 0.7333,
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "C/C++_初级软件开发工程师到C/C++_中级系统开发工程师属于同主线职责升级，核心技能继承度为1.00，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.7257,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8333,
+      "abilityGrowth": 0.3783,
+      "domainContinuity": 0.5,
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship",
+        "adaptability",
+        "execution"
+      ],
+      "why": "C/C++_初级软件开发工程师到Java_中高级后端开发工程师属于同主线职责升级，核心技能继承度为0.83，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_SeniorExpert",
+    "score": 0.6374,
+    "reason": {
+      "levelFit": 0.6,
+      "skillInheritance": 0.8333,
+      "abilityGrowth": 0.3039,
+      "domainContinuity": 0.7333,
+      "missingSkills": [
+        "高性能分布式系统架构设计"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "C/C++_初级软件开发工程师到C/C++_资深架构开发工程师属于同主线职责升级，核心技能继承度为0.83，执行、沟通和协同要求同步抬升。 仍需补强高性能分布式系统架构设计。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_SeniorExpert",
+    "score": 0.7866,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8333,
+      "abilityGrowth": 0.1831,
+      "domainContinuity": 1.0,
+      "missingSkills": [
+        "高性能分布式系统架构设计"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "why": "C/C++_中级系统开发工程师到C/C++_资深架构开发工程师属于同主线职责升级，核心技能继承度为0.83，执行、沟通和协同要求同步抬升。 仍需补强高性能分布式系统架构设计。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_MLEngineer",
+    "score": 0.7243,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.7833,
+      "abilityGrowth": 0.0608,
+      "domainContinuity": 0.8857,
+      "missingSkills": [
+        "AI"
+      ],
+      "missingAbilities": [],
+      "why": "C/C++_中级系统开发工程师到C/C++_机器学习/深度学习工程师属于同主线职责升级，核心技能继承度为0.78，执行、沟通和协同要求同步抬升。 仍需补强AI。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_Java",
+    "score": 0.6847,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.975,
+      "abilityGrowth": 0.0279,
+      "domainContinuity": 0.4333,
+      "missingSkills": [],
+      "missingAbilities": [],
+      "why": "C/C++_中级系统开发工程师到Java_云原生与分布式架构工程师属于同主线职责升级，核心技能继承度为0.97，执行、沟通和协同要求同步抬升。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.7806,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6667,
+      "abilityGrowth": 0.5528,
+      "domainContinuity": 0.85,
+      "missingSkills": [
+        "项目管理",
+        "Excel"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "certificate",
+        "execution",
+        "leadership"
+      ],
+      "why": "统计员到项目专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强项目管理, Excel。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.7179,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6,
+      "abilityGrowth": 0.404,
+      "domainContinuity": 0.7857,
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "adaptability",
+        "innovation",
+        "stressTolerance",
+        "communication",
+        "learning"
+      ],
+      "why": "统计员到技术支持工程师存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强弱电技术, 服务意识。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_hr_admin_招聘专员_助理",
+    "score": 0.6795,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.5,
+      "abilityGrowth": 0.362,
+      "domainContinuity": 0.7857,
+      "missingSkills": [
+        "数据分析",
+        "简历筛选",
+        "面试安排"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "execution",
+        "internship"
+      ],
+      "why": "统计员到招聘专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强数据分析, 简历筛选, 面试安排。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_CrossPlatform",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.658,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.5,
+      "abilityGrowth": 0.2401,
+      "domainContinuity": 0.8,
+      "missingSkills": [
+        "Java",
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "internalMotivation",
+        "execution"
+      ],
+      "why": "前端开发_跨端与多平台开发工程师到前端开发_前端架构与工程化专家属于同主线职责升级，核心技能继承度为0.50，执行、沟通和协同要求同步抬升。 仍需补强Java, 责任心, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_IoT",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.715,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.45,
+      "abilityGrowth": 0.5334,
+      "domainContinuity": 0.8667,
+      "missingSkills": [
+        "Java",
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "learning",
+        "internalMotivation",
+        "execution",
+        "communication",
+        "stressTolerance",
+        "leadership"
+      ],
+      "why": "前端开发_嵌入式与物联网前端工程师到前端开发_前端架构与工程化专家属于同主线职责升级，核心技能继承度为0.45，执行、沟通和协同要求同步抬升。 仍需补强Java, 责任心, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_frontend_CrossPlatform",
+    "score": 0.6369,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.1053,
+      "domainContinuity": 0.8667,
+      "missingSkills": [
+        "跨端框架开发 (Uni-app/Taro/Flutter)",
+        "小程序开发与发布流程",
+        "Electron桌面应用开发"
+      ],
+      "missingAbilities": [],
+      "why": "前端开发_初级前端开发工程师到前端开发_跨端与多平台开发工程师属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强跨端框架开发 (Uni-app/Taro/Flutter), 小程序开发与发布流程, Electron桌面应用开发。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.6189,
+    "reason": {
+      "levelFit": 0.6,
+      "skillInheritance": 0.7833,
+      "abilityGrowth": 0.1909,
+      "domainContinuity": 0.8286,
+      "missingSkills": [
+        "责任心"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "why": "前端开发_初级前端开发工程师到前端开发_前端架构与工程化专家属于同主线职责升级，核心技能继承度为0.78，执行、沟通和协同要求同步抬升。 仍需补强责任心。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.6029,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.45,
+      "abilityGrowth": 0.3063,
+      "domainContinuity": 0.5333,
+      "missingSkills": [
+        "Python",
+        "C++",
+        "C/C++"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "stressTolerance"
+      ],
+      "why": "前端开发_初级前端开发工程师到Java_中高级后端开发工程师存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强Python, C++, C/C++。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior__2",
+    "target": "role:cj_frontend_CrossPlatform",
+    "score": 0.7072,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.4566,
+      "domainContinuity": 0.8667,
+      "missingSkills": [
+        "跨端框架开发 (Uni-app/Taro/Flutter)",
+        "小程序开发与发布流程",
+        "Electron桌面应用开发"
+      ],
+      "missingAbilities": [
+        "internship",
+        "execution",
+        "leadership"
+      ],
+      "why": "前端开发_前端开发实习生到前端开发_跨端与多平台开发工程师属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强跨端框架开发 (Uni-app/Taro/Flutter), 小程序开发与发布流程, Electron桌面应用开发。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior__2",
+    "target": "role:cj_frontend_Visualization",
+    "score": 0.651,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.3083,
+      "abilityGrowth": 0.4925,
+      "domainContinuity": 0.8,
+      "missingSkills": [
+        "WebGL/Three.js三维开发",
+        "GIS引擎应用 (Cesium/OpenLayers)",
+        "Canvas/SVG高性能渲染",
+        "数据可视化大屏开发"
+      ],
+      "missingAbilities": [
+        "internship",
+        "execution",
+        "leadership"
+      ],
+      "why": "前端开发_前端开发实习生到前端开发_数据可视化与图形图像工程师属于同主线职责升级，核心技能继承度为0.31，执行、沟通和协同要求同步抬升。 仍需补强WebGL/Three.js三维开发, GIS引擎应用 (Cesium/OpenLayers), Canvas/SVG高性能渲染。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior__2",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.6433,
+    "reason": {
+      "levelFit": 0.6,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.6705,
+      "domainContinuity": 0.9333,
+      "missingSkills": [
+        "Java",
+        "责任心"
+      ],
+      "missingAbilities": [
+        "internship",
+        "execution",
+        "leadership",
+        "stressTolerance",
+        "internalMotivation"
+      ],
+      "why": "前端开发_前端开发实习生到前端开发_前端架构与工程化专家属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强Java, 责任心。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Visualization",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.6328,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.218,
+      "domainContinuity": 0.7333,
+      "missingSkills": [
+        "Java",
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "execution"
+      ],
+      "why": "前端开发_数据可视化与图形图像工程师到前端开发_前端架构与工程化专家属于同主线职责升级，核心技能继承度为0.47，执行、沟通和协同要求同步抬升。 仍需补强Java, 责任心, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.6944,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.7833,
+      "abilityGrowth": 0.4283,
+      "domainContinuity": 0.369,
+      "missingSkills": [
+        "Excel"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "communication",
+        "adaptability"
+      ],
+      "why": "科研人员_科研辅助与执行层到项目专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强Excel。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_research_PostDoc",
+    "score": 0.6873,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6417,
+      "abilityGrowth": 0.0882,
+      "domainContinuity": 0.8857,
+      "missingSkills": [
+        "独立开展科研工作",
+        "创新能力"
+      ],
+      "missingAbilities": [
+        "certificate"
+      ],
+      "why": "科研人员_科研辅助与执行层到科研人员_专职博士后研究员属于同主线职责升级，核心技能继承度为0.64，执行、沟通和协同要求同步抬升。 仍需补强独立开展科研工作, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.615,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6,
+      "abilityGrowth": 0.2983,
+      "domainContinuity": 0.3766,
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "adaptability",
+        "communication",
+        "certificate",
+        "learning"
+      ],
+      "why": "科研人员_科研辅助与执行层到技术支持工程师存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强弱电技术, 服务意识。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.7112,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8333,
+      "abilityGrowth": 0.4372,
+      "domainContinuity": 0.369,
+      "missingSkills": [
+        "Excel"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "communication",
+        "adaptability"
+      ],
+      "why": "科研人员_科研管理与智库咨询到项目专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强Excel。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_research_PostDoc",
+    "score": 0.6912,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6417,
+      "abilityGrowth": 0.1077,
+      "domainContinuity": 0.8857,
+      "missingSkills": [
+        "独立开展科研工作",
+        "创新能力"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "科研人员_科研管理与智库咨询到科研人员_专职博士后研究员属于同主线职责升级，核心技能继承度为0.64，执行、沟通和协同要求同步抬升。 仍需补强独立开展科研工作, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_pm_产品专员_助理",
+    "score": 0.681,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.77,
+      "abilityGrowth": 0.3808,
+      "domainContinuity": 0.369,
+      "missingSkills": [
+        "产品开发"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "why": "科研人员_科研管理与智库咨询到产品专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强产品开发。"
+    }
+  },
+  {
+    "source": "role:cj_research_TalentResource",
+    "target": "role:cj_research_PostDoc",
+    "score": 0.5652,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.0,
+      "abilityGrowth": 0.6259,
+      "domainContinuity": 0.7,
+      "missingSkills": [
+        "独立开展科研工作",
+        "责任心",
+        "创新能力",
+        "机器学习"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "execution",
+        "internalMotivation",
+        "innovation",
+        "internship",
+        "learning",
+        "professionalSkill",
+        "language",
+        "stressTolerance",
+        "communication"
+      ],
+      "why": "科研人员_人才引进与资源对接到科研人员_专职博士后研究员属于同主线职责升级，核心技能继承度为0.00，执行、沟通和协同要求同步抬升。 仍需补强独立开展科研工作, 责任心, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_support_售后客服",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.7224,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.6,
+      "abilityGrowth": 0.4678,
+      "domainContinuity": 0.7444,
+      "missingSkills": [
+        "学习能力",
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "language",
+        "certificate",
+        "learning",
+        "adaptability",
+        "stressTolerance",
+        "innovation",
+        "leadership",
+        "execution"
+      ],
+      "why": "售后客服到技术支持工程师属于同主线职责升级，核心技能继承度为0.60，执行、沟通和协同要求同步抬升。 仍需补强学习能力, 弱电技术。"
+    }
+  },
+  {
+    "source": "role:cj_support_网络客服",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.751,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.8,
+      "abilityGrowth": 0.4217,
+      "domainContinuity": 0.6333,
+      "missingSkills": [
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "language",
+        "certificate",
+        "adaptability",
+        "learning",
+        "stressTolerance",
+        "leadership"
+      ],
+      "why": "网络客服到技术支持工程师属于同主线职责升级，核心技能继承度为0.80，执行、沟通和协同要求同步抬升。 仍需补强弱电技术。"
+    }
+  },
+  {
+    "source": "role:cj_support_网络客服",
+    "target": "role:cj_hr_admin_招聘专员_助理",
+    "score": 0.6384,
+    "reason": {
+      "levelFit": 1.0,
+      "skillInheritance": 0.475,
+      "abilityGrowth": 0.3796,
+      "domainContinuity": 0.6,
+      "missingSkills": [
+        "数据分析",
+        "简历筛选",
+        "面试安排"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "internship",
+        "execution",
+        "leadership"
+      ],
+      "why": "网络客服到招聘专员/助理存在明确的职责连续性，行业场景和任务对象保持衔接，适合作为相邻阶段的晋升延伸。 仍需补强数据分析, 简历筛选, 面试安排。"
+    }
+  }
+]

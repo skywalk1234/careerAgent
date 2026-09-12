@@ -1,0 +1,14 @@
+# 环境变量（含 API Key，绝不提交）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 数据库文件
+*.db
+
+# 爬虫 Chrome 持久化用户目录（含登录 Cookie，绝不提交）
+.chrome_profile/

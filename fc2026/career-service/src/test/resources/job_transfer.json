@@ -1,0 +1,3315 @@
+[
+  {
+    "source": "role:cj_backend_DataAlgo",
+    "target": "role:cj_backend_MLEngineer",
+    "score": 0.4006,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "AI"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "innovation",
+        "execution",
+        "internalMotivation",
+        "communication",
+        "internship",
+        "stressTolerance",
+        "adaptability",
+        "professionalSkill"
+      ],
+      "gapCost": 0.5099,
+      "estimatedDifficulty": "高",
+      "why": "C/C++_数据分析与算法助理可以借助通用桥接技能迁移到C/C++_机器学习/深度学习工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐AI。 同时提升领导力, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_DataAlgo",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.383,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "internalMotivation",
+        "leadership",
+        "innovation",
+        "communication",
+        "learning",
+        "stressTolerance",
+        "execution",
+        "professionalSkill",
+        "internship",
+        "language",
+        "adaptability"
+      ],
+      "gapCost": 0.2666,
+      "estimatedDifficulty": "中",
+      "why": "C/C++_数据分析与算法助理可以借助通用桥接技能迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。 同时提升内驱力, 领导力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.5941,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力",
+        "文档编写",
+        "项目管理"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.0958,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_工控与嵌入式控制工程师可以借助学习能力, 需求分析, 沟通能力迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5666,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "项目管理",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "责任心",
+        "Excel"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "stressTolerance",
+        "communication"
+      ],
+      "gapCost": 0.2625,
+      "estimatedDifficulty": "中",
+      "why": "C/C++_工控与嵌入式控制工程师可以借助沟通能力, 学习能力, 项目管理迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, Excel。 同时提升领导力, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.564,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "需求分析"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.1654,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_工控与嵌入式控制工程师可以借助学习能力, 沟通能力, 需求分析迁移到C/C++_中级系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_research_Management",
+    "score": 0.5377,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "项目管理",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "责任心"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "gapCost": 0.1462,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_工控与嵌入式控制工程师可以借助学习能力, 沟通能力, 项目管理迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心。 同时提升领导力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Embedded",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.5164,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance"
+      ],
+      "gapCost": 0.0958,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_工控与嵌入式控制工程师可以借助学习能力, 需求分析, 沟通能力迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.4976,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "internalMotivation",
+        "leadership",
+        "execution",
+        "learning",
+        "innovation"
+      ],
+      "gapCost": 0.1635,
+      "estimatedDifficulty": "低",
+      "why": "Java_云原生与分布式架构工程师可以借助学习能力迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐需求分析。 同时提升内驱力, 领导力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java",
+    "target": "role:cj_frontend_FullStack",
+    "score": 0.4794,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "全栈架构设计与实施",
+        "RESTful/GraphQL API设计",
+        "数据库设计与性能优化"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "gapCost": 0.2542,
+      "estimatedDifficulty": "中",
+      "why": "Java_云原生与分布式架构工程师可以借助通用桥接技能迁移到前端开发_全栈与后端融合工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐全栈架构设计与实施, RESTful/GraphQL API设计, 数据库设计与性能优化。 同时提升领导力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.4576,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "internalMotivation",
+        "execution",
+        "learning",
+        "leadership",
+        "innovation",
+        "language",
+        "stressTolerance",
+        "adaptability"
+      ],
+      "gapCost": 0.2185,
+      "estimatedDifficulty": "低",
+      "why": "Java_云原生与分布式架构工程师可以借助学习能力迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐需求分析。 同时提升内驱力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java",
+    "target": "role:cj_data_Java",
+    "score": 0.4552,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "海量数据仓库架构设计与优化",
+        "实时计算引擎开发 (Flink/Spark Streaming)"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1667,
+      "estimatedDifficulty": "低",
+      "why": "Java_云原生与分布式架构工程师可以借助通用桥接技能迁移到Java_大数据与数据开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐海量数据仓库架构设计与优化, 实时计算引擎开发 (Flink/Spark Streaming)。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.573,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力",
+        "项目管理",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.0125,
+      "estimatedDifficulty": "低",
+      "why": "Java_初级软件开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.5687,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "沟通能力",
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.139,
+      "estimatedDifficulty": "低",
+      "why": "Java_初级软件开发工程师可以借助需求分析, 沟通能力, 学习能力迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.5586,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "需求分析"
+      ],
+      "missingSkills": [
+        "前端开发"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.2329,
+      "estimatedDifficulty": "低",
+      "why": "Java_初级软件开发工程师可以借助学习能力, 沟通能力, 需求分析迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐前端开发。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.5572,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "学习能力",
+        "沟通能力",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.0837,
+      "estimatedDifficulty": "低",
+      "why": "Java_初级软件开发工程师可以借助需求分析, 学习能力, 沟通能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__2",
+    "target": "role:cj_research_Management",
+    "score": 0.5294,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "项目管理",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "责任心"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1474,
+      "estimatedDifficulty": "低",
+      "why": "Java_初级软件开发工程师可以借助学习能力, 沟通能力, 项目管理迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.6222,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.0675,
+      "estimatedDifficulty": "低",
+      "why": "Java_中高级后端开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.5625,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "学习能力",
+        "沟通能力",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.0823,
+      "estimatedDifficulty": "低",
+      "why": "Java_中高级后端开发工程师可以借助需求分析, 学习能力, 沟通能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.5358,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "需求分析"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.0014,
+      "estimatedDifficulty": "低",
+      "why": "Java_中高级后端开发工程师可以借助学习能力, 沟通能力, 需求分析迁移到C/C++_中级系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.5293,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力",
+        "项目管理",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.0672,
+      "estimatedDifficulty": "低",
+      "why": "Java_中高级后端开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_Java__3",
+    "target": "role:cj_backend_Java",
+    "score": 0.5262,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.083,
+      "estimatedDifficulty": "低",
+      "why": "Java_中高级后端开发工程师可以借助学习能力迁移到Java_云原生与分布式架构工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.6462,
+    "reason": {
+      "bridgeSkills": [
+        "文档编写",
+        "需求分析",
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship",
+        "adaptability"
+      ],
+      "gapCost": 0.0599,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_初级软件开发工程师可以借助文档编写, 需求分析, 学习能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升实习/经验, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.6255,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力",
+        "Python"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "adaptability",
+        "execution"
+      ],
+      "gapCost": 0.0013,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_初级软件开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升适应能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.6184,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "需求分析",
+        "Python"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.1272,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_初级软件开发工程师可以借助学习能力, 沟通能力, 需求分析迁移到C/C++_中级系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5945,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "沟通能力",
+        "学习能力",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "责任心",
+        "Excel"
+      ],
+      "missingAbilities": [
+        "adaptability",
+        "execution",
+        "communication",
+        "leadership"
+      ],
+      "gapCost": 0.2531,
+      "estimatedDifficulty": "中",
+      "why": "C/C++_初级软件开发工程师可以借助项目管理, 沟通能力, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, Excel。 同时提升适应能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_JuniorDev",
+    "target": "role:cj_backend_MLEngineer",
+    "score": 0.5522,
+    "reason": {
+      "bridgeSkills": [
+        "机器学习",
+        "需求分析",
+        "深度学习",
+        "Python"
+      ],
+      "missingSkills": [
+        "AI"
+      ],
+      "missingAbilities": [
+        "internship",
+        "adaptability"
+      ],
+      "gapCost": 0.2864,
+      "estimatedDifficulty": "中",
+      "why": "C/C++_初级软件开发工程师可以借助机器学习, 需求分析, 深度学习迁移到C/C++_机器学习/深度学习工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐AI。 同时提升实习/经验, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MLEngineer",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.5271,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "机器学习",
+        "项目管理",
+        "文档编写",
+        "Python"
+      ],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "learning",
+        "internalMotivation",
+        "stressTolerance",
+        "communication"
+      ],
+      "gapCost": 0.2335,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_机器学习/深度学习工程师可以借助需求分析, 机器学习, 项目管理迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。 同时提升学习能力, 内驱力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MLEngineer",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.5107,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "Python"
+      ],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "learning",
+        "internship",
+        "communication",
+        "internalMotivation"
+      ],
+      "gapCost": 0.1708,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_机器学习/深度学习工程师可以借助需求分析, Python迁移到C/C++_中级系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。 同时提升学习能力, 实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MLEngineer",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.4957,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "文档编写"
+      ],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "learning",
+        "communication"
+      ],
+      "gapCost": 0.2365,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_机器学习/深度学习工程师可以借助需求分析, 文档编写迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。 同时提升学习能力, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MLEngineer",
+    "target": "role:cj_backend_SeniorExpert",
+    "score": 0.4796,
+    "reason": {
+      "bridgeSkills": [
+        "Python"
+      ],
+      "missingSkills": [
+        "高性能分布式系统架构设计"
+      ],
+      "missingAbilities": [
+        "learning",
+        "internship",
+        "leadership"
+      ],
+      "gapCost": 0.1256,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_机器学习/深度学习工程师可以借助Python迁移到C/C++_资深架构开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐高性能分布式系统架构设计。 同时提升学习能力, 实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MLEngineer",
+    "target": "role:cj_fullstack_Java",
+    "score": 0.4601,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "Python"
+      ],
+      "missingSkills": [
+        "Vue",
+        "企业级全栈应用架构设计"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1916,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_机器学习/深度学习工程师可以借助需求分析, Python迁移到Java_全栈与应用系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Vue, 企业级全栈应用架构设计。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.6418,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "学习能力",
+        "沟通能力",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "adaptability"
+      ],
+      "gapCost": 0.0814,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_中级系统开发工程师可以借助需求分析, 学习能力, 沟通能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.6157,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力",
+        "项目管理",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance"
+      ],
+      "gapCost": 0.0667,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_中级系统开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_SeniorExpert",
+    "score": 0.5565,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [
+        "高性能分布式系统架构设计"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "gapCost": 0.1724,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_中级系统开发工程师可以借助学习能力迁移到C/C++_资深架构开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐高性能分布式系统架构设计。 同时提升领导力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.5339,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "沟通能力",
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance",
+        "adaptability"
+      ],
+      "gapCost": 0.0011,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_中级系统开发工程师可以借助需求分析, 沟通能力, 学习能力迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_MidDev",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.5332,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance",
+        "adaptability"
+      ],
+      "gapCost": 0.0669,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_中级系统开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert",
+    "target": "role:cj_backend_MidDev",
+    "score": 0.5644,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "learning",
+        "internalMotivation"
+      ],
+      "gapCost": 0.0675,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_资深架构开发工程师可以借助学习能力迁移到C/C++_中级系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升学习能力, 内驱力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.475,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [
+        "文档编写",
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "adaptability"
+      ],
+      "gapCost": 0.3026,
+      "estimatedDifficulty": "中",
+      "why": "C/C++_资深架构开发工程师可以借助学习能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文档编写, 需求分析。 同时提升适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.4688,
+    "reason": {
+      "bridgeSkills": [
+        "问题解决",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "learning",
+        "internalMotivation",
+        "stressTolerance"
+      ],
+      "gapCost": 0.1505,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_资深架构开发工程师可以借助问题解决, 学习能力迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐需求分析。 同时提升学习能力, 内驱力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.4652,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance",
+        "learning",
+        "internalMotivation"
+      ],
+      "gapCost": 0.1333,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_资深架构开发工程师可以借助学习能力迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert",
+    "target": "role:cj_backend_MLEngineer",
+    "score": 0.4638,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.1089,
+      "estimatedDifficulty": "低",
+      "why": "C/C++_资深架构开发工程师可以借助通用桥接技能迁移到C/C++_机器学习/深度学习工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert__2",
+    "target": "role:cj_frontend_FullStack",
+    "score": 0.3342,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "Java",
+        "全栈架构设计与实施",
+        "RESTful/GraphQL API设计",
+        "数据库设计与性能优化"
+      ],
+      "missingAbilities": [
+        "communication",
+        "execution",
+        "internalMotivation",
+        "internship"
+      ],
+      "gapCost": 0.572,
+      "estimatedDifficulty": "高",
+      "why": "C/C++_工业系统专家可以借助通用桥接技能迁移到前端开发_全栈与后端融合工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Java, 全栈架构设计与实施, RESTful/GraphQL API设计。 同时提升沟通能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_backend_SeniorExpert__2",
+    "target": "role:cj_backend_Java",
+    "score": 0.307,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "Java",
+        "学习能力",
+        "Docker"
+      ],
+      "missingAbilities": [
+        "communication",
+        "learning",
+        "internship"
+      ],
+      "gapCost": 0.5724,
+      "estimatedDifficulty": "高",
+      "why": "C/C++_工业系统专家可以借助通用桥接技能迁移到Java_云原生与分布式架构工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Java, 学习能力, Docker。 同时提升沟通能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_data_Java",
+    "target": "role:cj_backend_Java",
+    "score": 0.443,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "internship",
+        "learning",
+        "stressTolerance",
+        "communication"
+      ],
+      "gapCost": 0.17,
+      "estimatedDifficulty": "低",
+      "why": "Java_大数据与数据开发工程师可以借助通用桥接技能迁移到Java_云原生与分布式架构工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。 同时提升实习/经验, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_data_Java",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.4251,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "learning",
+        "execution",
+        "internalMotivation",
+        "communication",
+        "internship",
+        "innovation",
+        "stressTolerance",
+        "leadership"
+      ],
+      "gapCost": 0.2337,
+      "estimatedDifficulty": "低",
+      "why": "Java_大数据与数据开发工程师可以借助通用桥接技能迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐需求分析。 同时提升学习能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5333,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "adaptability",
+        "innovation",
+        "stressTolerance",
+        "communication",
+        "learning"
+      ],
+      "gapCost": 0.2785,
+      "estimatedDifficulty": "中",
+      "why": "统计员可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术, 服务意识。 同时提升证书要求, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_hr_admin_招聘专员_助理",
+    "score": 0.5099,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "数据分析",
+        "简历筛选",
+        "面试安排"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "execution",
+        "internship"
+      ],
+      "gapCost": 0.37,
+      "estimatedDifficulty": "中",
+      "why": "统计员可以借助沟通能力, Office, 学习能力迁移到招聘专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐数据分析, 简历筛选, 面试安排。 同时提升证书要求, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_pm_产品专员_助理",
+    "score": 0.4987,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "产品开发",
+        "数据分析",
+        "逻辑思维能力"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "execution",
+        "internship",
+        "certificate",
+        "leadership"
+      ],
+      "gapCost": 0.4235,
+      "estimatedDifficulty": "中",
+      "why": "统计员可以借助沟通能力, 学习能力迁移到产品专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐产品开发, 数据分析, 逻辑思维能力。 同时提升创新能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_data_统计员",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.4832,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "项目管理"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "certificate",
+        "execution",
+        "leadership"
+      ],
+      "gapCost": 0.2391,
+      "estimatedDifficulty": "低",
+      "why": "统计员可以借助沟通能力, Office, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐项目管理。 同时提升创新能力, 证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_ArchExpert",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.5853,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingSkills": [
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "learning",
+        "adaptability"
+      ],
+      "gapCost": 0.2293,
+      "estimatedDifficulty": "低",
+      "why": "前端开发_前端架构与工程化专家可以借助学习能力, 沟通能力迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐需求分析。 同时提升学习能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_ArchExpert",
+    "target": "role:cj_frontend_Junior__2",
+    "score": 0.5405,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.3054,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_前端架构与工程化专家可以借助沟通能力, 学习能力迁移到前端开发_前端开发实习生，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_CrossPlatform",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.5101,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "后端开发",
+        "沟通能力"
+      ],
+      "missingAbilities": [
+        "learning",
+        "adaptability",
+        "internalMotivation",
+        "stressTolerance",
+        "execution"
+      ],
+      "gapCost": 0.317,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_跨端与多平台开发工程师可以借助需求分析迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 后端开发, 沟通能力。 同时提升学习能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_CrossPlatform",
+    "target": "role:cj_frontend_Junior__2",
+    "score": 0.4532,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "ES6+常用语法应用",
+        "沟通能力"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.3229,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_跨端与多平台开发工程师可以借助通用桥接技能迁移到前端开发_前端开发实习生，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐ES6+常用语法应用, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_FullStack",
+    "target": "role:cj_backend_Java",
+    "score": 0.476,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "C++",
+        "C/C++",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "adaptability"
+      ],
+      "gapCost": 0.2629,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_全栈与后端融合工程师可以借助通用桥接技能迁移到Java_云原生与分布式架构工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++, 学习能力。 同时提升抗压能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_FullStack",
+    "target": "role:cj_fullstack_Java",
+    "score": 0.4674,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance"
+      ],
+      "gapCost": 0.2074,
+      "estimatedDifficulty": "低",
+      "why": "前端开发_全栈与后端融合工程师可以借助需求分析迁移到Java_全栈与应用系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_FullStack",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.465,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "C++",
+        "C/C++"
+      ],
+      "missingAbilities": [
+        "learning",
+        "internalMotivation",
+        "stressTolerance",
+        "adaptability",
+        "execution"
+      ],
+      "gapCost": 0.2593,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_全栈与后端融合工程师可以借助需求分析迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++。 同时提升学习能力, 内驱力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_FullStack",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.4519,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "C++",
+        "C/C++",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "learning",
+        "adaptability",
+        "internalMotivation",
+        "language",
+        "execution"
+      ],
+      "gapCost": 0.3976,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_全栈与后端融合工程师可以借助需求分析迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++, 学习能力。 同时提升抗压能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_IoT",
+    "target": "role:cj_frontend_CrossPlatform",
+    "score": 0.535,
+    "reason": {
+      "bridgeSkills": [
+        "前端开发",
+        "Vue",
+        "React"
+      ],
+      "missingSkills": [
+        "跨端框架开发 (Uni-app/Taro/Flutter)",
+        "小程序开发与发布流程",
+        "Electron桌面应用开发"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "learning",
+        "communication",
+        "internalMotivation"
+      ],
+      "gapCost": 0.2755,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_嵌入式与物联网前端工程师可以借助前端开发, Vue, React迁移到前端开发_跨端与多平台开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐跨端框架开发 (Uni-app/Taro/Flutter), 小程序开发与发布流程, Electron桌面应用开发。 同时提升创新能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_IoT",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.5071,
+    "reason": {
+      "bridgeSkills": [
+        "前端开发",
+        "Vue",
+        "React"
+      ],
+      "missingSkills": [
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "learning",
+        "internalMotivation",
+        "execution",
+        "communication",
+        "stressTolerance",
+        "leadership"
+      ],
+      "gapCost": 0.3425,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_嵌入式与物联网前端工程师可以借助前端开发, Vue, React迁移到前端开发_前端架构与工程化专家，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 学习能力。 同时提升创新能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_IoT",
+    "target": "role:cj_frontend_Visualization",
+    "score": 0.5066,
+    "reason": {
+      "bridgeSkills": [
+        "前端开发",
+        "Vue"
+      ],
+      "missingSkills": [
+        "WebGL/Three.js三维开发",
+        "GIS引擎应用 (Cesium/OpenLayers)",
+        "Canvas/SVG高性能渲染",
+        "数据可视化大屏开发"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "learning",
+        "internalMotivation"
+      ],
+      "gapCost": 0.3479,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_嵌入式与物联网前端工程师可以借助前端开发, Vue迁移到前端开发_数据可视化与图形图像工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐WebGL/Three.js三维开发, GIS引擎应用 (Cesium/OpenLayers), Canvas/SVG高性能渲染。 同时提升创新能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_IoT",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.5062,
+    "reason": {
+      "bridgeSkills": [
+        "前端开发",
+        "Vue"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "沟通能力",
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "learning",
+        "innovation",
+        "internalMotivation",
+        "adaptability",
+        "execution",
+        "communication",
+        "stressTolerance"
+      ],
+      "gapCost": 0.4128,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_嵌入式与物联网前端工程师可以借助前端开发, Vue迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 沟通能力, 需求分析。 同时提升学习能力, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_IoT",
+    "target": "role:cj_frontend_Junior__2",
+    "score": 0.4989,
+    "reason": {
+      "bridgeSkills": [
+        "React",
+        "Vue"
+      ],
+      "missingSkills": [
+        "ES6+常用语法应用",
+        "沟通能力"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "learning",
+        "communication",
+        "internalMotivation"
+      ],
+      "gapCost": 0.4271,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_嵌入式与物联网前端工程师可以借助React, Vue迁移到前端开发_前端开发实习生，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐ES6+常用语法应用, 沟通能力。 同时提升创新能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_frontend_Junior__2",
+    "score": 0.5969,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [],
+      "gapCost": 0.1869,
+      "estimatedDifficulty": "低",
+      "why": "前端开发_初级前端开发工程师可以借助沟通能力, 学习能力迁移到前端开发_前端开发实习生，四维画像和工具栈较为接近，转岗成本处于可控范围。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.5397,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingSkills": [
+        "责任心"
+      ],
+      "missingAbilities": [
+        "leadership"
+      ],
+      "gapCost": 0.2522,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_初级前端开发工程师可以借助学习能力, 沟通能力迁移到前端开发_前端架构与工程化专家，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心。 同时提升领导力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.5175,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力"
+      ],
+      "missingSkills": [
+        "Python",
+        "C++",
+        "C/C++"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "leadership"
+      ],
+      "gapCost": 0.264,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_初级前端开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Python, C++, C/C++。 同时提升抗压能力, 领导力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_frontend_CrossPlatform",
+    "score": 0.4812,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "跨端框架开发 (Uni-app/Taro/Flutter)",
+        "小程序开发与发布流程",
+        "Electron桌面应用开发"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.34,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_初级前端开发工程师可以借助需求分析迁移到前端开发_跨端与多平台开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐跨端框架开发 (Uni-app/Taro/Flutter), 小程序开发与发布流程, Electron桌面应用开发。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior",
+    "target": "role:cj_backend_JuniorDev",
+    "score": 0.4808,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "需求分析",
+        "沟通能力",
+        "项目管理",
+        "文档编写"
+      ],
+      "missingSkills": [
+        "C++",
+        "Python",
+        "C/C++"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "leadership"
+      ],
+      "gapCost": 0.2759,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_初级前端开发工程师可以借助学习能力, 需求分析, 沟通能力迁移到C/C++_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, Python, C/C++。 同时提升抗压能力, 领导力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior__2",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.6364,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingSkills": [
+        "后端开发",
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "execution",
+        "internship",
+        "learning",
+        "adaptability",
+        "stressTolerance",
+        "internalMotivation"
+      ],
+      "gapCost": 0.2318,
+      "estimatedDifficulty": "低",
+      "why": "前端开发_前端开发实习生可以借助学习能力, 沟通能力迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐后端开发, 需求分析。 同时提升执行力, 实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior__2",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.5217,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingSkills": [
+        "Java",
+        "责任心"
+      ],
+      "missingAbilities": [
+        "internship",
+        "execution",
+        "leadership",
+        "stressTolerance",
+        "internalMotivation"
+      ],
+      "gapCost": 0.3732,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_前端开发实习生可以借助学习能力, 沟通能力迁移到前端开发_前端架构与工程化专家，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Java, 责任心。 同时提升实习/经验, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Junior__2",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5024,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "责任心",
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "adaptability",
+        "stressTolerance",
+        "leadership",
+        "execution",
+        "communication",
+        "learning",
+        "internalMotivation"
+      ],
+      "gapCost": 0.38,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_前端开发实习生可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 弱电技术, 服务意识。 同时提升适应能力, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Visualization",
+    "target": "role:cj_frontend_CrossPlatform",
+    "score": 0.5513,
+    "reason": {
+      "bridgeSkills": [
+        "Vue",
+        "前端开发",
+        "React"
+      ],
+      "missingSkills": [
+        "跨端框架开发 (Uni-app/Taro/Flutter)",
+        "小程序开发与发布流程",
+        "Electron桌面应用开发"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.2636,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_数据可视化与图形图像工程师可以借助Vue, 前端开发, React迁移到前端开发_跨端与多平台开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐跨端框架开发 (Uni-app/Taro/Flutter), 小程序开发与发布流程, Electron桌面应用开发。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Visualization",
+    "target": "role:cj_frontend_Junior__2",
+    "score": 0.5236,
+    "reason": {
+      "bridgeSkills": [
+        "Vue",
+        "熟悉Vue或React框架基础",
+        "React"
+      ],
+      "missingSkills": [
+        "ES6+常用语法应用",
+        "沟通能力"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.3354,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_数据可视化与图形图像工程师可以借助Vue, 熟悉Vue或React框架基础, React迁移到前端开发_前端开发实习生，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐ES6+常用语法应用, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Visualization",
+    "target": "role:cj_frontend_ArchExpert",
+    "score": 0.5141,
+    "reason": {
+      "bridgeSkills": [
+        "Vue",
+        "前端开发",
+        "React"
+      ],
+      "missingSkills": [
+        "Java",
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "execution"
+      ],
+      "gapCost": 0.3301,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_数据可视化与图形图像工程师可以借助Vue, 前端开发, React迁移到前端开发_前端架构与工程化专家，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Java, 责任心, 学习能力。 同时提升抗压能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_frontend_Visualization",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.4957,
+    "reason": {
+      "bridgeSkills": [
+        "前端开发",
+        "Vue"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "后端开发",
+        "沟通能力",
+        "需求分析"
+      ],
+      "missingAbilities": [
+        "learning",
+        "stressTolerance",
+        "adaptability",
+        "internalMotivation",
+        "innovation",
+        "execution"
+      ],
+      "gapCost": 0.4001,
+      "estimatedDifficulty": "中",
+      "why": "前端开发_数据可视化与图形图像工程师可以借助前端开发, Vue迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 后端开发, 沟通能力。 同时提升学习能力, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_fullstack_Java",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.4924,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "C++",
+        "C/C++"
+      ],
+      "missingAbilities": [
+        "learning",
+        "execution",
+        "internalMotivation",
+        "adaptability"
+      ],
+      "gapCost": 0.2472,
+      "estimatedDifficulty": "低",
+      "why": "Java_全栈与应用系统开发工程师可以借助需求分析迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++。 同时提升学习能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_fullstack_Java",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.4827,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "C++",
+        "C/C++",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "learning",
+        "stressTolerance",
+        "execution",
+        "adaptability",
+        "internalMotivation"
+      ],
+      "gapCost": 0.3833,
+      "estimatedDifficulty": "中",
+      "why": "Java_全栈与应用系统开发工程师可以借助需求分析迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++, 学习能力。 同时提升学习能力, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_fullstack_Java",
+    "target": "role:cj_specialized_Java",
+    "score": 0.4718,
+    "reason": {
+      "bridgeSkills": [
+        "逻辑思维能力"
+      ],
+      "missingSkills": [
+        "跨文化团队协作与沟通",
+        "日语/英语流利商务交流 (N1/CET-6+)",
+        "特定领域业务建模 (金融/制造/医疗)",
+        "遗留系统现代化改造 (COBOL/SAP迁移)"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.3494,
+      "estimatedDifficulty": "中",
+      "why": "Java_全栈与应用系统开发工程师可以借助逻辑思维能力迁移到Java_国际化或特定领域技术工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐跨文化团队协作与沟通, 日语/英语流利商务交流 (N1/CET-6+), 特定领域业务建模 (金融/制造/医疗)。"
+    }
+  },
+  {
+    "source": "role:cj_fullstack_Java",
+    "target": "role:cj_frontend_FullStack",
+    "score": 0.4609,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理"
+      ],
+      "missingSkills": [
+        "数据库设计与性能优化"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1964,
+      "estimatedDifficulty": "低",
+      "why": "Java_全栈与应用系统开发工程师可以借助项目管理迁移到前端开发_全栈与后端融合工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐数据库设计与性能优化。"
+    }
+  },
+  {
+    "source": "role:cj_fullstack_Java",
+    "target": "role:cj_frontend_Junior",
+    "score": 0.4597,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingAbilities": [
+        "learning",
+        "execution",
+        "internalMotivation"
+      ],
+      "gapCost": 0.325,
+      "estimatedDifficulty": "中",
+      "why": "Java_全栈与应用系统开发工程师可以借助需求分析迁移到前端开发_初级前端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 沟通能力。 同时提升学习能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_hr_admin_招聘专员_助理",
+    "target": "role:cj_data_统计员",
+    "score": 0.6209,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "文字表达能力",
+        "团队协作精神"
+      ],
+      "missingAbilities": [
+        "language"
+      ],
+      "gapCost": 0.2365,
+      "estimatedDifficulty": "低",
+      "why": "招聘专员/助理可以借助沟通能力, 学习能力, Office迁移到统计员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文字表达能力, 团队协作精神。 同时提升语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_hr_admin_招聘专员_助理",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.6104,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力",
+        "数据分析",
+        "项目管理"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "language",
+        "innovation"
+      ],
+      "gapCost": 0.1039,
+      "estimatedDifficulty": "低",
+      "why": "招聘专员/助理可以借助沟通能力, Office, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升语言能力, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_hr_admin_招聘专员_助理",
+    "target": "role:cj_pm_产品专员_助理",
+    "score": 0.6066,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "学习能力",
+        "逻辑思维能力"
+      ],
+      "missingSkills": [
+        "产品开发"
+      ],
+      "missingAbilities": [
+        "language",
+        "innovation"
+      ],
+      "gapCost": 0.1215,
+      "estimatedDifficulty": "低",
+      "why": "招聘专员/助理可以借助数据分析, 沟通能力, 学习能力迁移到产品专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐产品开发。 同时提升语言能力, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_hr_admin_招聘专员_助理",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.6063,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "language",
+        "adaptability",
+        "stressTolerance"
+      ],
+      "gapCost": 0.2137,
+      "estimatedDifficulty": "低",
+      "why": "招聘专员/助理可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术, 服务意识。 同时提升语言能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_hr_admin_招聘专员_助理",
+    "target": "role:cj_research_Management",
+    "score": 0.5194,
+    "reason": {
+      "bridgeSkills": [
+        "Office",
+        "数据分析",
+        "学习能力",
+        "沟通能力",
+        "项目管理"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "language",
+        "certificate",
+        "innovation"
+      ],
+      "gapCost": 0.1078,
+      "estimatedDifficulty": "低",
+      "why": "招聘专员/助理可以借助Office, 数据分析, 学习能力迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升语言能力, 证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_ops_实施工程师",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5858,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "服务意识",
+        "问题解决",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "certificate"
+      ],
+      "gapCost": 0.1002,
+      "estimatedDifficulty": "低",
+      "why": "实施工程师可以借助沟通能力, 学习能力, 服务意识迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术。 同时提升证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_ops_实施工程师",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5722,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "沟通能力",
+        "学习能力",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "Excel"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.0959,
+      "estimatedDifficulty": "低",
+      "why": "实施工程师可以借助项目管理, 沟通能力, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Excel。"
+    }
+  },
+  {
+    "source": "role:cj_pm_产品专员_助理",
+    "target": "role:cj_data_统计员",
+    "score": 0.6019,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "文字表达能力",
+        "团队协作精神"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.2459,
+      "estimatedDifficulty": "低",
+      "why": "产品专员/助理可以借助沟通能力, 学习能力, Office迁移到统计员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文字表达能力, 团队协作精神。"
+    }
+  },
+  {
+    "source": "role:cj_pm_产品专员_助理",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5998,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "数据分析",
+        "项目管理",
+        "Office"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "adaptability",
+        "stressTolerance"
+      ],
+      "gapCost": 0.1127,
+      "estimatedDifficulty": "低",
+      "why": "产品专员/助理可以借助沟通能力, 学习能力, 数据分析迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升适应能力, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_pm_产品专员_助理",
+    "target": "role:cj_hr_admin_招聘专员_助理",
+    "score": 0.5413,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "数据分析",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "简历筛选",
+        "面试安排"
+      ],
+      "missingAbilities": [
+        "certificate"
+      ],
+      "gapCost": 0.1792,
+      "estimatedDifficulty": "低",
+      "why": "产品专员/助理可以借助沟通能力, 数据分析, 学习能力迁移到招聘专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐简历筛选, 面试安排。 同时提升证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_pm_产品专员_助理",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5288,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "adaptability",
+        "stressTolerance",
+        "learning",
+        "certificate"
+      ],
+      "gapCost": 0.2098,
+      "estimatedDifficulty": "低",
+      "why": "产品专员/助理可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术, 服务意识。 同时提升适应能力, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_pm_产品专员_助理",
+    "target": "role:cj_research_Management",
+    "score": 0.5185,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "学习能力",
+        "沟通能力",
+        "项目管理",
+        "Office"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "certificate",
+        "language"
+      ],
+      "gapCost": 0.1151,
+      "estimatedDifficulty": "低",
+      "why": "产品专员/助理可以借助数据分析, 学习能力, 沟通能力迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升证书要求, 语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目专员_助理",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.6149,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "adaptability"
+      ],
+      "gapCost": 0.2068,
+      "estimatedDifficulty": "低",
+      "why": "项目专员/助理可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术, 服务意识。 同时提升适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目专员_助理",
+    "target": "role:cj_pm_产品专员_助理",
+    "score": 0.5879,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "学习能力",
+        "逻辑思维能力"
+      ],
+      "missingSkills": [
+        "产品开发"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.1709,
+      "estimatedDifficulty": "低",
+      "why": "项目专员/助理可以借助数据分析, 沟通能力, 学习能力迁移到产品专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐产品开发。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目专员_助理",
+    "target": "role:cj_research_Management",
+    "score": 0.5353,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "Office",
+        "数据分析",
+        "学习能力",
+        "沟通能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "certificate",
+        "language"
+      ],
+      "gapCost": 0.091,
+      "estimatedDifficulty": "低",
+      "why": "项目专员/助理可以借助项目管理, Office, 数据分析迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升证书要求, 语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目专员_助理",
+    "target": "role:cj_hr_admin_招聘专员_助理",
+    "score": 0.5224,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "数据分析",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "简历筛选",
+        "面试安排"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.2196,
+      "estimatedDifficulty": "低",
+      "why": "项目专员/助理可以借助沟通能力, 数据分析, Office迁移到招聘专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐简历筛选, 面试安排。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目专员_助理",
+    "target": "role:cj_data_统计员",
+    "score": 0.5066,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "文字表达能力",
+        "团队协作精神"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.2339,
+      "estimatedDifficulty": "低",
+      "why": "项目专员/助理可以借助沟通能力, 学习能力, Office迁移到统计员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文字表达能力, 团队协作精神。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目经理_主管",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5492,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "沟通能力",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "Excel",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "language",
+        "learning"
+      ],
+      "gapCost": 0.2466,
+      "estimatedDifficulty": "低",
+      "why": "项目经理/主管可以借助项目管理, 沟通能力, Office迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Excel, 学习能力。 同时提升语言能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_pm_项目经理_主管",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5166,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "服务意识",
+        "问题解决",
+        "Office"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "learning",
+        "language",
+        "adaptability"
+      ],
+      "gapCost": 0.289,
+      "estimatedDifficulty": "中",
+      "why": "项目经理/主管可以借助沟通能力, 服务意识, 问题解决迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 弱电技术。 同时提升学习能力, 语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_research_Management",
+    "score": 0.661,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "学习能力",
+        "沟通能力",
+        "项目管理",
+        "Office"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "certificate",
+        "stressTolerance"
+      ],
+      "gapCost": 0.0281,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_科研辅助与执行层可以借助数据分析, 学习能力, 沟通能力迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升证书要求, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.6163,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "数据分析",
+        "项目管理",
+        "Office"
+      ],
+      "missingSkills": [
+        "Excel"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "communication",
+        "adaptability"
+      ],
+      "gapCost": 0.1797,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_科研辅助与执行层可以借助沟通能力, 学习能力, 数据分析迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Excel。 同时提升抗压能力, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_research_PostDoc",
+    "score": 0.5957,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "机器学习",
+        "项目管理"
+      ],
+      "missingSkills": [
+        "独立开展科研工作",
+        "创新能力"
+      ],
+      "missingAbilities": [
+        "certificate"
+      ],
+      "gapCost": 0.2722,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_科研辅助与执行层可以借助数据分析, 沟通能力, 机器学习迁移到科研人员_专职博士后研究员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐独立开展科研工作, 创新能力。 同时提升证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5428,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "adaptability",
+        "communication",
+        "certificate",
+        "learning"
+      ],
+      "gapCost": 0.2781,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_科研辅助与执行层可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术, 服务意识。 同时提升抗压能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Assistant",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.5149,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "需求分析",
+        "Python"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "certificate",
+        "stressTolerance",
+        "learning"
+      ],
+      "gapCost": 0.2765,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_科研辅助与执行层可以借助学习能力, 沟通能力, 需求分析迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升证书要求, 抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_ChiefScientist",
+    "target": "role:cj_backend_SeniorExpert__2",
+    "score": 0.2589,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "工业软件架构顶层设计",
+        "MES/SCADA系统深度集成",
+        "复杂工业协议解析与定制",
+        "高可靠实时控制系统开发",
+        "软硬件协同设计与优化"
+      ],
+      "missingAbilities": [
+        "internship",
+        "adaptability",
+        "stressTolerance",
+        "communication"
+      ],
+      "gapCost": 0.5443,
+      "estimatedDifficulty": "高",
+      "why": "科研人员_学科带头人/首席科学家可以借助通用桥接技能迁移到C/C++_工业系统专家，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐工业软件架构顶层设计, MES/SCADA系统深度集成, 复杂工业协议解析与定制。 同时提升实习/经验, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_DomainExpert",
+    "target": "role:cj_research_Management",
+    "score": 0.5236,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "项目管理",
+        "Office"
+      ],
+      "missingSkills": [
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "execution",
+        "adaptability",
+        "stressTolerance",
+        "language",
+        "learning",
+        "certificate",
+        "communication"
+      ],
+      "gapCost": 0.3306,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_垂直领域专家岗可以借助数据分析, 沟通能力, 项目管理迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 学习能力。 同时提升执行力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_DomainExpert",
+    "target": "role:cj_research_Assistant",
+    "score": 0.5197,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "数据分析",
+        "统计分析"
+      ],
+      "missingSkills": [
+        "责任心",
+        "学习能力",
+        "实验设计与执行"
+      ],
+      "missingAbilities": [
+        "execution",
+        "adaptability",
+        "internalMotivation",
+        "learning",
+        "language"
+      ],
+      "gapCost": 0.3986,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_垂直领域专家岗可以借助沟通能力, 数据分析, 统计分析迁移到科研人员_科研辅助与执行层，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 学习能力, 实验设计与执行。 同时提升执行力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_DomainExpert",
+    "target": "role:cj_research_PostDoc",
+    "score": 0.5045,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "机器学习",
+        "项目管理"
+      ],
+      "missingSkills": [
+        "独立开展科研工作",
+        "责任心",
+        "创新能力"
+      ],
+      "missingAbilities": [
+        "execution",
+        "adaptability",
+        "language",
+        "internalMotivation",
+        "certificate"
+      ],
+      "gapCost": 0.3579,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_垂直领域专家岗可以借助数据分析, 沟通能力, 机器学习迁移到科研人员_专职博士后研究员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐独立开展科研工作, 责任心, 创新能力。 同时提升执行力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_DomainExpert",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.4773,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "数据分析",
+        "项目管理",
+        "Office"
+      ],
+      "missingSkills": [
+        "责任心",
+        "Excel",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "adaptability",
+        "execution",
+        "stressTolerance",
+        "communication",
+        "learning",
+        "internalMotivation",
+        "leadership"
+      ],
+      "gapCost": 0.3482,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_垂直领域专家岗可以借助沟通能力, 数据分析, 项目管理迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, Excel, 学习能力。 同时提升适应能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_research_DomainExpert",
+    "target": "role:cj_backend_MLEngineer",
+    "score": 0.4698,
+    "reason": {
+      "bridgeSkills": [
+        "深度学习",
+        "机器学习",
+        "需求分析",
+        "Python"
+      ],
+      "missingSkills": [
+        "AI"
+      ],
+      "missingAbilities": [
+        "adaptability",
+        "execution",
+        "stressTolerance"
+      ],
+      "gapCost": 0.2084,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_垂直领域专家岗可以借助深度学习, 机器学习, 需求分析迁移到C/C++_机器学习/深度学习工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐AI。 同时提升适应能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_research_Assistant",
+    "score": 0.6237,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "数据分析",
+        "学习能力",
+        "统计分析"
+      ],
+      "missingSkills": [
+        "实验设计与执行"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.1484,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_科研管理与智库咨询可以借助沟通能力, 数据分析, 学习能力迁移到科研人员_科研辅助与执行层，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐实验设计与执行。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_data_统计员",
+    "score": 0.59,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "文字表达能力",
+        "团队协作精神"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1669,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_科研管理与智库咨询可以借助沟通能力, 学习能力, Office迁移到统计员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文字表达能力, 团队协作精神。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5895,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "沟通能力",
+        "Office",
+        "学习能力",
+        "数据分析"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "stressTolerance",
+        "communication",
+        "adaptability"
+      ],
+      "gapCost": 0.1538,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_科研管理与智库咨询可以借助项目管理, 沟通能力, Office迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升抗压能力, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_research_PostDoc",
+    "score": 0.5802,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "项目管理",
+        "机器学习"
+      ],
+      "missingSkills": [
+        "独立开展科研工作",
+        "创新能力"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.3224,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_科研管理与智库咨询可以借助数据分析, 沟通能力, 项目管理迁移到科研人员_专职博士后研究员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐独立开展科研工作, 创新能力。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_research_Management",
+    "target": "role:cj_pm_产品专员_助理",
+    "score": 0.557,
+    "reason": {
+      "bridgeSkills": [
+        "数据分析",
+        "沟通能力",
+        "学习能力",
+        "逻辑思维能力"
+      ],
+      "missingSkills": [
+        "产品开发"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.236,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_科研管理与智库咨询可以借助数据分析, 沟通能力, 学习能力迁移到产品专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐产品开发。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_research_PostDoc",
+    "target": "role:cj_research_Management",
+    "score": 0.6339,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "数据分析",
+        "沟通能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance"
+      ],
+      "gapCost": 0.1648,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_专职博士后研究员可以借助项目管理, 数据分析, 沟通能力迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。 同时提升抗压能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_PostDoc",
+    "target": "role:cj_research_Assistant",
+    "score": 0.6043,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "数据分析",
+        "统计分析"
+      ],
+      "missingSkills": [
+        "学习能力"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1807,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_专职博士后研究员可以借助沟通能力, 数据分析, 统计分析迁移到科研人员_科研辅助与执行层，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_PostDoc",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.4981,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理",
+        "沟通能力",
+        "数据分析",
+        "Office"
+      ],
+      "missingSkills": [
+        "Excel",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "learning",
+        "communication",
+        "adaptability"
+      ],
+      "gapCost": 0.1848,
+      "estimatedDifficulty": "低",
+      "why": "科研人员_专职博士后研究员可以借助项目管理, 沟通能力, 数据分析迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Excel, 学习能力。 同时提升抗压能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_PostDoc",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.4917,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "adaptability",
+        "learning",
+        "communication"
+      ],
+      "gapCost": 0.3115,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_专职博士后研究员可以借助沟通能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 弱电技术, 服务意识。 同时提升抗压能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_PostDoc",
+    "target": "role:cj_backend_Java__2",
+    "score": 0.4603,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "需求分析",
+        "Python"
+      ],
+      "missingSkills": [
+        "C++",
+        "C/C++",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "stressTolerance",
+        "learning"
+      ],
+      "gapCost": 0.4275,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_专职博士后研究员可以借助沟通能力, 需求分析, Python迁移到Java_初级软件开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++, 学习能力。 同时提升抗压能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_research_TalentResource",
+    "target": "role:cj_research_Assistant",
+    "score": 0.3912,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "责任心",
+        "学习能力",
+        "实验设计与执行"
+      ],
+      "missingAbilities": [
+        "execution",
+        "leadership",
+        "innovation",
+        "internalMotivation",
+        "internship",
+        "learning",
+        "professionalSkill",
+        "language",
+        "communication"
+      ],
+      "gapCost": 0.4118,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_人才引进与资源对接可以借助通用桥接技能迁移到科研人员_科研辅助与执行层，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 学习能力, 实验设计与执行。 同时提升执行力, 领导力。"
+    }
+  },
+  {
+    "source": "role:cj_research_TalentResource",
+    "target": "role:cj_research_Management",
+    "score": 0.3784,
+    "reason": {
+      "bridgeSkills": [],
+      "missingSkills": [
+        "责任心",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "leadership",
+        "execution",
+        "innovation",
+        "internalMotivation",
+        "stressTolerance",
+        "learning",
+        "professionalSkill",
+        "language",
+        "communication",
+        "internship"
+      ],
+      "gapCost": 0.3881,
+      "estimatedDifficulty": "中",
+      "why": "科研人员_人才引进与资源对接可以借助通用桥接技能迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 学习能力。 同时提升领导力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_specialized_Java",
+    "target": "role:cj_fullstack_Java",
+    "score": 0.5011,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "企业级全栈应用架构设计"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "execution",
+        "leadership"
+      ],
+      "gapCost": 0.285,
+      "estimatedDifficulty": "中",
+      "why": "Java_国际化或特定领域技术工程师可以借助需求分析迁移到Java_全栈与应用系统开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐企业级全栈应用架构设计。 同时提升创新能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_specialized_Java",
+    "target": "role:cj_backend_Java__3",
+    "score": 0.4542,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析"
+      ],
+      "missingSkills": [
+        "C++",
+        "C/C++"
+      ],
+      "missingAbilities": [
+        "execution",
+        "innovation",
+        "learning",
+        "leadership",
+        "internalMotivation",
+        "communication",
+        "adaptability"
+      ],
+      "gapCost": 0.2811,
+      "estimatedDifficulty": "中",
+      "why": "Java_国际化或特定领域技术工程师可以借助需求分析迁移到Java_中高级后端开发工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐C++, C/C++。 同时提升执行力, 创新能力。"
+    }
+  },
+  {
+    "source": "role:cj_specialized_Java",
+    "target": "role:cj_frontend_FullStack",
+    "score": 0.4538,
+    "reason": {
+      "bridgeSkills": [
+        "项目管理"
+      ],
+      "missingSkills": [
+        "全栈架构设计与实施",
+        "数据库设计与性能优化"
+      ],
+      "missingAbilities": [
+        "innovation",
+        "execution",
+        "leadership"
+      ],
+      "gapCost": 0.2804,
+      "estimatedDifficulty": "中",
+      "why": "Java_国际化或特定领域技术工程师可以借助项目管理迁移到前端开发_全栈与后端融合工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐全栈架构设计与实施, 数据库设计与性能优化。 同时提升创新能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_support_售后客服",
+    "target": "role:cj_support_网络客服",
+    "score": 0.5576,
+    "reason": {
+      "bridgeSkills": [
+        "服务意识",
+        "沟通能力",
+        "问题解决能力",
+        "Office",
+        "客户沟通"
+      ],
+      "missingSkills": [
+        "打字速度",
+        "学习能力"
+      ],
+      "missingAbilities": [
+        "professionalSkill"
+      ],
+      "gapCost": 0.1838,
+      "estimatedDifficulty": "低",
+      "why": "售后客服可以借助服务意识, 沟通能力, 问题解决能力迁移到网络客服，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐打字速度, 学习能力。 同时提升专业技能。"
+    }
+  },
+  {
+    "source": "role:cj_support_售后客服",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5107,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "服务意识",
+        "问题解决",
+        "Office"
+      ],
+      "missingSkills": [
+        "学习能力",
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "language",
+        "certificate",
+        "learning",
+        "adaptability",
+        "stressTolerance",
+        "innovation",
+        "leadership",
+        "execution"
+      ],
+      "gapCost": 0.303,
+      "estimatedDifficulty": "中",
+      "why": "售后客服可以借助沟通能力, 服务意识, 问题解决迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐学习能力, 弱电技术。 同时提升语言能力, 证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_support_技术支持工程师",
+    "target": "role:cj_support_网络客服",
+    "score": 0.5651,
+    "reason": {
+      "bridgeSkills": [
+        "服务意识",
+        "沟通能力",
+        "学习能力",
+        "Office",
+        "客户沟通"
+      ],
+      "missingSkills": [
+        "打字速度",
+        "电脑操作"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.2333,
+      "estimatedDifficulty": "低",
+      "why": "技术支持工程师可以借助服务意识, 沟通能力, 学习能力迁移到网络客服，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐打字速度, 电脑操作。"
+    }
+  },
+  {
+    "source": "role:cj_support_技术支持工程师",
+    "target": "role:cj_data_统计员",
+    "score": 0.5391,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "文字表达能力",
+        "团队协作精神"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.2338,
+      "estimatedDifficulty": "低",
+      "why": "技术支持工程师可以借助沟通能力, 学习能力, Office迁移到统计员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文字表达能力, 团队协作精神。"
+    }
+  },
+  {
+    "source": "role:cj_support_技术支持工程师",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5326,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "项目管理",
+        "Excel"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1674,
+      "estimatedDifficulty": "低",
+      "why": "技术支持工程师可以借助沟通能力, Office, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐项目管理, Excel。"
+    }
+  },
+  {
+    "source": "role:cj_support_技术支持工程师",
+    "target": "role:cj_hr_admin_招聘专员_助理",
+    "score": 0.4765,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "数据分析",
+        "简历筛选",
+        "面试安排"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.3025,
+      "estimatedDifficulty": "中",
+      "why": "技术支持工程师可以借助沟通能力, Office, 学习能力迁移到招聘专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐数据分析, 简历筛选, 面试安排。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_support_技术支持工程师",
+    "target": "role:cj_support_售后客服",
+    "score": 0.4658,
+    "reason": {
+      "bridgeSkills": [
+        "服务意识",
+        "沟通能力"
+      ],
+      "missingSkills": [
+        "普通话标准",
+        "计算机操作"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.3067,
+      "estimatedDifficulty": "中",
+      "why": "技术支持工程师可以借助服务意识, 沟通能力迁移到售后客服，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐普通话标准, 计算机操作。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_support_网络客服",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.6791,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "服务意识",
+        "Office",
+        "问题解决"
+      ],
+      "missingSkills": [
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "language",
+        "certificate",
+        "adaptability",
+        "learning",
+        "stressTolerance",
+        "leadership"
+      ],
+      "gapCost": 0.2031,
+      "estimatedDifficulty": "低",
+      "why": "网络客服可以借助沟通能力, 学习能力, 服务意识迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术。 同时提升语言能力, 证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_support_网络客服",
+    "target": "role:cj_support_售后客服",
+    "score": 0.5858,
+    "reason": {
+      "bridgeSkills": [
+        "服务意识",
+        "沟通能力",
+        "问题解决能力"
+      ],
+      "missingSkills": [
+        "普通话标准"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.1739,
+      "estimatedDifficulty": "低",
+      "why": "网络客服可以借助服务意识, 沟通能力, 问题解决能力迁移到售后客服，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐普通话标准。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_support_网络客服",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.4916,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "项目管理",
+        "Excel"
+      ],
+      "missingAbilities": [
+        "language",
+        "execution",
+        "leadership",
+        "innovation",
+        "certificate"
+      ],
+      "gapCost": 0.2636,
+      "estimatedDifficulty": "中",
+      "why": "网络客服可以借助沟通能力, Office, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐项目管理, Excel。 同时提升语言能力, 执行力。"
+    }
+  },
+  {
+    "source": "role:cj_support_网络客服",
+    "target": "role:cj_data_统计员",
+    "score": 0.4852,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "文字表达能力",
+        "团队协作精神"
+      ],
+      "missingAbilities": [
+        "language"
+      ],
+      "gapCost": 0.1917,
+      "estimatedDifficulty": "低",
+      "why": "网络客服可以借助沟通能力, 学习能力, Office迁移到统计员，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐文字表达能力, 团队协作精神。 同时提升语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_测试工程师",
+    "target": "role:cj_test_软件测试",
+    "score": 0.6188,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "沟通能力",
+        "学习能力",
+        "问题解决"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "certificate"
+      ],
+      "gapCost": 0.0253,
+      "estimatedDifficulty": "低",
+      "why": "测试工程师可以借助需求分析, 沟通能力, 学习能力迁移到软件测试，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升证书要求。"
+    }
+  },
+  {
+    "source": "role:cj_test_测试工程师",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.5925,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "项目管理",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "Excel"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.112,
+      "estimatedDifficulty": "低",
+      "why": "测试工程师可以借助沟通能力, 学习能力, 项目管理迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐Excel。"
+    }
+  },
+  {
+    "source": "role:cj_test_测试工程师",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5639,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "问题解决",
+        "服务意识",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "communication"
+      ],
+      "gapCost": 0.125,
+      "estimatedDifficulty": "低",
+      "why": "测试工程师可以借助沟通能力, 学习能力, 问题解决迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术。 同时提升证书要求, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_测试工程师",
+    "target": "role:cj_test_硬件测试",
+    "score": 0.5186,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "硬件测试",
+        "安全测试"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1922,
+      "estimatedDifficulty": "低",
+      "why": "测试工程师可以借助沟通能力, 学习能力, Office迁移到硬件测试，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐硬件测试, 安全测试。"
+    }
+  },
+  {
+    "source": "role:cj_test_测试工程师",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.4803,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "学习能力",
+        "沟通能力",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "certificate",
+        "language"
+      ],
+      "gapCost": 0.336,
+      "estimatedDifficulty": "中",
+      "why": "测试工程师可以借助需求分析, 学习能力, 沟通能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升证书要求, 语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_硬件测试",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5397,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "Office"
+      ],
+      "missingSkills": [
+        "弱电技术",
+        "服务意识"
+      ],
+      "missingAbilities": [
+        "communication",
+        "learning",
+        "adaptability"
+      ],
+      "gapCost": 0.2326,
+      "estimatedDifficulty": "低",
+      "why": "硬件测试可以借助沟通能力, 学习能力, Office迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐弱电技术, 服务意识。 同时提升沟通能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_硬件测试",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.4668,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "Office",
+        "学习能力"
+      ],
+      "missingSkills": [
+        "项目管理",
+        "Excel"
+      ],
+      "missingAbilities": [
+        "language",
+        "communication"
+      ],
+      "gapCost": 0.1933,
+      "estimatedDifficulty": "低",
+      "why": "硬件测试可以借助沟通能力, Office, 学习能力迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐项目管理, Excel。 同时提升语言能力, 沟通能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_硬件测试",
+    "target": "role:cj_test_测试工程师",
+    "score": 0.4571,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "language",
+        "learning"
+      ],
+      "gapCost": 0.0483,
+      "estimatedDifficulty": "低",
+      "why": "硬件测试可以借助沟通能力, 学习能力迁移到测试工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升语言能力, 学习能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_软件测试",
+    "target": "role:cj_pm_项目专员_助理",
+    "score": 0.6335,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "项目管理",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "责任心",
+        "Excel"
+      ],
+      "missingAbilities": [],
+      "gapCost": 0.1964,
+      "estimatedDifficulty": "低",
+      "why": "软件测试可以借助沟通能力, 学习能力, 项目管理迁移到项目专员/助理，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, Excel。"
+    }
+  },
+  {
+    "source": "role:cj_test_软件测试",
+    "target": "role:cj_test_测试工程师",
+    "score": 0.5792,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "需求分析",
+        "问题解决",
+        "逻辑思维能力"
+      ],
+      "missingSkills": [
+        "责任心"
+      ],
+      "missingAbilities": [
+        "internship"
+      ],
+      "gapCost": 0.1496,
+      "estimatedDifficulty": "低",
+      "why": "软件测试可以借助沟通能力, 学习能力, 需求分析迁移到测试工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心。 同时提升实习/经验。"
+    }
+  },
+  {
+    "source": "role:cj_test_软件测试",
+    "target": "role:cj_support_技术支持工程师",
+    "score": 0.5527,
+    "reason": {
+      "bridgeSkills": [
+        "沟通能力",
+        "学习能力",
+        "问题解决",
+        "服务意识",
+        "Office"
+      ],
+      "missingSkills": [
+        "责任心",
+        "弱电技术"
+      ],
+      "missingAbilities": [
+        "communication",
+        "adaptability"
+      ],
+      "gapCost": 0.2258,
+      "estimatedDifficulty": "低",
+      "why": "软件测试可以借助沟通能力, 学习能力, 问题解决迁移到技术支持工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心, 弱电技术。 同时提升沟通能力, 适应能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_软件测试",
+    "target": "role:cj_research_Management",
+    "score": 0.5125,
+    "reason": {
+      "bridgeSkills": [
+        "学习能力",
+        "沟通能力",
+        "项目管理",
+        "Office",
+        "数据分析"
+      ],
+      "missingSkills": [
+        "责任心"
+      ],
+      "missingAbilities": [
+        "certificate",
+        "language"
+      ],
+      "gapCost": 0.2152,
+      "estimatedDifficulty": "低",
+      "why": "软件测试可以借助学习能力, 沟通能力, 项目管理迁移到科研人员_科研管理与智库咨询，四维画像和工具栈较为接近，转岗成本处于可控范围。 重点补齐责任心。 同时提升证书要求, 语言能力。"
+    }
+  },
+  {
+    "source": "role:cj_test_软件测试",
+    "target": "role:cj_backend_Embedded",
+    "score": 0.4946,
+    "reason": {
+      "bridgeSkills": [
+        "需求分析",
+        "学习能力",
+        "沟通能力",
+        "文档编写"
+      ],
+      "missingSkills": [],
+      "missingAbilities": [
+        "internship",
+        "certificate",
+        "language"
+      ],
+      "gapCost": 0.3894,
+      "estimatedDifficulty": "中",
+      "why": "软件测试可以借助需求分析, 学习能力, 沟通能力迁移到C/C++_工控与嵌入式控制工程师，四维画像和工具栈较为接近，转岗成本处于可控范围。 同时提升实习/经验, 证书要求。"
+    }
+  }
+]
