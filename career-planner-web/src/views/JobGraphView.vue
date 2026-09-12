@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, ArrowUp, MagicStick, Refresh, Star, StarFilled, Search, Switch as SwitchIcon } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, MagicStick, Refresh, Star, StarFilled, Search } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import G6 from '@antv/g6'
 import jobsImage from '../assets/jobs.png'
@@ -28,6 +28,7 @@ import { useJobRecommendStore } from '../stores/jobRecommend'
 import {
   JOB_RECOMMENDATION_APPLY_EVENT,
   consumePendingJobRecommendationApply,
+  openGlobalAssistant,
   type JobRecommendationApplyPayload,
 } from '../utils/globalAssistant'
 
@@ -1222,6 +1223,20 @@ async function toggleFavoriteByJob(jobId: string) {
   }
 }
 
+function addSelectedJobToConversation() {
+  const jobId = String(selectedDetail.value?.jobId || selectedJobId.value || '').trim()
+  if (!jobId) return
+  openGlobalAssistant({
+    routePath: '/jobs',
+    pageTitle: '岗位探索',
+    contextPrompt: '请结合我添加的岗位信息进行分析。',
+    pendingJob: {
+      jobId,
+      jobName: String(selectedDetail.value?.jobName || '当前岗位'),
+    },
+  })
+}
+
 function resolveJobRowClass({ row }: { row: JobListItem }) {
   return row.jobId === selectedJobId.value ? 'job-row-selected' : ''
 }
@@ -1325,14 +1340,6 @@ function resetGraphRelationView() {
   if (graphRelationView.value !== 'all') {
     graphRelationView.value = 'all'
   }
-}
-
-function toggleCombinedPanelView() {
-  if (!isDesktop.value) {
-    ElMessage.info('关系图谱仅支持桌面端查看')
-    return
-  }
-  combinedPanelView.value = combinedPanelView.value === 'list' ? 'graph' : 'list'
 }
 
 function toggleGraphLegendVisible() {
@@ -2879,11 +2886,10 @@ onBeforeUnmount(() => {
   <section class="space-y-4">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <h2 class="text-lg font-semibold md:text-2xl">岗位探索图谱</h2>
-        <p class="text-xs text-slate-500 md:text-sm">大模型分析岗位画像，建立关联图谱，清晰展现岗位未来发展路径</p>
+        <h2 class="text-lg font-semibold md:text-2xl">岗位探索</h2>
+        <p class="text-xs text-slate-500 md:text-sm">查询岗位信息，可点击添加到对话让小助手帮你分析</p>
       </div>
       <div class="flex gap-2">
-        <el-button type="primary" plain @click="jobMapDialogVisible = true">地图探索</el-button>
         <el-button :icon="Refresh" :loading="filterLoading || listLoading || graphLoading" @click="refreshAll">刷新</el-button>
       </div>
     </div>
@@ -2938,13 +2944,7 @@ onBeforeUnmount(() => {
           <el-button type="primary" :icon="Search" @click="fetchJobs(true)">筛选</el-button>
           <el-button @click="resetFilters">重置</el-button>
         </div>
-        <el-button
-          plain
-          :disabled="!isDesktop"
-          @click="toggleCombinedPanelView"
-        >
-          {{ combinedPanelView === 'list' ? '切换到关系图谱' : '切换到岗位列表' }}
-        </el-button>
+        <p class="w-full text-xs text-slate-500">找不到心仪的岗位？可到岗位采集页面获取网上更多的岗位信息</p>
       </div>
     </el-card>
 
@@ -2954,16 +2954,7 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="font-medium">{{ combinedPanelView === 'list' ? '岗位列表' : '岗位关系图谱' }}</span>
-                <el-button
-                  circle
-                  text
-                  size="small"
-                  :icon="SwitchIcon"
-                  :disabled="!isDesktop"
-                  class="panel-switch-icon-btn"
-                  @click="toggleCombinedPanelView"
-                />
+                <span class="font-medium">岗位列表</span>
                 <el-button
                   v-if="combinedPanelView === 'graph'"
                   text
@@ -2974,13 +2965,39 @@ onBeforeUnmount(() => {
                   图例
                 </el-button>
               </div>
-              <div v-if="combinedPanelView === 'list'" class="flex items-center gap-2">
-                <el-checkbox v-if="listViewMode !== 'recommend'" v-model="latestPublishedFirst" @change="onLatestSortToggle">按最新发布时间排序</el-checkbox>
-                <el-segmented
-                  v-model="listViewMode"
-                  size="small"
-                  :options="[{ label: '全部岗位', value: 'all' }, { label: '我的收藏', value: 'favorites' }, { label: '岗位推荐', value: 'recommend' }]"
-                />
+              <div v-if="combinedPanelView === 'list'" class="job-list-toolbar">
+                <div class="job-list-tabs" role="tablist" aria-label="岗位列表分类">
+                  <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="listViewMode === 'all'"
+                    class="job-list-tab"
+                    :class="{ 'job-list-tab--active': listViewMode === 'all' }"
+                    @click="listViewMode = 'all'"
+                  >全部岗位</button>
+                  <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="listViewMode === 'favorites'"
+                    class="job-list-tab"
+                    :class="{ 'job-list-tab--active': listViewMode === 'favorites' }"
+                    @click="listViewMode = 'favorites'"
+                  >我的收藏</button>
+                  <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="listViewMode === 'recommend'"
+                    class="job-list-tab"
+                    :class="{ 'job-list-tab--active': listViewMode === 'recommend' }"
+                    @click="listViewMode = 'recommend'"
+                  >岗位推荐</button>
+                </div>
+                <el-checkbox
+                  v-model="latestPublishedFirst"
+                  :class="{ 'job-list-sort-placeholder': listViewMode === 'recommend' }"
+                  :disabled="listViewMode === 'recommend'"
+                  @change="onLatestSortToggle"
+                >按最新发布时间排序</el-checkbox>
                 <span class="text-xs text-slate-500">共 {{ listTotal }} 条</span>
                 <el-button text :icon="listCollapsed ? ArrowDown : ArrowUp" @click="listCollapsed = !listCollapsed">
                   {{ listCollapsed ? '展开' : '收起' }}
@@ -3064,6 +3081,8 @@ onBeforeUnmount(() => {
                 :data="listViewMode === 'favorites' ? favoriteJobsList : jobs"
                 size="small"
                 :row-class-name="resolveJobRowClass"
+                class="job-list-table"
+                @row-click="(row: JobListItem) => selectJob(row.jobId)"
               >
                 <el-table-column prop="jobName" label="岗位" width="100" />
                 <el-table-column prop="city" label="城市" width="70" />
@@ -3082,19 +3101,15 @@ onBeforeUnmount(() => {
                     <el-tag size="small" :type="publishTagType(scope.row)">{{ publishDateText(scope.row) }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="130" fixed="right">
+                <el-table-column label="操作" width="90" fixed="right">
                   <template #default="scope">
-                    <div class="flex items-center gap-2">
-                      <el-button type="primary" size="small" @click.stop="selectJob(scope.row.jobId)">选择</el-button>
-                      <el-button
-                        circle
-                        size="small"
-                        :type="favoriteJobIds.includes(scope.row.jobId) ? 'warning' : 'default'"
-                        @click.stop="toggleFavoriteByJob(scope.row.jobId)"
-                      >
-                        {{ favoriteJobIds.includes(scope.row.jobId) ? '★' : '☆' }}
-                      </el-button>
-                    </div>
+                    <el-button
+                      size="small"
+                      :type="favoriteJobIds.includes(scope.row.jobId) ? 'warning' : 'default'"
+                      @click.stop="toggleFavoriteByJob(scope.row.jobId)"
+                    >
+                      {{ favoriteJobIds.includes(scope.row.jobId) ? '已收藏' : '收藏' }}
+                    </el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -3106,6 +3121,7 @@ onBeforeUnmount(() => {
                     :key="item.jobId"
                     class="w-full rounded-lg border px-3 py-3 text-left transition"
                     :class="item.jobId === selectedJobId ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'"
+                    @click="selectJob(item.jobId)"
                   >
                     <div class="flex items-center justify-between">
                       <div class="font-medium text-slate-800">{{ item.jobName }}</div>
@@ -3114,15 +3130,13 @@ onBeforeUnmount(() => {
                     <div class="mt-1 text-xs text-slate-500">{{ item.city }} · {{ displaySalary(item) }} · {{ publishDateText(item) }}</div>
                     <div class="mt-1 text-xs text-slate-500">公司：{{ displayCompanyText(item) }}</div>
                     <div class="mt-2 flex items-center gap-3">
-                      <el-button type="primary" size="small" @click.stop="selectJob(item.jobId)">选择</el-button>
                       <el-button
                         round
                         size="small"
                         :type="favoriteJobIds.includes(item.jobId) ? 'warning' : 'default'"
                         @click.stop="toggleFavoriteByJob(item.jobId)"
-                        :icon="isSelectedFavorited ? StarFilled : Star"
                       >
-                        {{ favoriteJobIds.includes(item.jobId) ? '★' : '☆' }}
+                        {{ favoriteJobIds.includes(item.jobId) ? '已收藏' : '收藏' }}
                       </el-button>
                     </div>
                   </div>
@@ -3202,13 +3216,14 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <el-button :type="rightPanel === 'detail' ? 'primary' : 'default'" size="small" @click="rightPanel = 'detail'">岗位详情</el-button>
-                <el-button :type="rightPanel === 'paths' ? 'primary' : 'default'" size="small" @click="rightPanel = 'paths'">发展路径</el-button>
-                <el-button :type="rightPanel === 'recommend' ? 'primary' : 'default'" size="small" @click="rightPanel = 'recommend'">更多推荐</el-button>
+                <h3 class="text-base font-semibold text-slate-800">岗位详情</h3>
               </div>
-              <el-button text :icon="isSelectedFavorited ? StarFilled : Star" :loading="favoriteLoading" @click="toggleFavorite">
-                {{ isSelectedFavorited ? '已收藏' : '收藏岗位' }}
-              </el-button>
+              <div class="flex items-center gap-2">
+                <el-button type="primary" plain size="small" :disabled="!selectedDetail" @click="addSelectedJobToConversation">添加到对话</el-button>
+                <el-button text :icon="isSelectedFavorited ? StarFilled : Star" :loading="favoriteLoading" @click="toggleFavorite">
+                  {{ isSelectedFavorited ? '已收藏' : '收藏岗位' }}
+                </el-button>
+              </div>
             </div>
           </template>
 
@@ -3870,9 +3885,64 @@ onBeforeUnmount(() => {
   }
 }
 
-.custom-style .el-segmented {
-  /* --el-segmented-item-selected-color: var(--el-text-color-primary); */
-  --el-segmented-item-selected-bg-color: #ffa31a;
+.job-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+}
+
+.job-list-tabs {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 20px;
+  margin-right: 6px;
+}
+
+.job-list-sort-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.job-list-tab {
+  position: relative;
+  border: 0;
+  background: transparent;
+  padding: 4px 1px 9px;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.job-list-tab::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: #2563eb;
+  content: '';
+  opacity: 0;
+  transform: scaleX(0.45);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.job-list-tab:hover,
+.job-list-tab--active {
+  color: #1d4ed8;
+}
+
+.job-list-tab--active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+:deep(.job-list-table .el-table__body tr) {
+  cursor: pointer;
 }
 
 .recommend-job-card {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { UserFilled } from '@element-plus/icons-vue'
 import FadeContent from '../components/FadeContent.vue'
@@ -15,14 +15,12 @@ import giteeIcon from '../assets/gitee.svg'
 import authIllustration from '../assets/auth.png'
 import CircularText from "../components/CircularText.vue";
 import DemoProjectNoticeDialog from '../components/DemoProjectNoticeDialog.vue'
-const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 
 const mode = ref<'login' | 'register'>('login')
 const loading = ref(false)
 const demoNoticeVisible = ref(false)
-const pendingRedirect = ref('')
 const vantaRef = ref<HTMLElement | null>(null)
 const loginFormRef = ref<FormInstance>()
 const registerFormRef = ref<FormInstance>()
@@ -90,11 +88,6 @@ const cardClass = computed(() => {
   return ''
 })
 
-const redirectPath = computed(() => {
-  const redirect = route.query.redirect
-  return typeof redirect === 'string' ? redirect : '/'
-})
-
 function switchMode(next: 'login' | 'register') {
   if (mode.value === next || isSwitching.value) return
   isSwitching.value = true
@@ -153,7 +146,6 @@ async function submitLogin() {
         setUser(userInfo)
         await appStore.ensureProfileSnapshot(true)
         ElMessage.success('登录成功')
-        pendingRedirect.value = redirectPath.value
         demoNoticeVisible.value = true
       } else {
         ElMessage.error(response.data?.msg || '登录失败，请检查账号密码')
@@ -167,7 +159,7 @@ async function submitLogin() {
 }
 
 function handleDemoNoticeConfirm() {
-  router.replace(pendingRedirect.value || '/')
+  router.replace('/student')
 }
 
 async function submitRegister() {

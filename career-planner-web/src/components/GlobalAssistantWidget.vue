@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, ChatDotRound, ChatLineRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus, Document } from '@element-plus/icons-vue'
+import { Calendar, ChatDotRound, ChatLineRound, Close, Refresh, Promotion, ArrowRight, CircleCheckFilled, WarningFilled, CircleCloseFilled, Loading, Operation, Plus, Document, Star } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { isSuccessCode } from '../services/http'
@@ -32,6 +32,7 @@ import { polishCareerReport } from '../services/careerReport'
 import { getCareerPlanList, type CareerPlanListItem } from '../services/careerPlan'
 import { getInterviewReportList, type InterviewReportListItem } from '../services/mockInterview'
 import { getMatchRecommendations, refineMatchRecommendations, type MatchRecommendationsResult } from '../services/matchAnalysis'
+import { getFavoriteJobs, type FavoriteJobsResult } from '../services/jobGraph'
 import { getToken } from '../utils/auth'
 import {
   GLOBAL_ASSISTANT_OPEN_EVENT,
@@ -100,6 +101,10 @@ const composerInputRef = ref<HTMLTextAreaElement>()
 const resumeOptions = ref<ResumeListItem[]>([])
 const resumePickerVisible = ref(false)
 let resumePickerHideTimer: ReturnType<typeof setTimeout> | null = null
+const favoriteJobOptions = ref<FavoriteJobsResult['list']>([])
+const favoriteJobPickerVisible = ref(false)
+const favoriteJobLoading = ref(false)
+let favoriteJobPickerHideTimer: ReturnType<typeof setTimeout> | null = null
 const shouldStickToBottom = ref(true)
 
 const planOptions = ref<CareerPlanListItem[]>([])
@@ -1872,6 +1877,46 @@ function openWidget(payload?: GlobalAssistantContextPayload | null) {
   })
 }
 
+async function loadFavoriteJobOptions() {
+  favoriteJobLoading.value = true
+  try {
+    const response = await getFavoriteJobs()
+    const result = response.data as ApiResponse<FavoriteJobsResult>
+    const payload = (result as unknown as { payload?: FavoriteJobsResult }).payload ?? result.data
+    favoriteJobOptions.value = isSuccessCode(Number(result.code)) && payload?.list
+      ? payload.list
+      : []
+  } catch {
+    favoriteJobOptions.value = []
+  } finally {
+    favoriteJobLoading.value = false
+  }
+}
+
+function openFavoriteJobPicker() {
+  if (favoriteJobPickerHideTimer) {
+    clearTimeout(favoriteJobPickerHideTimer)
+    favoriteJobPickerHideTimer = null
+  }
+  favoriteJobPickerVisible.value = true
+  void loadFavoriteJobOptions()
+}
+
+function closeFavoriteJobPicker() {
+  if (favoriteJobPickerHideTimer) clearTimeout(favoriteJobPickerHideTimer)
+  favoriteJobPickerHideTimer = setTimeout(() => {
+    favoriteJobPickerVisible.value = false
+  }, 150)
+}
+
+function pickFavoriteJob(item: FavoriteJobsResult['list'][number]) {
+  addPendingJobRef({
+    jobId: String(item.jobId || ''),
+    jobName: String(item.jobName || '收藏岗位'),
+  })
+  favoriteJobPickerVisible.value = false
+}
+
 function closeWidget() {
   stopPanelResize()
   visible.value = false
@@ -2269,6 +2314,27 @@ onBeforeUnmount(() => {
                   @click="pickResume(item)"
                 >
                   {{ resumeOptionTitle(item) }}
+                </button>
+              </div>
+            </div>
+            <div class="assistant-picker" @mouseenter="openFavoriteJobPicker" @mouseleave="closeFavoriteJobPicker">
+              <button type="button" class="assistant-tool-btn">
+                <el-icon><Star /></el-icon>
+                <span>岗位收藏</span>
+              </button>
+              <div v-if="favoriteJobPickerVisible" class="assistant-picker-dropdown assistant-favorite-job-dropdown">
+                <p v-if="favoriteJobLoading" class="assistant-picker-empty">正在查询收藏岗位...</p>
+                <p v-else-if="favoriteJobOptions.length === 0" class="assistant-picker-empty">暂无收藏岗位，可先到岗位探索页收藏</p>
+                <button
+                  v-for="item in favoriteJobOptions"
+                  :key="`favorite-job-${item.jobId}`"
+                  type="button"
+                  class="assistant-picker-item assistant-favorite-job-item"
+                  :title="`${item.jobName} · ${item.companyName || '公司待补充'}`"
+                  @click="pickFavoriteJob(item)"
+                >
+                  <span>{{ item.jobName }}</span>
+                  <small>{{ item.companyName || '公司待补充' }}</small>
                 </button>
               </div>
             </div>
@@ -3300,6 +3366,21 @@ onBeforeUnmount(() => {
 .assistant-picker-item:hover {
   background: #eef6fa;
   color: #1d4ed8;
+}
+
+.assistant-favorite-job-dropdown {
+  min-width: 260px;
+}
+
+.assistant-favorite-job-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.assistant-favorite-job-item small {
+  color: #94a3b8;
+  font-size: 11px;
 }
 
 .assistant-input {

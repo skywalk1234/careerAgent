@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { HomeFilled, Collection, Download, UserFilled, Document, Menu, SwitchButton, ChatLineRound } from '@element-plus/icons-vue'
+import { Collection, Download, UserFilled, Document, Menu, SwitchButton, ChatLineRound } from '@element-plus/icons-vue'
 import GlobalAssistantWidget from './components/GlobalAssistantWidget.vue'
 import TaskOrchestratorWidget from './components/TaskOrchestratorWidget.vue'
 import { clearAuthStorage, getToken, isTokenExpired } from './utils/auth'
@@ -38,7 +38,6 @@ const mainClass = computed(() => {
 
 const navItems = [
   { to: '/student', label: '个人信息', icon: UserFilled },
-  { to: '/', label: '首页', icon: HomeFilled },
   { to: '/jobs', label: '岗位探索', icon: Collection },
   { to: '/crawl', label: '岗位采集', icon: Download },
   { to: '/report', label: '计划与行动方案', icon: Document },
@@ -206,7 +205,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-slate-50 text-slate-800">
     <header v-if="showLayout" class="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
           <div class="relative flex h-14 items-center pl-1 pr-3 md:pl-2 md:pr-6">
-            <RouterLink to="/" class="z-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 md:text-base">
+            <RouterLink to="/student" class="z-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 md:text-base">
               <img :src="brandLogo" alt="微光职引" class="h-6 w-6 rounded ml-2" />
               <span>微光职引 · 大学生职业规划智能体</span>
             </RouterLink>

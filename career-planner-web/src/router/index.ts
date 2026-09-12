@@ -212,7 +212,7 @@ router.beforeEach((to) => {
   }
 
   if (to.meta.guestOnly && authed) {
-    return typeof to.query.redirect === 'string' ? to.query.redirect : '/'
+    return typeof to.query.redirect === 'string' ? to.query.redirect : '/student'
   }
 
   return true
