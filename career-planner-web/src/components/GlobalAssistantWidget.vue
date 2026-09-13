@@ -972,6 +972,17 @@ async function refreshSessions() {
   }
 }
 
+function resolveLatestSession() {
+  return sessions.value.reduce<HomeSession | null>((latest, session) => {
+    if (!latest) return session
+    const latestTime = Date.parse(String(latest.updatedAt || ''))
+    const sessionTime = Date.parse(String(session.updatedAt || ''))
+    if (!Number.isFinite(sessionTime)) return latest
+    if (!Number.isFinite(latestTime) || sessionTime > latestTime) return session
+    return latest
+  }, null)
+}
+
 async function loadMessages(sessionId: string) {
   try {
     const response = await getHomeSessionMessages(sessionId)
@@ -1851,8 +1862,12 @@ async function initializeWidget() {
       '下一步最值得做什么？',
     ]
 
-    if (activeSessionId.value && sessions.value.some(item => item.sessionId === activeSessionId.value)) {
-      await loadMessages(activeSessionId.value)
+    const latestSession = resolveLatestSession()
+    if (latestSession) {
+      await loadMessages(latestSession.sessionId)
+    } else {
+      activeSessionId.value = ''
+      messages.value = []
     }
   } finally {
     loading.value = false

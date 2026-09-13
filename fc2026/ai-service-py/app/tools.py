@@ -470,6 +470,45 @@ async def get_career_plan(
 
 
 @tool
+async def get_interview_report(
+    report_id: str,
+    token: Annotated[str, InjectedToolArg] = "",
+) -> str:
+    """根据面试报告 ID 获取当前用户的面试报告详情（标题、报告正文、岗位、公司及创建时间）。
+
+    当用户需要查看、回顾、分析或基于某份面试报告继续获得建议时调用本工具。必须从当前消息或历史
+    对话中提取 `reportId`：优先使用当前消息里的 `reportId:xxx`、`reportID:xxx`、`report_id:xxx`
+    或明确的报告编号；当前消息未提供时，回溯历史消息以及此前工具返回中的 reportId。可保留前缀，
+    工具会自动去除。无法从整段对话确定 reportId 时，不要猜测，应请用户提供报告 ID。
+    """
+    normalized_report_id = _strip_prefix(report_id)
+    if not normalized_report_id:
+        return json.dumps(
+            {"error": "缺少面试报告 ID，请从当前消息或历史对话中提取 reportId 后重试"},
+            ensure_ascii=False,
+        )
+
+    url = f"{settings.career_service_base_url}/users/me/interview-reports/{normalized_report_id}"
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            payload = resp.json()
+    except Exception as e:
+        return json.dumps({"error": f"获取面试报告失败: {e}"}, ensure_ascii=False)
+
+    data = payload.get("data")
+    if not data:
+        return json.dumps(
+            {"error": payload.get("msg") or f"面试报告 {normalized_report_id} 不存在或无权访问"},
+            ensure_ascii=False,
+        )
+
+    return json.dumps(data, ensure_ascii=False, default=str)
+
+
+@tool
 async def submit_mock_interview_report(
     user_id: Annotated[int, InjectedToolArg] = 0,
     token: Annotated[str, InjectedToolArg] = "",
@@ -519,6 +558,7 @@ ALL_TOOLS = [
     recall_memory,
     create_career_plan,
     get_career_plan,
+    get_interview_report,
 ]
 
 # 模拟面试专家 · 面试官主 LLM 专属工具集（不进 ALL_TOOLS，避免混入主对话助理；见 fc2026/模拟面试专家方案.md）
